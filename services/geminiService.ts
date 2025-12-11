@@ -28,14 +28,15 @@ const generateReportId = (user: User) => {
 const runSimulation = (message: string, user: User): GeminiResponse | null => {
     const lowerMsg = message.toLowerCase();
 
-    // CRITICAL FIX: BYPASS SIMULATION FOR ANALYSIS REQUESTS
-    if (lowerMsg.match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
+    // CRITICAL FIX: BYPASS SIMULATION FOR ANALYSIS REQUESTS *ONLY IF AI IS AVAILABLE*
+    // If AI is NOT available (missing API Key), we skip this bypass so the fallback simulation logic below can handle it.
+    if (ai && lowerMsg.match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
         return null; 
     }
     
     // CRITICAL FIX: BYPASS SIMULATION FOR CONTACT REQUESTS
     // Biarkan AI menangani permintaan kontak agar bisa membaca data injeksi
-    if (lowerMsg.match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
+    if (ai && lowerMsg.match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
         return null;
     }
     
@@ -197,6 +198,44 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
              return { text: `Maaf, aset dengan ID *${itemId}* tidak ditemukan di database inventaris.` };
         }
     }
+    
+    // RULE 4 (NEW): Handle Inventory Search (Simulation fallback for "Cek inventaris", "Status Server")
+    if (lowerMsg.match(/(cek|cari|lihat|tampilkan|status|info)\s+.*(inventaris|aset|barang|server|jaringan|wifi|komputer|laptop|proyektor)/i) || lowerMsg.includes('inventaris kategori')) {
+        const inventaris = db.getTable('inventaris');
+        const locations = db.getTable('lokasi');
+        let filtered = inventaris;
+        
+        if (lowerMsg.includes('server')) filtered = filtered.filter(i => i.nama_barang.toLowerCase().includes('server'));
+        else if (lowerMsg.match(/(jaringan|wifi)/)) filtered = filtered.filter(i => i.nama_barang.toLowerCase().match(/(wifi|jaringan|router|access point)/));
+        else if (lowerMsg.includes('it')) filtered = filtered.filter(i => i.kategori === 'IT');
+        else if (lowerMsg.includes('sarpras')) filtered = filtered.filter(i => i.kategori === 'Sarpras');
+        
+        if (filtered.length === 0 && !lowerMsg.match(/(server|jaringan|wifi)/)) {
+             // Return top 5 if no specific filter but intent is inventory
+             filtered = inventaris.slice(0, 5);
+        }
+
+        if (filtered.length > 0) {
+            const list = filtered.slice(0, 5).map(i => {
+                const locName = locations.find(l => l.id_lokasi === i.id_lokasi)?.nama_lokasi || i.id_lokasi;
+                return `- **${i.nama_barang}** (${i.kategori}): Status *${i.status_barang}* @ ${locName}`;
+            }).join('\n');
+            return { text: `📂 **Hasil Pencarian Inventaris (Simulasi):**\n\n${list}\n\n_(Menampilkan maks. 5 data)_` };
+        }
+        return { text: "Data inventaris tidak ditemukan untuk kriteria tersebut." };
+    }
+    
+    // RULE 5 (NEW): Handle Basic Analysis (Simulation fallback)
+    if (lowerMsg.match(/(analisis|kesimpulan|rangkuman|statistik)/) && lowerMsg.match(/(kerusakan|log|laporan)/)) {
+        const reports = db.getTable('pengaduan_kerusakan');
+        const total = reports.length;
+        const itCount = reports.filter(r => r.kategori_aset === 'IT').length;
+        const pendingCount = reports.filter(r => r.status === 'Pending').length;
+        
+        return {
+            text: `📊 **Analisis Kerusakan (Mode Offline)**\n\nBerdasarkan data database saat ini:\n\n- **Total Laporan:** ${total}\n- **Kategori IT:** ${itCount}\n- **Status Pending:** ${pendingCount}\n\n*Catatan: Analisis mendalam memerlukan konfigurasi API Key.*`
+        };
+    }
 
     return null;
 }
@@ -204,7 +243,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
 
 export const sendMessageToGemini = async (message: string, user: User, imageBase64?: string | null, mimeType?: string | null): Promise<GeminiResponse> => {
  
-  // 1. Coba jalankan simulasi dulu (untuk respon cepat/tugas sederhana)
+  // 1. Coba jalankan simulasi dulu (untuk respon cepat/tugas sederhana/fallback)
   const simulationResult = runSimulation(message, user);
   if (simulationResult) {
     return new Promise(resolve => setTimeout(() => resolve(simulationResult), 500));
@@ -212,7 +251,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
   // 2. Jika tidak tertangani simulasi, kirim ke Real AI
   if (!ai) {
-    return { text: `Maaf, API Key belum dikonfigurasi. Saya tidak dapat memproses analisis AI.`};
+    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API_KEY is missing in env._`};
   }
   
   try {
