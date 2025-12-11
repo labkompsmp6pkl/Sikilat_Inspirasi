@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export type UserRole = 
@@ -132,6 +133,8 @@ export interface ChatInterfaceProps {
   stats: any;
   isOpen: boolean; // For in-place collapsible chat state
   onToggle: () => void; // Function to toggle the state
+  externalMessage?: string | null; // NEW: Allow external components to trigger chat
+  onClearExternalMessage?: () => void; // NEW: Clear trigger after sending
 }
 
 

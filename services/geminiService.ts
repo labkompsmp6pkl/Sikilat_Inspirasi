@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
 import db from './dbService';
@@ -29,9 +30,14 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     const lowerMsg = message.toLowerCase();
 
     // CRITICAL FIX: BYPASS SIMULATION FOR ANALYSIS REQUESTS
-    // Jika user meminta analisis/kesimpulan, skip simulasi ini dan biarkan Real AI (Gemini) yang menangani dengan data injeksi.
     if (lowerMsg.match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
         return null; 
+    }
+    
+    // CRITICAL FIX: BYPASS SIMULATION FOR CONTACT REQUESTS
+    // Biarkan AI menangani permintaan kontak agar bisa membaca data injeksi
+    if (lowerMsg.match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
+        return null;
     }
 
     // RULE 1: Handle Report Creation from free text (Tamu only or simplified reporting)
@@ -57,11 +63,9 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
     
     // RULE 2: Handle "Cek Status Laporan" from form/text
-    // Regex diperketat agar tidak menangkap kata sembarangan
     const statusCheckRegex = /(?:cek status|lacak laporan|status untuk)\s+(?:id\s+)?([A-Z0-9-]+)/i;
     let match = lowerMsg.match(statusCheckRegex);
     
-    // Handle specific form input format
     if (!match && lowerMsg.startsWith('cek status untuk id laporan:')) {
          const idFromForm = message.split(':')[1]?.trim();
          match = [idFromForm, idFromForm];
@@ -69,7 +73,6 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
 
     if (match && match[1]) {
         const reportId = match[1].trim();
-        // Skip if the "ID" is actually a common word trapped by loose regex
         if (reportId.length < 3) return null;
 
         const reports = db.getTable('pengaduan_kerusakan');
@@ -141,9 +144,10 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     Jawablah dengan profesional, ringkas, dan membantu. Gunakan format Markdown.`;
 
     let userPrompt = message;
+    let modelName = 'gemini-2.5-flash';
+    let generationConfig: any = { systemInstruction };
     
-    // --- CONTEXT INJECTION UNTUK ANALISIS ---
-    // Jika user meminta kesimpulan/analisis, kita ambil data asli dari DB dan suntikkan ke prompt
+    // --- CONTEXT INJECTION: ANALISIS ---
     if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
         const inventaris = db.getTable('inventaris');
         const reports = db.getTable('pengaduan_kerusakan');
@@ -158,7 +162,6 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
         const laporanProses = reports.filter(r => r.status === 'Proses').length;
         const laporanSelesai = reports.filter(r => r.status === 'Selesai').length;
         
-        // Ambil 5 laporan terakhir untuk konteks masalah terkini
         const recentReports = reports
             .slice(0, 5)
             .map(r => `- [${r.tanggal_lapor.toLocaleDateString()}] ${r.nama_barang} di ${r.lokasi_kerusakan}: ${r.deskripsi_masalah} (Status: ${r.status})`)
@@ -166,35 +169,46 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
         const contextData = `
         [DATA STATISTIK SISTEM REAL-TIME]
-        Berikut adalah data terkini dari database sekolah untuk Anda analisis:
-
-        1. Statistik Inventaris:
-           - Total Aset: ${totalAset} unit
-           - Kondisi Baik: ${asetBaik} unit
-           - Rusak Ringan: ${asetRusakRingan} unit
-           - Rusak Berat: ${asetRusakBerat} unit
-
-        2. Kinerja Penanganan Laporan (Tiket):
-           - Menunggu (Pending): ${laporanPending}
-           - Sedang Dikerjakan (Proses): ${laporanProses}
-           - Selesai: ${laporanSelesai}
-
-        3. Sampel 5 Laporan Terakhir:
+        - Total Aset: ${totalAset} (Baik: ${asetBaik}, Rusak: ${asetRusakRingan + asetRusakBerat})
+        - Tiket Pending: ${laporanPending}, Proses: ${laporanProses}, Selesai: ${laporanSelesai}
+        - Total Peminjaman: ${bookings.length}
+        - Laporan Terakhir:
         ${recentReports}
-
-        4. Aktivitas Peminjaman:
-           - Total Transaksi Peminjaman: ${bookings.length}
-
-        INSTRUKSI KHUSUS:
-        Berdasarkan data di atas, buatlah kesimpulan manajerial.
-        1. Jelaskan tren kerusakan yang terlihat (misal: apakah banyak di lokasi tertentu atau jenis barang tertentu?).
-        2. Berikan penilaian kinerja penanganan (apakah backlog tiket tinggi?).
-        3. Berikan 3 rekomendasi strategis singkat untuk ${user.peran}.
         
-        JANGAN menyebutkan "JSON" atau istilah teknis database. Bicara layaknya konsultan manajemen aset.
+        Instruksi: Berikan analisis manajerial dan rekomendasi strategis berdasarkan data ini.`;
+        
+        userPrompt = `${userPrompt}\n\n${contextData}`;
+
+        // USE THINKING MODEL FOR COMPLEX ANALYSIS
+        modelName = 'gemini-3-pro-preview';
+        generationConfig = {
+            systemInstruction,
+            thinkingConfig: { thinkingBudget: 32768 } // Max budget for deep reasoning
+        };
+    }
+
+    // --- CONTEXT INJECTION: KONTAK ADMIN/PETUGAS ---
+    // Jika user minta kontak, kita ambil data pengguna (role admin/pengawas) dari DB dan suntikkan ke prompt.
+    if (message.toLowerCase().match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
+        const allUsers = db.getTable('pengguna');
+        // Filter hanya menampilkan kontak petugas penting, bukan user biasa
+        const officialContacts = allUsers.filter(u => 
+            ['admin', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras', 'penanggung_jawab'].includes(u.peran)
+        );
+
+        const contactList = officialContacts.map(u => 
+            `- ${u.nama_lengkap} (${u.peran.replace('_', ' ').toUpperCase()}): ${u.no_hp} | ${u.email}`
+        ).join('\n');
+
+        const contactContext = `
+        [DATA KONTAK PETUGAS RESMI SIKILAT]
+        Berikut adalah daftar kontak petugas yang BISA diberikan kepada pengguna jika diminta:
+        ${contactList}
+
+        Instruksi: User meminta kontak. Berikan informasi kontak di atas dengan format yang rapi dan mudah dibaca. JANGAN menolak memberikan informasi ini karena ini adalah data publik layanan.
         `;
-        
-        userPrompt = `${message}\n\n${contextData}`;
+
+        userPrompt = `${userPrompt}\n\n${contactContext}`;
     }
 
     let parts: any[] = [{ text: userPrompt }];
@@ -209,12 +223,12 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     }
 
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        config: { systemInstruction: systemInstruction },
+        model: modelName,
+        config: generationConfig,
         contents: [{ parts: parts }],
     });
     
-    return { text: response.text || "Maaf, saya tidak dapat menghasilkan analisis saat ini." };
+    return { text: response.text || "Maaf, saya tidak dapat memproses permintaan saat ini." };
 
   } catch (error) {
     console.error("Gemini API Error:", error);

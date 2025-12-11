@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Login from './components/Login';
 import ChatInterface from './components/ChatInterface';
@@ -13,6 +14,10 @@ const App: React.FC = () => {
   const [showSavedNotification, setShowSavedNotification] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  
+  // NEW: State for messages triggered by charts/dashboards
+  const [externalMessage, setExternalMessage] = useState<string | null>(null);
+  
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // --- Real-time State Management from DB ---
@@ -84,6 +89,12 @@ const App: React.FC = () => {
       
       setShowSavedNotification(true);
       setTimeout(() => setShowSavedNotification(false), 3000);
+  };
+  
+  // NEW: Callback passed to child components to trigger chat
+  const handleTriggerChatAction = (prompt: string) => {
+      setExternalMessage(prompt);
+      setIsChatOpen(true); // Open chat if closed
   };
 
 
@@ -194,7 +205,10 @@ const App: React.FC = () => {
             )}
 
             {supervisorRoles.includes(currentUser.peran) && (
-                <DamageReportChart reports={filteredReportsForChart} />
+                <DamageReportChart 
+                    reports={filteredReportsForChart} 
+                    onProcessAction={handleTriggerChatAction} 
+                />
             )}
 
             {currentUser.peran === 'guru' && (
@@ -215,6 +229,8 @@ const App: React.FC = () => {
                 stats={reports.filter(r => r.status === 'Pending').length}
                 isOpen={isChatOpen}
                 onToggle={handleToggleChat}
+                externalMessage={externalMessage}
+                onClearExternalMessage={() => setExternalMessage(null)}
             />
         </div>
 

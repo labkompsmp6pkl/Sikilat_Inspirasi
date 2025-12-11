@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles, Database, X, CheckSquare, Zap, Check, CheckCheck, MoreVertical, Paperclip, Smile, Wrench, AlertTriangle, ListChecks, FileSearch, Lightbulb, ThumbsUp, ThumbsDown, ArrowRight, Share2, Calendar, Users, ChevronsRight, FileText, ClipboardList, Building2, Monitor, Phone, Mail, ChevronDown, ChevronUp, Info, Clock } from 'lucide-react';
 import { User, Message, RoleConfig, FormTemplate, QuickAction, DetailedItemReport, HistorySection, SavedData, PaginationInfo, ChatInterfaceProps, MaintenanceGuide, TroubleshootingGuide, WorkReportDraft, LaporanStatus, GeminiResponse } from '../types';
@@ -5,7 +6,7 @@ import { sendMessageToGemini } from '../services/geminiService';
 import { FORM_TEMPLATES } from '../constants';
 
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataSaved, stats, isOpen, onToggle }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataSaved, stats, isOpen, onToggle, externalMessage, onClearExternalMessage }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -35,6 +36,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
       scrollToBottom();
     }
   }, [messages, isOpen]);
+
+  // NEW: Watch for external triggers (e.g. from Charts)
+  useEffect(() => {
+    if (externalMessage && externalMessage.trim() !== '') {
+        handleSend(externalMessage);
+        if (onClearExternalMessage) {
+            onClearExternalMessage();
+        }
+    }
+  }, [externalMessage]);
   
   useEffect(() => {
     if (textareaRef.current) {
@@ -72,6 +83,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     setImageFile(null);
     setImagePreview(null);
     setIsTyping(true);
+
+    // Pastikan chat terbuka saat pesan dikirim
+    if (!isOpen && onToggle) {
+        onToggle();
+    }
 
     const response: GeminiResponse = await sendMessageToGemini(text, user, imageBase64, imageFile?.type);
 
