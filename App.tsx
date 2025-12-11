@@ -8,7 +8,7 @@ import PendingTicketTable from './components/PendingTicketTable'; // Import new 
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris } from './types';
 import db from './services/dbService'; // Import the database service
-import { LogOut, ShieldCheck, Database, User as UserIcon, Lock, ChevronDown } from 'lucide-react';
+import { LogOut, ShieldCheck, Database, User as UserIcon, Lock, ChevronDown, Download, FileSpreadsheet } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -111,13 +111,47 @@ const App: React.FC = () => {
     }
   }, [currentUser, reports]);
 
+  const handleExportCSV = () => {
+    if (filteredReportsForChart.length === 0) {
+        alert("Tidak ada data laporan untuk diekspor.");
+        return;
+    }
+
+    const headers = ['ID', 'Tanggal', 'Barang', 'Kategori', 'Lokasi', 'Pelapor', 'Masalah', 'Status'];
+    const csvContent = [
+        headers.join(','),
+        ...filteredReportsForChart.map(r => {
+            const row = [
+                r.id,
+                new Date(r.tanggal_lapor).toISOString().split('T')[0],
+                `"${r.nama_barang.replace(/"/g, '""')}"`,
+                r.kategori_aset,
+                `"${r.lokasi_kerusakan.replace(/"/g, '""')}"`,
+                `"${r.nama_pengadu.replace(/"/g, '""')}"`,
+                `"${r.deskripsi_masalah.replace(/"/g, '""')}"`,
+                r.status
+            ];
+            return row.join(',');
+        })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `SIKILAT_Laporan_Kerusakan_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (!currentUser) {
     return <Login onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
   const themeBg = `bg-${roleConfig.color}-600`;
-  const supervisorRoles: UserRole[] = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin'];
+  const supervisorRoles: UserRole[] = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin', 'admin'];
 
   const getTableStats = () => ({
     tables: [
@@ -173,7 +207,7 @@ const App: React.FC = () => {
       <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
         {/* Dashboard Section */}
         <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-start gap-4">
                     <div className={`p-3 rounded-full bg-${roleConfig.color}-100 text-${roleConfig.color}-600`}>
                         <ShieldCheck className="w-6 h-6" />
@@ -183,6 +217,15 @@ const App: React.FC = () => {
                         <p className="text-slate-600 text-sm">{roleConfig.transformativeValue}</p>
                     </div>
                 </div>
+                {supervisorRoles.includes(currentUser.peran) && (
+                   <button 
+                     onClick={handleExportCSV}
+                     className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                   >
+                     <FileSpreadsheet className="w-4 h-4" />
+                     Ekspor Laporan CSV
+                   </button>
+                )}
             </div>
             
             {currentUser.peran === 'admin' && (
