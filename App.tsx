@@ -151,7 +151,18 @@ const App: React.FC = () => {
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
   const themeBg = `bg-${roleConfig.color}-600`;
-  const supervisorRoles: UserRole[] = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin', 'admin'];
+
+  // DEFINISI HAK AKSES DASHBOARD
+  // 1. Chart (Analisis): Hanya untuk Penanggung Jawab & Admin (Strategic View)
+  const chartAccessRoles: UserRole[] = ['penanggung_jawab', 'admin'];
+  
+  // 2. Table (Eksekusi): EKSKLUSIF untuk Penanggung Jawab & Admin.
+  // Pengawas (IT/Sarpras) TIDAK BOLEH melihat tabel ini karena berisi tombol aksi "Mulai Perbaikan".
+  const ticketAccessRoles: UserRole[] = ['penanggung_jawab', 'admin'];
+  
+  // 3. Export CSV: Penanggung Jawab, Admin, dan Pengawas Admin
+  const exportAccessRoles: UserRole[] = ['penanggung_jawab', 'pengawas_admin', 'admin'];
+
 
   const getTableStats = () => ({
     tables: [
@@ -217,7 +228,7 @@ const App: React.FC = () => {
                         <p className="text-slate-600 text-sm">{roleConfig.transformativeValue}</p>
                     </div>
                 </div>
-                {supervisorRoles.includes(currentUser.peran) && (
+                {exportAccessRoles.includes(currentUser.peran) && (
                    <button 
                      onClick={handleExportCSV}
                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
@@ -228,7 +239,8 @@ const App: React.FC = () => {
                 )}
             </div>
             
-            {currentUser.peran === 'admin' && (
+            {/* Live Schema Monitor (Khusus Admin & Pengawas Admin sebagai pengganti Chart) */}
+            {(currentUser.peran === 'admin' || currentUser.peran === 'pengawas_admin') && (
               <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                   <div className="p-4 border-b">
                       <h3 className="font-semibold text-slate-700 flex items-center gap-2"><Database className="w-4 h-4 text-blue-600" /> Live Schema Monitor</h3>
@@ -248,19 +260,20 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {supervisorRoles.includes(currentUser.peran) && (
-              <>
+            {/* Damage Report Chart - HANYA UNTUK PENANGGUNG JAWAB & ADMIN */}
+            {chartAccessRoles.includes(currentUser.peran) && (
                 <DamageReportChart 
                     reports={filteredReportsForChart} 
                     onProcessAction={handleTriggerChatAction} 
                 />
-                
-                {/* TAMPILKAN PENDING TICKET TABLE */}
+            )}
+            
+            {/* Pending Ticket Table - UNTUK PJ & ADMIN SAJA (EXECUTION TEAM) */}
+            {ticketAccessRoles.includes(currentUser.peran) && (
                 <PendingTicketTable 
                     reports={filteredReportsForChart}
                     onProcessAction={handleTriggerChatAction}
                 />
-              </>
             )}
 
             {currentUser.peran === 'guru' && (

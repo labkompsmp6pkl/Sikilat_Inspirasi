@@ -38,8 +38,14 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
             {pendingReports.map((report) => (
               <tr key={report.id} className="hover:bg-slate-50 transition-colors group">
                 <td className="px-4 py-3 align-top">
-                  <span className="font-mono text-xs font-bold text-slate-600 block">{report.id}</span>
-                  <span className="text-xs text-slate-400">{new Date(report.tanggal_lapor).toLocaleDateString('id-ID')}</span>
+                  <div className="flex flex-col items-start">
+                     <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tracking-tight whitespace-nowrap">
+                        {report.id}
+                     </span>
+                     <span className="text-xs text-slate-400 mt-1 ml-0.5">
+                        {new Date(report.tanggal_lapor).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
+                     </span>
+                  </div>
                 </td>
                 <td className="px-4 py-3 align-top max-w-xs">
                   <div className="font-medium text-slate-800">{report.nama_barang}</div>

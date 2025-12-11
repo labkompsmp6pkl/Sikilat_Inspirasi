@@ -45,6 +45,16 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     const updateMatch = lowerMsg.match(updateStatusRegex);
     
     if (updateMatch && updateMatch[1] && updateMatch[2]) {
+        // --- SECURITY CHECK (RBAC) ---
+        // Hanya Penanggung Jawab dan Admin yang boleh mengubah status (Eksekusi)
+        // Pengawas hanya boleh melihat (Monitoring)
+        const allowedRoles = ['penanggung_jawab', 'admin'];
+        if (!allowedRoles.includes(user.peran)) {
+            return { 
+                text: `⛔ *Akses Ditolak*\n\nMaaf, peran Anda sebagai **${user.peran.replace('_', ' ').toUpperCase()}** hanya memiliki akses pengawasan (monitoring).\n\nAnda tidak memiliki izin untuk mengubah status laporan. Silakan hubungi **Penanggung Jawab** untuk melakukan eksekusi perbaikan.` 
+            };
+        }
+
         const reportId = updateMatch[1].trim();
         const newStatusRaw = updateMatch[2].trim();
         
@@ -80,6 +90,14 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     // RULE 0.1: Handle General "Update Status" Request (e.g. from Quick Action Button)
     // When user says "Saya ingin update status..." without specific details.
     if (lowerMsg.includes('ingin update status') || lowerMsg.includes('ingin mengubah status')) {
+        // Security check for general intent as well
+        const allowedRoles = ['penanggung_jawab', 'admin'];
+        if (!allowedRoles.includes(user.peran)) {
+             return { 
+                text: `⛔ *Menu Terbatas*\n\nFitur pembaruan status hanya tersedia untuk **Penanggung Jawab**. Sebagai Pengawas, Anda dapat menanyakan status terkini kepada saya.` 
+            };
+        }
+
         const reports = db.getTable('pengaduan_kerusakan');
         // Prioritaskan yang belum selesai (Pending atau Proses)
         const activeReports = reports.filter(r => r.status !== 'Selesai').sort((a,b) => b.tanggal_lapor.getTime() - a.tanggal_lapor.getTime());

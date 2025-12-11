@@ -1,5 +1,4 @@
 
-
 import { 
   Users, 
   Wrench, 
@@ -99,20 +98,20 @@ const today = new Date();
 const daysAgo = (days: number) => new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
 
 export const MOCK_PENGADUAN_KERUSAKAN: PengaduanKerusakan[] = [
-  { id: 'p01', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(2), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
-  { id: 'p02', id_barang: 'inv02', id_pengadu: 'u1', tanggal_lapor: daysAgo(4), nama_barang: 'AC Ruang Kelas', deskripsi_masalah: 'Tidak dingin', status: 'Selesai', kategori_aset: 'Sarpras', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Kelas 10A' },
-  { id: 'p03', id_barang: 'inv03', id_pengadu: 'u3', tanggal_lapor: daysAgo(5), nama_barang: 'Proyektor', deskripsi_masalah: 'Gambar buram', status: 'Proses', kategori_aset: 'IT', nama_pengadu: 'Rudi Hartono', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'p04', id_barang: 'inv04', id_pengadu: 'u4', tanggal_lapor: daysAgo(7), nama_barang: 'Kursi Siswa', deskripsi_masalah: 'Kaki patah', status: 'Pending', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Kelas 10A' },
-  { id: 'p05', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(8), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Koneksi terputus-putus', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
-  { id: 'p06', id_barang: 'inv05', id_pengadu: 'u1', tanggal_lapor: daysAgo(10), nama_barang: 'Mouse PC', deskripsi_masalah: 'Scroll tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'p07', id_barang: 'inv02', id_pengadu: 'u4', tanggal_lapor: daysAgo(12), nama_barang: 'AC Ruang Guru', deskripsi_masalah: 'Bocor air', status: 'Proses', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'p08', id_barang: 'inv06', id_pengadu: 'u1', tanggal_lapor: daysAgo(15), nama_barang: 'Papan Tulis Digital', deskripsi_masalah: 'Layar tidak merespon', status: 'Pending', kategori_aset: 'General', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Perpustakaan' },
-  { id: 'p09', id_barang: 'inv03', id_pengadu: 'u3', tanggal_lapor: daysAgo(20), nama_barang: 'Proyektor', deskripsi_masalah: 'Lampu mati', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Rudi Hartono', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'p10', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(22), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol lepas', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
-  { id: 'p11', id_barang: 'inv07', id_pengadu: 'u1', tanggal_lapor: daysAgo(25), nama_barang: 'Jaringan WiFi', deskripsi_masalah: 'Koneksi lambat', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Server' },
-  { id: 'p12', id_barang: 'inv02', id_pengadu: 'u4', tanggal_lapor: daysAgo(28), nama_barang: 'AC Perpustakaan', deskripsi_masalah: 'Tidak dingin', status: 'Pending', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Perpustakaan' },
-  { id: 'p13', id_barang: 'inv40', id_pengadu: 'u1', tanggal_lapor: daysAgo(40), nama_barang: 'Printer', deskripsi_masalah: 'Kertas macet', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Guru' }, 
-  { id: 'p14', id_barang: 'inv50', id_pengadu: 'u4', tanggal_lapor: daysAgo(50), nama_barang: 'Meja Guru', deskripsi_masalah: 'Laci rusak', status: 'Selesai', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Guru' }, 
+  { id: 'SKL-IT-241209-001', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(2), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
+  { id: 'SKL-SRP-241207-002', id_barang: 'inv02', id_pengadu: 'u1', tanggal_lapor: daysAgo(4), nama_barang: 'AC Ruang Kelas', deskripsi_masalah: 'Tidak dingin', status: 'Selesai', kategori_aset: 'Sarpras', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Kelas 10A' },
+  { id: 'SKL-IT-241206-003', id_barang: 'inv03', id_pengadu: 'u3', tanggal_lapor: daysAgo(5), nama_barang: 'Proyektor', deskripsi_masalah: 'Gambar buram', status: 'Proses', kategori_aset: 'IT', nama_pengadu: 'Rudi Hartono', lokasi_kerusakan: 'Ruang Guru' },
+  { id: 'SKL-SRP-241204-004', id_barang: 'inv04', id_pengadu: 'u4', tanggal_lapor: daysAgo(7), nama_barang: 'Kursi Siswa', deskripsi_masalah: 'Kaki patah', status: 'Pending', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Kelas 10A' },
+  { id: 'SKL-IT-241203-005', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(8), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Koneksi terputus-putus', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
+  { id: 'SKL-IT-241201-006', id_barang: 'inv05', id_pengadu: 'u1', tanggal_lapor: daysAgo(10), nama_barang: 'Mouse PC', deskripsi_masalah: 'Scroll tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Guru' },
+  { id: 'SKL-SRP-241129-007', id_barang: 'inv02', id_pengadu: 'u4', tanggal_lapor: daysAgo(12), nama_barang: 'AC Ruang Guru', deskripsi_masalah: 'Bocor air', status: 'Proses', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Guru' },
+  { id: 'SKL-GEN-241126-008', id_barang: 'inv06', id_pengadu: 'u1', tanggal_lapor: daysAgo(15), nama_barang: 'Papan Tulis Digital', deskripsi_masalah: 'Layar tidak merespon', status: 'Pending', kategori_aset: 'General', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Perpustakaan' },
+  { id: 'SKL-IT-241121-009', id_barang: 'inv03', id_pengadu: 'u3', tanggal_lapor: daysAgo(20), nama_barang: 'Proyektor', deskripsi_masalah: 'Lampu mati', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Rudi Hartono', lokasi_kerusakan: 'Ruang Guru' },
+  { id: 'SKL-IT-241119-010', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(22), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol lepas', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
+  { id: 'SKL-IT-241116-011', id_barang: 'inv07', id_pengadu: 'u1', tanggal_lapor: daysAgo(25), nama_barang: 'Jaringan WiFi', deskripsi_masalah: 'Koneksi lambat', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Server' },
+  { id: 'SKL-SRP-241113-012', id_barang: 'inv02', id_pengadu: 'u4', tanggal_lapor: daysAgo(28), nama_barang: 'AC Perpustakaan', deskripsi_masalah: 'Tidak dingin', status: 'Pending', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Perpustakaan' },
+  { id: 'SKL-IT-241101-013', id_barang: 'inv40', id_pengadu: 'u1', tanggal_lapor: daysAgo(40), nama_barang: 'Printer', deskripsi_masalah: 'Kertas macet', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Guru' }, 
+  { id: 'SKL-SRP-241022-014', id_barang: 'inv50', id_pengadu: 'u4', tanggal_lapor: daysAgo(50), nama_barang: 'Meja Guru', deskripsi_masalah: 'Laci rusak', status: 'Selesai', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Guru' }, 
 ];
 
 export const MOCK_PEMINJAMAN_ANTRIAN: PeminjamanAntrian[] = [
