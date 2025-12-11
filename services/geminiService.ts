@@ -1,5 +1,4 @@
 
-
 import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
 import db from './dbService';
@@ -38,6 +37,66 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     // Biarkan AI menangani permintaan kontak agar bisa membaca data injeksi
     if (lowerMsg.match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
         return null;
+    }
+    
+    // RULE 0: Handle Update Status (Explicit Command from Buttons)
+    // Regex: "Perbarui status laporan [ID] menjadi [Status]"
+    const updateStatusRegex = /(?:perbarui|ubah|ganti)\s+status\s+(?:laporan\s+)?([A-Z0-9-]+)\s+menjadi\s+(\w+)/i;
+    const updateMatch = lowerMsg.match(updateStatusRegex);
+    
+    if (updateMatch && updateMatch[1] && updateMatch[2]) {
+        const reportId = updateMatch[1].trim();
+        const newStatusRaw = updateMatch[2].trim();
+        
+        // Normalize status to match type definition
+        let newStatus: 'Pending' | 'Proses' | 'Selesai' | null = null;
+        if (newStatusRaw.match(/proses|diproses/i)) newStatus = 'Proses';
+        else if (newStatusRaw.match(/selesai|beres|tuntas/i)) newStatus = 'Selesai';
+        else if (newStatusRaw.match(/pending|tunda/i)) newStatus = 'Pending';
+        
+        if (newStatus) {
+            const reports = db.getTable('pengaduan_kerusakan');
+            const reportIndex = reports.findIndex(r => r.id.toUpperCase() === reportId.toUpperCase());
+            
+            if (reportIndex !== -1) {
+                const updatedReport = { ...reports[reportIndex], status: newStatus };
+                
+                // Construct SavedData payload
+                const dataToSave: SavedData = {
+                    table: 'pengaduan_kerusakan',
+                    payload: updatedReport
+                };
+                
+                return {
+                    text: `✅ *Status Diperbarui*\n\nStatus laporan *${reportId}* berhasil diubah menjadi **${newStatus}**.\nSistem telah memperbarui database dan menotifikasi pelapor.`,
+                    dataToSave
+                };
+            } else {
+                return { text: `❌ *Gagal Update*\nLaporan dengan ID *${reportId}* tidak ditemukan.` };
+            }
+        }
+    }
+
+    // RULE 0.1: Handle General "Update Status" Request (e.g. from Quick Action Button)
+    // When user says "Saya ingin update status..." without specific details.
+    if (lowerMsg.includes('ingin update status') || lowerMsg.includes('ingin mengubah status')) {
+        const reports = db.getTable('pengaduan_kerusakan');
+        // Prioritaskan yang belum selesai (Pending atau Proses)
+        const activeReports = reports.filter(r => r.status !== 'Selesai').sort((a,b) => b.tanggal_lapor.getTime() - a.tanggal_lapor.getTime());
+        
+        if (activeReports.length === 0) {
+            return { text: "Saat ini tidak ada laporan aktif yang memerlukan pembaruan status (semua sudah Selesai)." };
+        }
+
+        const reportList = activeReports.slice(0, 5).map(r => 
+            `- **${r.id}**: ${r.nama_barang} (Status Saat Ini: ${r.status})`
+        ).join('\n');
+
+        const exampleId = activeReports[0].id;
+
+        return {
+            text: `Untuk memperbarui status, Anda perlu menyebutkan ID laporan dan status tujuannya.\n\nSilakan ketik perintah dengan format berikut:\n👉 "**Perbarui status laporan ${exampleId} menjadi Proses**"\n👉 "**Perbarui status laporan ${exampleId} menjadi Selesai**"\n\nBerikut daftar laporan aktif yang bisa Anda update:\n${reportList}`
+        };
     }
 
     // RULE 1: Handle Report Creation from free text (Tamu only or simplified reporting)

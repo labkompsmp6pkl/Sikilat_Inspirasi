@@ -4,6 +4,7 @@ import Login from './components/Login';
 import ChatInterface from './components/ChatInterface';
 import MyStatusDashboard from './components/MyStatusDashboard';
 import DamageReportChart from './components/DamageReportChart';
+import PendingTicketTable from './components/PendingTicketTable'; // Import new component
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris } from './types';
 import db from './services/dbService'; // Import the database service
@@ -205,10 +206,18 @@ const App: React.FC = () => {
             )}
 
             {supervisorRoles.includes(currentUser.peran) && (
+              <>
                 <DamageReportChart 
                     reports={filteredReportsForChart} 
                     onProcessAction={handleTriggerChatAction} 
                 />
+                
+                {/* TAMPILKAN PENDING TICKET TABLE */}
+                <PendingTicketTable 
+                    reports={filteredReportsForChart}
+                    onProcessAction={handleTriggerChatAction}
+                />
+              </>
             )}
 
             {currentUser.peran === 'guru' && (
