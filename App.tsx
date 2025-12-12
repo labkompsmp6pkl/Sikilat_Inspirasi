@@ -5,9 +5,10 @@ import ChatInterface from './components/ChatInterface';
 import MyStatusDashboard from './components/MyStatusDashboard';
 import DamageReportChart from './components/DamageReportChart';
 import PendingTicketTable from './components/PendingTicketTable';
-import BookingTable from './components/BookingTable'; // Import new component
+import BookingTable from './components/BookingTable';
+import AgendaActivityTable from './components/AgendaActivityTable'; // Import new component
 import { ROLE_CONFIGS } from './constants';
-import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris } from './types';
+import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan } from './types';
 import db from './services/dbService'; 
 import { LogOut, ShieldCheck, Database, User as UserIcon, Lock, ChevronDown, Download, FileSpreadsheet } from 'lucide-react';
 
@@ -28,6 +29,7 @@ const App: React.FC = () => {
   const [inventaris, setInventaris] = useState<Inventaris[]>([]);
   const [allUsers, setAllUsers] = useState<Pengguna[]>([]);
   const [locations, setLocations] = useState<Lokasi[]>([]);
+  const [activities, setActivities] = useState<AgendaKegiatan[]>([]); // New State
   
   // Load data from DB on startup
   useEffect(() => {
@@ -36,6 +38,7 @@ const App: React.FC = () => {
       setInventaris(db.getTable('inventaris'));
       setAllUsers(db.getTable('pengguna'));
       setLocations(db.getTable('lokasi'));
+      setActivities(db.getTable('agenda_kegiatan')); // Load agendas
   }, []);
 
 
@@ -77,8 +80,10 @@ const App: React.FC = () => {
   }, []);
 
   const handleDataSaved = (data: SavedData) => {
+      // Logic addRecord di dbService sudah mengupdate DB
       db.addRecord(data.table, data.payload);
 
+      // Refresh state lokal
       if (data.table === 'peminjaman_antrian') {
           setBookings(db.getTable('peminjaman_antrian'));
       }
@@ -87,6 +92,9 @@ const App: React.FC = () => {
       }
       if (data.table === 'pengguna') {
           setAllUsers(db.getTable('pengguna'));
+      }
+      if (data.table === 'agenda_kegiatan') {
+          setActivities(db.getTable('agenda_kegiatan'));
       }
       
       setShowSavedNotification(true);
@@ -97,6 +105,35 @@ const App: React.FC = () => {
   const handleTriggerChatAction = (prompt: string) => {
       setExternalMessage(prompt);
       setIsChatOpen(true); // Open chat if closed
+  };
+
+  // Agenda Approval Logic
+  const handleAgendaUpdateStatus = (id: string, status: 'Disetujui' | 'Ditolak') => {
+      const activity = activities.find(a => a.id === id);
+      if (activity) {
+          const updated = { ...activity, status };
+          db.addRecord('agenda_kegiatan', updated);
+          setActivities(db.getTable('agenda_kegiatan')); // Refresh UI
+      }
+  };
+
+  const handleAgendaApproveAllToday = () => {
+      const today = new Date().toDateString();
+      const pendingToday = activities.filter(a => 
+          new Date(a.waktu_mulai).toDateString() === today && 
+          a.status === 'Pending'
+      );
+      
+      pendingToday.forEach(a => {
+          const updated = { ...a, status: 'Disetujui' as const };
+          db.addRecord('agenda_kegiatan', updated);
+      });
+      
+      if (pendingToday.length > 0) {
+          setActivities(db.getTable('agenda_kegiatan')); // Refresh UI
+          setShowSavedNotification(true);
+          setTimeout(() => setShowSavedNotification(false), 3000);
+      }
   };
 
 
@@ -166,14 +203,17 @@ const App: React.FC = () => {
   
   // 4. Booking Table Access (New)
   const bookingAccessRoles: UserRole[] = ['penanggung_jawab', 'admin', 'pengawas_sarpras', 'pengawas_admin', 'guru'];
+  
+  // 5. Agenda Access (New)
+  const agendaAccessRoles: UserRole[] = ['penanggung_jawab', 'admin', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras'];
 
-  // 5. Export CSV: 
+  // 6. Export CSV: 
   const exportAccessRoles: UserRole[] = ['penanggung_jawab', 'pengawas_admin', 'admin'];
 
 
   const getTableStats = () => ({
     tables: [
-      { name: 'agenda_kegiatan', label: 'Agenda Kegiatan', count: 0 },
+      { name: 'agenda_kegiatan', label: 'Agenda Kegiatan', count: activities.length },
       { name: 'inventaris', label: 'Inventaris Aset', count: inventaris.length },
       { name: 'pengguna', label: 'Data Pengguna', count: allUsers.length },
       { name: 'pengaduan_kerusakan', label: 'Pengaduan Kerusakan', count: reports.length },
@@ -265,6 +305,16 @@ const App: React.FC = () => {
                       </table>
                   </div>
               </div>
+            )}
+            
+            {/* Agenda Activity Table - New! */}
+            {agendaAccessRoles.includes(currentUser.peran) && (
+                <AgendaActivityTable 
+                    activities={activities}
+                    currentUserRole={currentUser.peran}
+                    onUpdateStatus={handleAgendaUpdateStatus}
+                    onApproveAllToday={handleAgendaApproveAllToday}
+                />
             )}
 
             {/* Damage Report Chart - UNTUK PENANGGUNG JAWAB, ADMIN, & PENGAWAS (View Only) */}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Sparkles, Database, X, CheckSquare, Zap, Check, CheckCheck, MoreVertical, Paperclip, Smile, Wrench, AlertTriangle, ListChecks, FileSearch, Lightbulb, ThumbsUp, ThumbsDown, ArrowRight, Share2, Calendar, Users, ChevronsRight, FileText, ClipboardList, Building2, Monitor, Phone, Mail, ChevronDown, ChevronUp, Info, Clock, Key } from 'lucide-react';
 import { User, Message, RoleConfig, FormTemplate, QuickAction, DetailedItemReport, HistorySection, SavedData, PaginationInfo, ChatInterfaceProps, MaintenanceGuide, TroubleshootingGuide, WorkReportDraft, LaporanStatus, GeminiResponse } from '../types';
@@ -112,6 +113,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     
     // If the AI response includes data to be saved, trigger the callback
     if (response.dataToSave) {
+        // Enforce Pending status for new agenda items if missing
+        if (response.dataToSave.table === 'agenda_kegiatan' && !response.dataToSave.payload.status) {
+            response.dataToSave.payload.status = 'Pending';
+        }
         onDataSaved(response.dataToSave);
     }
 

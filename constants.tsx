@@ -20,7 +20,7 @@ import {
   FileSearch,
   PieChart
 } from 'lucide-react';
-import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris, PeminjamanAntrian } from './types';
+import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris, PeminjamanAntrian, AgendaKegiatan } from './types';
 
 export const MOCK_USERS: Record<string, User> = {
   guru: { 
@@ -96,6 +96,42 @@ export const SCHEMA_INFO = {
 // Mock Data for Damage Analysis Chart
 const today = new Date();
 const daysAgo = (days: number) => new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+
+export const MOCK_AGENDA_KEGIATAN: AgendaKegiatan[] = [
+    {
+        id: 'AGD-001',
+        nama_pj: 'Siti Aminah',
+        waktu_mulai: daysAgo(0).toISOString().replace(/T.*/, 'T08:00'),
+        waktu_selesai: daysAgo(0).toISOString().replace(/T.*/, 'T09:00'),
+        posisi: 'Lab Komputer 1',
+        objek_pengguna: 'Siswa Kelas 9A',
+        uraian_kegiatan: 'Maintenance PC sebelum ujian.',
+        hasil_kegiatan: '20 PC Siap. 1 PC perlu update.',
+        status: 'Pending'
+    },
+    {
+        id: 'AGD-002',
+        nama_pj: 'Siti Aminah',
+        waktu_mulai: daysAgo(0).toISOString().replace(/T.*/, 'T10:00'),
+        waktu_selesai: daysAgo(0).toISOString().replace(/T.*/, 'T11:00'),
+        posisi: 'Ruang Guru',
+        objek_pengguna: 'Guru Staff',
+        uraian_kegiatan: 'Pengecekan printer macet.',
+        hasil_kegiatan: 'Printer normal kembali.',
+        status: 'Pending'
+    },
+    {
+        id: 'AGD-003',
+        nama_pj: 'Rudi Hartono',
+        waktu_mulai: daysAgo(1).toISOString().replace(/T.*/, 'T13:00'),
+        waktu_selesai: daysAgo(1).toISOString().replace(/T.*/, 'T14:30'),
+        posisi: 'Server Room',
+        objek_pengguna: 'Sistem Sekolah',
+        uraian_kegiatan: 'Backup database mingguan.',
+        hasil_kegiatan: 'Backup sukses 100%.',
+        status: 'Disetujui'
+    }
+];
 
 export const MOCK_PENGADUAN_KERUSAKAN: PengaduanKerusakan[] = [
   { id: 'SKL-IT-241209-001', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(2), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },

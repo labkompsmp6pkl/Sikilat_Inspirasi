@@ -13,13 +13,15 @@ export type UserRole =
 // Database Schema Interfaces
 export interface AgendaKegiatan {
   id: string;
-  id_pj: string; // FK to Pengguna
-  waktu_mulai: Date;
-  waktu_selesai: Date;
+  id_pj?: string; // FK to Pengguna
+  nama_pj?: string; // Denormalized for display
+  waktu_mulai: string | Date; // Allow string from form input
+  waktu_selesai: string | Date;
   posisi: string;
   uraian_kegiatan: string;
   hasil_kegiatan: string;
   objek_pengguna: string;
+  status: 'Pending' | 'Disetujui' | 'Ditolak'; // Added for approval workflow
 }
 
 export interface Inventaris {
@@ -202,7 +204,7 @@ export interface LaporanStatus {
 
 
 // For real-time updates and database operations
-export type TableName = 'pengaduan_kerusakan' | 'peminjaman_antrian' | 'pengguna' | 'inventaris' | 'lokasi';
+export type TableName = 'pengaduan_kerusakan' | 'peminjaman_antrian' | 'pengguna' | 'inventaris' | 'lokasi' | 'agenda_kegiatan';
 
 export interface SavedData {
     table: TableName;

@@ -1,9 +1,11 @@
+
 import {
   MOCK_PENGADUAN_KERUSAKAN,
   MOCK_PEMINJAMAN_ANTRIAN,
   MOCK_INVENTARIS,
   MOCK_LOKASI,
-  MOCK_USERS
+  MOCK_USERS,
+  MOCK_AGENDA_KEGIATAN
 } from '../constants';
 import {
   PengaduanKerusakan,
@@ -11,7 +13,8 @@ import {
   Inventaris,
   Lokasi,
   Pengguna,
-  TableName
+  TableName,
+  AgendaKegiatan
 } from '../types';
 
 const DB_PREFIX = 'SIKILAT_DB_';
@@ -23,6 +26,7 @@ type TableMap = {
   inventaris: Inventaris;
   lokasi: Lokasi;
   pengguna: Pengguna;
+  agenda_kegiatan: AgendaKegiatan;
 };
 
 const initialData = {
@@ -31,6 +35,7 @@ const initialData = {
   inventaris: MOCK_INVENTARIS,
   lokasi: MOCK_LOKASI,
   pengguna: Object.values(MOCK_USERS),
+  agenda_kegiatan: MOCK_AGENDA_KEGIATAN
 };
 
 const db = {
