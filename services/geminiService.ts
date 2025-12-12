@@ -78,6 +78,79 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         return null;
     }
     
+    // --- QUICK ACTION HANDLERS (Fixing "Kenapa muncul SQL?") ---
+
+    // Handler 1: Tiket Pending
+    if (lowerMsg.includes("query data status='pending'") || lowerMsg.includes("tiket pending")) {
+        const reports = db.getTable('pengaduan_kerusakan');
+        const pendingReports = reports.filter(r => r.status === 'Pending');
+        
+        if (pendingReports.length > 0) {
+             const formatted = pendingReports.map(r => ({
+                ID: r.id,
+                Barang: r.nama_barang,
+                Masalah: r.deskripsi_masalah,
+                Lokasi: r.lokasi_kerusakan,
+                Pelapor: r.nama_pengadu
+             }));
+             return { text: `📋 **Daftar Tiket Pending**\nBerikut adalah data laporan yang belum diproses:\n:::DATA_JSON:::${JSON.stringify(formatted)}` };
+        } else {
+            return { text: "✅ **Tidak ada tiket pending.** Semua laporan telah diproses atau diselesaikan." };
+        }
+    }
+
+    // Handler 2: Cek Antrian Peminjaman
+    if (lowerMsg.includes("tampilkan data dari tabel peminjaman_antrian") || lowerMsg.includes("cek antrian")) {
+        const bookings = db.getTable('peminjaman_antrian');
+        // Sort by date descending
+        const sorted = bookings.sort((a,b) => new Date(b.tanggal_peminjaman).getTime() - new Date(a.tanggal_peminjaman).getTime()).slice(0, 10);
+        
+        if (sorted.length > 0) {
+             const formatted = sorted.map(b => ({
+                ID: b.id_peminjaman,
+                Peminjam: db.getTable('pengguna').find(u => u.id_pengguna === b.id_pengguna)?.nama_lengkap || 'Unknown',
+                Barang: b.nama_barang,
+                Waktu: `${new Date(b.tanggal_peminjaman).toLocaleDateString()} (${b.jam_mulai}-${b.jam_selesai})`,
+                Status: b.status_peminjaman
+             }));
+             return { text: `📅 **Data Peminjaman & Antrian Terbaru**\n:::DATA_JSON:::${JSON.stringify(formatted)}` };
+        } else {
+            return { text: "📂 Belum ada data peminjaman dalam sistem." };
+        }
+    }
+
+    // Handler 3: Status Server / IT Inventory
+    if (lowerMsg.includes("cek inventaris kategori 'server' & 'jaringan'") || (lowerMsg.includes("inventaris") && lowerMsg.includes("jaringan"))) {
+        const inventaris = db.getTable('inventaris');
+        const itItems = inventaris.filter(i => 
+            i.kategori === 'IT' && 
+            (i.nama_barang.toLowerCase().includes('server') || i.nama_barang.toLowerCase().includes('wifi') || i.nama_barang.toLowerCase().includes('router') || i.nama_barang.toLowerCase().includes('jaringan'))
+        );
+        
+        if (itItems.length > 0) {
+            return { text: `🖥️ **Status Infrastruktur IT (Server & Jaringan)**\n:::DATA_JSON:::${JSON.stringify(itItems)}` };
+        }
+        return { text: "Tidak ditemukan aset kategori Server atau Jaringan di database." };
+    }
+
+    // Handler 4: Aset Rusak (IT/Sarpras)
+    if (lowerMsg.includes("query inventaris yang statusnya 'rusak") || lowerMsg.includes("aset rusak") || lowerMsg.includes("rekomendasi peremajaan")) {
+        const inventaris = db.getTable('inventaris');
+        const damagedItems = inventaris.filter(i => i.status_barang === 'Rusak Berat' || i.status_barang === 'Rusak Ringan');
+        
+        if (damagedItems.length > 0) {
+             const formatted = damagedItems.map(i => ({
+                 ID: i.id_barang,
+                 Nama: i.nama_barang,
+                 Kategori: i.kategori,
+                 Status: i.status_barang,
+                 Lokasi: i.id_lokasi
+             }));
+             return { text: `⚠️ **Daftar Aset Bermasalah**\nBerikut adalah aset yang memerlukan perhatian atau peremajaan:\n:::DATA_JSON:::${JSON.stringify(formatted)}` };
+        }
+        return { text: "🎉 **Bagus!** Tidak ada aset yang tercatat dalam kondisi Rusak saat ini." };
+    }
+
     // RULE 0: Handle Update Status (Explicit Command from Buttons)
     // Regex: "Perbarui status laporan [ID] menjadi [Status]"
     const updateStatusRegex = /(?:perbarui|ubah|ganti)\s+status\s+(?:laporan\s+)?([A-Z0-9-]+)\s+menjadi\s+(\w+)/i;
@@ -237,7 +310,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         }
     }
     
-    // RULE 4 (NEW): Handle Inventory Search (Simulation fallback for "Cek inventaris", "Status Server")
+    // RULE 4: Generic Fallback for Inventory
     if (lowerMsg.match(/(cek|cari|lihat|tampilkan|status|info)\s+.*(inventaris|aset|barang|server|jaringan|wifi|komputer|laptop|proyektor)/i) || lowerMsg.includes('inventaris kategori')) {
         const inventaris = db.getTable('inventaris');
         const locations = db.getTable('lokasi');
@@ -263,7 +336,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         return { text: "Data inventaris tidak ditemukan untuk kriteria tersebut." };
     }
     
-    // RULE 5 (NEW): Handle Basic Analysis (Simulation fallback)
+    // RULE 5: Handle Basic Analysis (Simulation fallback)
     if (lowerMsg.match(/(analisis|kesimpulan|rangkuman|statistik)/) && lowerMsg.match(/(kerusakan|log|laporan)/)) {
         const reports = db.getTable('pengaduan_kerusakan');
         const total = reports.length;
@@ -301,7 +374,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
   let modelName = 'gemini-2.5-flash';
   let generationConfig: any = { systemInstruction };
   
-  // --- CONTEXT INJECTION: ANALISIS ---
+  // --- CONTEXT INJECTION: ANALISIS (USING GEMINI 2.0 FLASH THINKING) ---
   if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
       const inventaris = db.getTable('inventaris');
       const reports = db.getTable('pengaduan_kerusakan');
@@ -333,11 +406,11 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
       
       userPrompt = `${userPrompt}\n\n${contextData}`;
 
-      // TRY COMPLEX MODEL FIRST
+      // USE THINKING MODEL FOR COMPLEX TASKS
       modelName = 'gemini-3-pro-preview';
       generationConfig = {
           systemInstruction,
-          thinkingConfig: { thinkingBudget: 32768 } 
+          thinkingConfig: { thinkingBudget: 32768 } // Max budget for pro
       };
   }
 
@@ -387,13 +460,12 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     console.error("Gemini API Error:", error);
 
     // --- FALLBACK MECHANISM ---
-    // Jika model 'pro' gagal (misal karena kuota/akses), coba downgrade ke 'flash' yang lebih stabil.
     if (modelName === 'gemini-3-pro-preview') {
         console.warn("⚠️ Falling back to gemini-2.5-flash due to error...");
         try {
             const fallbackResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash', // Model standar
-                config: { systemInstruction }, // Reset config (hapus thinkingConfig)
+                model: 'gemini-2.5-flash', 
+                config: { systemInstruction }, // Reset config
                 contents: [{ parts: parts }],
             });
             return { text: fallbackResponse.text || "Maaf, respon kosong." };
@@ -405,7 +477,6 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
         }
     }
 
-    // Tampilkan error deskriptif agar user tahu penyebabnya (misal: 403 Forbidden, 429 Too Many Requests)
     return { 
         text: `⚠️ *Gagal Terhubung ke AI*\n\nSistem menolak permintaan Anda. Kemungkinan penyebab:\n\n1. **API Key Tidak Valid:** Cek kembali pengaturan Vercel.\n2. **Kuota Habis (429):** Batas harian terlampaui.\n3. **Model Tidak Tersedia:** Akun Anda mungkin belum mendukung fitur ini.\n\n**Pesan Error Asli:**\n_${error.message || JSON.stringify(error)}_` 
     };

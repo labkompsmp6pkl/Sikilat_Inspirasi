@@ -1,7 +1,6 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { PengaduanKerusakan } from '../types';
-import { Clock, Play, AlertCircle, MapPin, User, ArrowRight } from 'lucide-react';
+import { Clock, Play, AlertCircle, MapPin, User, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PendingTicketTableProps {
   reports: PengaduanKerusakan[];
@@ -10,11 +9,29 @@ interface PendingTicketTableProps {
 }
 
 const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProcessAction, isReadOnly = false }) => {
-  const pendingReports = reports.filter(r => r.status === 'Pending').sort((a, b) => new Date(a.tanggal_lapor).getTime() - new Date(b.tanggal_lapor).getTime());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const pendingReports = reports
+    .filter(r => r.status === 'Pending')
+    .sort((a, b) => new Date(a.tanggal_lapor).getTime() - new Date(b.tanggal_lapor).getTime());
 
   if (pendingReports.length === 0) {
     return null; // Don't render if no pending tickets
   }
+
+  // Pagination Logic
+  const totalPages = Math.ceil(pendingReports.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = pendingReports.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleNext = () => {
+    if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
+  };
+
+  const handlePrev = () => {
+    if (currentPage > 1) setCurrentPage(prev => prev - 1);
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -37,7 +54,7 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pendingReports.map((report) => (
+            {currentData.map((report) => (
               <tr key={report.id} className="hover:bg-slate-50 transition-colors group">
                 <td className="px-4 py-3 align-top">
                   <div className="flex flex-col items-start">
@@ -80,6 +97,29 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="px-4 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+            <button 
+                onClick={handlePrev} 
+                disabled={currentPage === 1}
+                className="p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <ChevronLeft className="w-4 h-4 text-slate-600" />
+            </button>
+            <span className="text-xs font-medium text-slate-600">
+                Hal {currentPage} dari {totalPages}
+            </span>
+            <button 
+                onClick={handleNext} 
+                disabled={currentPage === totalPages}
+                className="p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <ChevronRight className="w-4 h-4 text-slate-600" />
+            </button>
+        </div>
+      )}
     </div>
   );
 };

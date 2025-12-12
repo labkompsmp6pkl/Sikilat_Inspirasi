@@ -4,10 +4,11 @@ import Login from './components/Login';
 import ChatInterface from './components/ChatInterface';
 import MyStatusDashboard from './components/MyStatusDashboard';
 import DamageReportChart from './components/DamageReportChart';
-import PendingTicketTable from './components/PendingTicketTable'; // Import new component
+import PendingTicketTable from './components/PendingTicketTable';
+import BookingTable from './components/BookingTable'; // Import new component
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris } from './types';
-import db from './services/dbService'; // Import the database service
+import db from './services/dbService'; 
 import { LogOut, ShieldCheck, Database, User as UserIcon, Lock, ChevronDown, Download, FileSpreadsheet } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -155,19 +156,18 @@ const App: React.FC = () => {
   // DEFINISI HAK AKSES DASHBOARD
   
   // 1. Logic Read-Only:
-  // Role 'penanggung_jawab' dan 'admin' adalah EKSEKUTOR (bisa klik tombol).
-  // Role 'pengawas_*' adalah MONITORING (hanya lihat data).
   const isReadOnly = !['penanggung_jawab', 'admin'].includes(currentUser.peran);
 
   // 2. Chart (Analisis):
-  // Dulu hanya PJ & Admin. Sekarang semua Pengawas juga boleh lihat untuk analisis, tapi tanpa tombol aksi.
   const chartAccessRoles: UserRole[] = ['penanggung_jawab', 'admin', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin'];
   
   // 3. Table (Eksekusi/Monitoring):
-  // Semua Pengawas boleh lihat antrian tiket untuk monitoring, tapi tidak bisa eksekusi.
   const ticketAccessRoles: UserRole[] = ['penanggung_jawab', 'admin', 'pengawas_it', 'pengawas_sarpras'];
   
-  // 4. Export CSV: Penanggung Jawab, Admin, dan Pengawas Admin
+  // 4. Booking Table Access (New)
+  const bookingAccessRoles: UserRole[] = ['penanggung_jawab', 'admin', 'pengawas_sarpras', 'pengawas_admin', 'guru'];
+
+  // 5. Export CSV: 
   const exportAccessRoles: UserRole[] = ['penanggung_jawab', 'pengawas_admin', 'admin'];
 
 
@@ -283,6 +283,11 @@ const App: React.FC = () => {
                     onProcessAction={handleTriggerChatAction}
                     isReadOnly={isReadOnly}
                 />
+            )}
+            
+            {/* Booking / Antrian Table - Visible for Teachers, Admins, Sarpras, PJ */}
+            {bookingAccessRoles.includes(currentUser.peran) && bookings.length > 0 && (
+                <BookingTable bookings={bookings} />
             )}
 
             {/* My Status Dashboard - Available for ALL users to track their own items */}
