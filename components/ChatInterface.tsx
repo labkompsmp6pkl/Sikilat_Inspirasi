@@ -186,53 +186,56 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
   const handleAutoFill = () => {
     if (!activeForm) return;
 
-    // --- LOGIC KHUSUS AGENDA KEGIATAN (PENANGGUNG JAWAB) ---
+    // --- LOGIC PRESET KEGIATAN MANAJEMEN ASET (IT & SARPRAS) ---
     if (activeForm.id === 'agenda_kegiatan') {
-        // Daftar Kelas Lengkap Sesuai Permintaan
-        const kelas7 = ['7A', '7B', '7C', '7D', '7E', '7F', '7G'];
-        const kelas8 = ['8A', '8B', '8C', '8D', '8E', '8F', '8G', '8H'];
-        const kelas9 = ['9A', '9B', '9C', '9D', '9E', '9F', '9G'];
-        const allClasses = [...kelas7, ...kelas8, ...kelas9];
-
-        // Random Selection
-        const randomClass = allClasses[Math.floor(Math.random() * allClasses.length)];
-        const studentCount = Math.floor(Math.random() * 5) + 1; // 1 sampai 5 siswa
-
-        // Skenario Permasalahan yang ditangani PJ
-        const scenarios = [
+        // Preset tugas-tugas rutin manajemen aset
+        const assetTasks = [
             {
-                uraian: `Penanganan kedisiplinan ${studentCount} siswa kelas ${randomClass} yang terlambat masuk sekolah.`,
-                hasil: "Siswa diberikan poin pelanggaran dan pembinaan wawasan wiyata mandala.",
-                posisi: "Pos Piket / Lobby Utama"
+                posisi: "Lab Komputer 1",
+                objek: "20 Unit PC & Jaringan LAN",
+                uraian: "Maintenance Rutin Mingguan: Pengecekan konektivitas internet, update antivirus, dan pembersihan file sampah (cache) pada komputer siswa.",
+                hasil: "Semua PC berjalan normal. 2 PC memerlukan update driver manual. Koneksi LAN stabil."
             },
             {
-                uraian: `Mediasi konflik verbal antar teman sekelas yang melibatkan ${studentCount} siswa kelas ${randomClass}.`,
-                hasil: "Siswa telah saling memaafkan dan menandatangani surat pernyataan damai.",
-                posisi: "Ruang BK / Kesiswaan"
+                posisi: "Ruang Server Utama",
+                objek: "Server Database & Mikrotik",
+                uraian: "Pengecekan log server harian, monitoring suhu ruangan server, dan backup database SIKILAT ke cloud storage.",
+                hasil: "Suhu server stabil (22°C). Backup database berhasil dilakukan tanpa error."
             },
             {
-                uraian: `Tindak lanjut laporan kerusakan fasilitas meja belajar oleh siswa kelas ${randomClass}.`,
-                hasil: "Kerusakan terdata. Siswa bersedia bertanggung jawab/mengganti kerugian.",
-                posisi: `Ruang Kelas ${randomClass}`
+                posisi: "Ruang Guru",
+                objek: "Printer & Scanner Bersama",
+                uraian: "Perbaikan laporan kertas macet (paper jam) dan pengisian ulang tinta printer yang habis.",
+                hasil: "Printer sudah dapat digunakan kembali. Tinta Hitam dan Warna telah diisi penuh."
             },
             {
-                uraian: `Razia kelengkapan atribut seragam dan kerapian rambut siswa putra kelas ${randomClass}.`,
-                hasil: "Ditemukan 3 siswa rambut panjang, diberikan teguran lisan dan surat peringatan.",
-                posisi: `Depan Kelas ${randomClass}`
+                posisi: "Seluruh Area Sekolah",
+                objek: "Infrastruktur Wi-Fi (Access Point)",
+                uraian: "Monitoring sinyal Wi-Fi di titik-titik blindspot dan restart rutin Access Point untuk refresh koneksi.",
+                hasil: "Sinyal Wi-Fi di area koridor kelas 8 meningkat setelah reposisi antena AP."
             },
             {
-                uraian: `Pembinaan ${studentCount} siswa kelas ${randomClass} yang tertangkap membolos saat jam istirahat.`,
-                hasil: "Orang tua telah dihubungi via telepon. Siswa membuat janji tidak mengulangi.",
-                posisi: "Ruang Penanggung Jawab"
+                posisi: "Ruang Kelas 9A - 9D",
+                objek: "Fasilitas Meja & Kursi Siswa",
+                uraian: "Inventarisasi kondisi meja dan kursi siswa. Menandai aset yang rusak ringan (baut lepas/kayu retak) untuk perbaikan.",
+                hasil: "Ditemukan 5 kursi dengan kondisi kaki goyah. Dijadwalkan perbaikan oleh tim Sarpras besok."
             },
             {
-                uraian: `Penanganan siswa kelas ${randomClass} yang sakit mendadak di kelas saat KBM berlangsung.`,
-                hasil: "Siswa diberikan pertolongan pertama di UKS dan dijemput orang tua.",
-                posisi: "UKS"
+                posisi: "Perpustakaan",
+                objek: "AC Split & Lampu Ruangan",
+                uraian: "Pengecekan keluhan AC tidak dingin. Pembersihan filter udara dan cek arus listrik pada lampu baca.",
+                hasil: "Filter AC kotor telah dibersihkan. Suhu kembali dingin. 2 Lampu baca diganti baru."
+            },
+            {
+                posisi: "Lab Komputer 2",
+                objek: "Proyektor Infocus",
+                uraian: "Pengecekan tampilan proyektor yang buram/berbintik. Membersihkan lensa dan cek kabel VGA/HDMI.",
+                hasil: "Tampilan kembali jernih. Kabel HDMI diganti baru karena konektor longgar."
             }
         ];
 
-        const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+        // Pilih satu preset secara acak
+        const randomTask = assetTasks[Math.floor(Math.random() * assetTasks.length)];
         
         // Waktu sekarang
         const now = new Date();
@@ -243,10 +246,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         setFormData({
             waktu_mulai: startStr,
             waktu_selesai: endStr,
-            posisi: randomScenario.posisi,
-            objek_pengguna: `Siswa Kelas ${randomClass} (${studentCount} Siswa)`,
-            uraian_kegiatan: randomScenario.uraian,
-            hasil_kegiatan: randomScenario.hasil,
+            posisi: randomTask.posisi,
+            objek_pengguna: randomTask.objek,
+            uraian_kegiatan: randomTask.uraian,
+            hasil_kegiatan: randomTask.hasil,
         });
         return;
     }
@@ -286,7 +289,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         return <div key={index}>{renderDataWidget(jsonString)}</div>;
       } else {
         const formattedText = part
-          .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
           .replace(/\n/g, '<br />');
         return <p key={index} dangerouslySetInnerHTML={{ __html: formattedText }} />;
       }
@@ -294,33 +298,81 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
   };
 
   const renderValueRecursively = (val: any, key: string, level = 0): React.ReactNode => {
-    if (val === null || val === undefined) return <span className="text-slate-400">N/A</span>;
-    if (typeof val === 'boolean') return val ? <CheckSquare className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-rose-500" />;
-    if (val instanceof Date) return val.toLocaleString('id-ID');
+    if (val === null || val === undefined) return <span className="text-slate-300 italic"> - </span>;
+    
+    if (typeof val === 'boolean') {
+        return val 
+            ? <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold text-xs bg-emerald-50 px-2 py-0.5 rounded"><CheckSquare className="w-3 h-3" /> Ya</span> 
+            : <span className="inline-flex items-center gap-1 text-rose-600 font-semibold text-xs bg-rose-50 px-2 py-0.5 rounded"><X className="w-3 h-3" /> Tidak</span>;
+    }
+
+    if (val instanceof Date) return <span className="font-mono text-xs text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{val.toLocaleString('id-ID')}</span>;
+    
     if (Array.isArray(val)) {
+        if (val.length === 0) return <span className="text-slate-400 text-xs italic">Data kosong</span>;
         return (
-            <div className="pl-4 border-l-2 border-slate-200 mt-1 space-y-2">
+            <div className="flex flex-col gap-2 w-full mt-1">
                 {val.map((item, index) => (
-                    <div key={index} className="p-2 bg-slate-100 rounded-md">
+                    <div key={index} className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm hover:bg-slate-100 transition-colors">
                         {renderValueRecursively(item, `${key}-${index}`, level + 1)}
                     </div>
                 ))}
             </div>
         );
     }
+    
     if (typeof val === 'object') {
         return (
-            <div className={`space-y-1 ${level > 0 ? '' : ''}`}>
-                {Object.entries(val).map(([subKey, subVal]) => (
-                    <div key={subKey} className="grid grid-cols-2 gap-2 text-xs">
-                        <span className="font-semibold text-slate-500 capitalize">{subKey.replace(/_/g, ' ')}:</span>
-                        <div className="text-slate-700">{renderValueRecursively(subVal, subKey, level + 1)}</div>
-                    </div>
-                ))}
+            <div className={`grid gap-y-1 w-full`}>
+                {Object.entries(val).map(([subKey, subVal]) => {
+                     // Status Badge Logic
+                     const isStatus = subKey.toLowerCase().includes('status');
+                     if (isStatus && typeof subVal === 'string') {
+                         const statusColors: Record<string, string> = {
+                             'Pending': 'bg-amber-100 text-amber-700 border-amber-200',
+                             'Menunggu': 'bg-amber-100 text-amber-700 border-amber-200',
+                             'Proses': 'bg-blue-100 text-blue-700 border-blue-200',
+                             'Selesai': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                             'Disetujui': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                             'Ditolak': 'bg-rose-100 text-rose-700 border-rose-200',
+                             'Kembali': 'bg-slate-100 text-slate-700 border-slate-200',
+                             'Rusak Berat': 'bg-rose-100 text-rose-700 border-rose-200',
+                             'Rusak Ringan': 'bg-orange-100 text-orange-700 border-orange-200',
+                             'Baik': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                             'Perbaikan': 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                         };
+                         
+                         let style = 'bg-slate-100 text-slate-600 border-slate-200';
+                         for (const k in statusColors) {
+                             if (subVal.includes(k)) {
+                                 style = statusColors[k];
+                                 break;
+                             }
+                         }
+                         
+                         return (
+                            <div key={subKey} className="flex justify-between items-center py-1 border-b border-slate-100 last:border-0">
+                                <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide">{subKey.replace(/_/g, ' ')}</span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${style}`}>{subVal}</span>
+                            </div>
+                         );
+                     }
+
+                    return (
+                        <div key={subKey} className="flex flex-col sm:flex-row sm:justify-between sm:items-start py-1.5 border-b border-slate-100 last:border-0 gap-1">
+                            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide min-w-[100px] mt-0.5">{subKey.replace(/_/g, ' ')}</span>
+                            <div className="text-slate-800 text-sm font-medium text-right break-words flex-1">
+                                {renderValueRecursively(subVal, subKey, level + 1)}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         );
     }
-     return String(val);
+    
+    // String/Number
+    return <span className="text-slate-700">{String(val)}</span>;
   };
   
   const renderDataWidget = (jsonString: string) => {
@@ -329,7 +381,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
         if (textToParse.startsWith('```json')) {
             textToParse = textToParse.substring(7).trim();
+        } else if (textToParse.startsWith('```')) {
+             textToParse = textToParse.substring(3).trim();
         }
+        
         if (textToParse.endsWith('```')) {
             textToParse = textToParse.slice(0, -3).trim();
         }
@@ -343,24 +398,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         else start = Math.min(firstBracket, firstSquare);
 
         if (start === -1) {
-            throw new Error("String does not contain a valid JSON object or array.");
+            // Handle case where no JSON structure is found
+            return <div className="text-slate-500 text-sm p-3 bg-slate-50 rounded-lg italic border border-slate-200">{jsonString}</div>;
         }
         
         textToParse = textToParse.substring(start);
-        const firstChar = textToParse.charAt(0);
-
-        const openChar = firstChar;
+        
+        // Basic balancing logic
+        const openChar = textToParse.charAt(0);
         const closeChar = openChar === '{' ? '}' : ']';
         let balance = 0;
         let endIndex = -1;
 
         for (let i = 0; i < textToParse.length; i++) {
             const char = textToParse.charAt(i);
-            if (char === openChar) {
-                balance++;
-            } else if (char === closeChar) {
-                balance--;
-            }
+            if (char === openChar) balance++;
+            else if (char === closeChar) balance--;
 
             if (balance === 0) {
                 endIndex = i;
@@ -369,7 +422,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         }
 
         if (endIndex === -1) {
-            throw new Error("Could not find a complete JSON structure.");
+             throw new Error("Incomplete JSON");
         }
 
         const finalJsonString = textToParse.substring(0, endIndex + 1);
@@ -435,9 +488,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
         const items = Array.isArray(data) ? data : [data];
         return (
-            <div className="space-y-3">
+            <div className="space-y-3 mt-3">
             {items.map((item, index) => (
-                <div key={index} className="p-3 bg-white rounded-lg shadow-sm border border-slate-200">
+                <div key={index} className="p-4 bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                     {renderValueRecursively(item, `item-${index}`)}
                 </div>
             ))}
@@ -445,8 +498,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         );
      } catch (error) {
         console.error("JSON Parse Error:", error);
-        console.error("Problematic JSON string:", jsonString);
-        return <div className="text-red-500 text-sm p-2 bg-red-50 rounded-md">⚠️ Error menampilkan data.</div>;
+        return <div className="text-red-500 text-sm p-3 bg-red-50 rounded-md border border-red-100 flex items-center gap-2"><AlertTriangle className="w-4 h-4"/> <span>Gagal menampilkan data terstruktur.</span></div>;
     }
   };
 

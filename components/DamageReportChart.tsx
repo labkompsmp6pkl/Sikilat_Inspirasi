@@ -1,7 +1,6 @@
-
 import React, { useMemo, useState } from 'react';
 import { PengaduanKerusakan } from '../types';
-import { BarChart2, Monitor, Building2, Wrench, ArrowRightCircle, Filter } from 'lucide-react';
+import { BarChart2, Monitor, Building2, Wrench, ArrowRightCircle, Filter, Sparkles, TrendingUp } from 'lucide-react';
 
 interface DamageReportChartProps {
   reports: PengaduanKerusakan[];
@@ -75,13 +74,41 @@ const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProces
     const sarprasAndGeneralData = sortedData.filter(d => d.category === 'Sarpras' || d.category === 'General');
     
     const maxCount = Math.max(...sortedData.map(d => d.count), 0);
+    const totalCount = sortedData.reduce((acc, curr) => acc + curr.count, 0);
 
-    return { itData, sarprasAndGeneralData, maxCount };
+    return { itData, sarprasAndGeneralData, maxCount, totalCount };
   }, [reports, selectedCategory, selectedLocation]);
 
   const handleSOPAction = (item: AggregatedDamage) => {
     if (onProcessAction) {
         const prompt = `Analisis dan buatkan SOP standar (Standar Operasional Prosedur) perbaikan teknis untuk menangani masalah: ${item.type} (Kategori: ${item.category}). Sertakan alat yang dibutuhkan, langkah keselamatan, dan kriteria keputusan apakah harus diperbaiki sendiri atau diganti.`;
+        onProcessAction(prompt);
+    }
+  };
+
+  const handleDeepAnalysis = () => {
+    if (onProcessAction) {
+        const context = {
+            filter: { category: selectedCategory, location: selectedLocation },
+            stats: { total_laporan: chartData.totalCount },
+            top_issues: [
+                ...chartData.itData.slice(0, 3), 
+                ...chartData.sarprasAndGeneralData.slice(0, 3)
+            ].map(i => `${i.type} (${i.count} kasus)`)
+        };
+
+        const prompt = `
+        Tolong lakukan **Analisis Strategis & Prediksi Tren Perbaikan** berdasarkan grafik kerusakan aset yang sedang saya pantau.
+        
+        **Data Grafik Saat Ini:**
+        :::DATA_JSON:::${JSON.stringify(context)}
+        
+        **Mohon Berikan Insight Mendalam:**
+        1. 🔍 **Akar Masalah:** Apa pola tersembunyi dari kerusakan ini? Apakah ada korelasi antara lokasi '${selectedLocation}' dengan jenis kerusakan tertentu?
+        2. 📈 **Prediksi Tren:** Berdasarkan frekuensi saat ini, aset mana yang paling berisiko mengalami kerusakan total dalam 30 hari ke depan?
+        3. 🛡️ **Rekomendasi Preventif:** Apa langkah pemeliharaan prioritas yang harus dilakukan minggu ini untuk menurunkan angka laporan?
+        `;
+        
         onProcessAction(prompt);
     }
   };
@@ -118,10 +145,10 @@ const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProces
                         </div>
                         {/* Action Button - HIDE IF READ ONLY */}
                         {!isReadOnly && (
-                            <div className="flex justify-end">
+                            <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 <button 
                                     onClick={() => handleSOPAction(item)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 shadow-sm bg-white transition-colors ${theme.btnHover} opacity-90 group-hover:opacity-100`}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 shadow-sm bg-white transition-colors ${theme.btnHover}`}
                                 >
                                     <Wrench className="w-3.5 h-3.5" />
                                     <span className="font-semibold">Tindakan SOP</span>
@@ -138,38 +165,53 @@ const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProces
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-      <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4 text-violet-600" />
-          Analisis Kerusakan Aset {isReadOnly && <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full">Mode Monitor</span>}
-        </h3>
+      <div className="p-4 border-b flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+             <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-violet-600" />
+                Analisis Kerusakan Aset
+                {isReadOnly && <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] uppercase font-bold tracking-wider rounded-full">Monitor Mode</span>}
+             </h3>
+             <p className="text-xs text-slate-400 hidden sm:block">Visualisasi frekuensi kerusakan 30 hari terakhir.</p>
+        </div>
         
-        <div className="flex items-center gap-2">
-            <div className="relative">
-                <Filter className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <select 
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-600"
-                >
-                    <option value="Semua">Semua Kategori</option>
-                    <option value="IT">Aset IT</option>
-                    <option value="Sarpras & General">Sarpras & Umum</option>
-                </select>
-            </div>
-            
-            <div className="relative">
-                <Building2 className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <select 
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-600 max-w-[140px] truncate"
-                >
-                    <option value="Semua">Semua Lokasi</option>
-                    {uniqueLocations.map(loc => (
-                        <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                </select>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            {/* AI Analysis Button */}
+            <button 
+                onClick={handleDeepAnalysis}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md hover:scale-105 transition-all w-full sm:w-auto justify-center"
+            >
+                <Sparkles className="w-3.5 h-3.5" />
+                Analisis AI & Prediksi
+            </button>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none">
+                    <Filter className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <select 
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-600"
+                    >
+                        <option value="Semua">Semua Kategori</option>
+                        <option value="IT">Aset IT</option>
+                        <option value="Sarpras & General">Sarpras & Umum</option>
+                    </select>
+                </div>
+                
+                <div className="relative flex-1 sm:flex-none">
+                    <Building2 className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <select 
+                        value={selectedLocation}
+                        onChange={(e) => setSelectedLocation(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-600 max-w-[140px] truncate"
+                    >
+                        <option value="Semua">Semua Lokasi</option>
+                        {uniqueLocations.map(loc => (
+                            <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
         </div>
       </div>
@@ -179,11 +221,13 @@ const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProces
         <CategorySection title="Aset Sarpras & Umum" data={chartData.sarprasAndGeneralData} maxCount={chartData.maxCount} color="amber" Icon={Building2} />
         
         {chartData.itData.length === 0 && chartData.sarprasAndGeneralData.length === 0 && (
-             <div className="text-center py-8">
-                <p className="text-sm text-slate-500">Tidak ada data kerusakan yang sesuai dengan filter.</p>
+             <div className="text-center py-8 bg-slate-50/50 rounded-lg border-2 border-dashed border-slate-100">
+                <TrendingUp className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-medium text-slate-500">Tidak ada data kerusakan.</p>
+                <p className="text-xs text-slate-400">Coba ubah filter lokasi atau kategori.</p>
                 <button 
                     onClick={() => { setSelectedCategory('Semua'); setSelectedLocation('Semua'); }}
-                    className="mt-2 text-xs font-semibold text-violet-600 hover:text-violet-800"
+                    className="mt-3 text-xs font-bold text-violet-600 hover:text-violet-800 bg-violet-50 px-3 py-1 rounded-full transition-colors"
                 >
                     Reset Filter
                 </button>
