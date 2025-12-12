@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
 import db from './dbService';
 
+// Use process.env.API_KEY as per guidelines
 const API_KEY = process.env.API_KEY;
 
 let ai: GoogleGenAI | null = null;
@@ -290,7 +291,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
         - Laporan Terakhir:
         ${recentReports}
         
-        Instruksi: Berikan analisis manajerial dan rekomendasi strategis berdasarkan data ini.`;
+        Instruksi: Berikan analisis manajerial dan rekomendasi strategis mengenai kesimpulan kinerja penanganan laporan dan kondisi aset saat ini berdasarkan data di atas.`;
         
         userPrompt = `${userPrompt}\n\n${contextData}`;
 
