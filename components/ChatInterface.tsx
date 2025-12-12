@@ -185,15 +185,74 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
   const handleAutoFill = () => {
     if (!activeForm) return;
+
+    // --- LOGIC KHUSUS AGENDA KEGIATAN (PENANGGUNG JAWAB) ---
+    if (activeForm.id === 'agenda_kegiatan') {
+        // Daftar Kelas Lengkap Sesuai Permintaan
+        const kelas7 = ['7A', '7B', '7C', '7D', '7E', '7F', '7G'];
+        const kelas8 = ['8A', '8B', '8C', '8D', '8E', '8F', '8G', '8H'];
+        const kelas9 = ['9A', '9B', '9C', '9D', '9E', '9F', '9G'];
+        const allClasses = [...kelas7, ...kelas8, ...kelas9];
+
+        // Random Selection
+        const randomClass = allClasses[Math.floor(Math.random() * allClasses.length)];
+        const studentCount = Math.floor(Math.random() * 5) + 1; // 1 sampai 5 siswa
+
+        // Skenario Permasalahan yang ditangani PJ
+        const scenarios = [
+            {
+                uraian: `Penanganan kedisiplinan ${studentCount} siswa kelas ${randomClass} yang terlambat masuk sekolah.`,
+                hasil: "Siswa diberikan poin pelanggaran dan pembinaan wawasan wiyata mandala.",
+                posisi: "Pos Piket / Lobby Utama"
+            },
+            {
+                uraian: `Mediasi konflik verbal antar teman sekelas yang melibatkan ${studentCount} siswa kelas ${randomClass}.`,
+                hasil: "Siswa telah saling memaafkan dan menandatangani surat pernyataan damai.",
+                posisi: "Ruang BK / Kesiswaan"
+            },
+            {
+                uraian: `Tindak lanjut laporan kerusakan fasilitas meja belajar oleh siswa kelas ${randomClass}.`,
+                hasil: "Kerusakan terdata. Siswa bersedia bertanggung jawab/mengganti kerugian.",
+                posisi: `Ruang Kelas ${randomClass}`
+            },
+            {
+                uraian: `Razia kelengkapan atribut seragam dan kerapian rambut siswa putra kelas ${randomClass}.`,
+                hasil: "Ditemukan 3 siswa rambut panjang, diberikan teguran lisan dan surat peringatan.",
+                posisi: `Depan Kelas ${randomClass}`
+            },
+            {
+                uraian: `Pembinaan ${studentCount} siswa kelas ${randomClass} yang tertangkap membolos saat jam istirahat.`,
+                hasil: "Orang tua telah dihubungi via telepon. Siswa membuat janji tidak mengulangi.",
+                posisi: "Ruang Penanggung Jawab"
+            },
+            {
+                uraian: `Penanganan siswa kelas ${randomClass} yang sakit mendadak di kelas saat KBM berlangsung.`,
+                hasil: "Siswa diberikan pertolongan pertama di UKS dan dijemput orang tua.",
+                posisi: "UKS"
+            }
+        ];
+
+        const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+        
+        // Waktu sekarang
+        const now = new Date();
+        const startStr = now.toISOString().slice(0, 16); // format YYYY-MM-DDTHH:mm
+        const endTime = new Date(now.getTime() + 60 * 60 * 1000); // +1 jam
+        const endStr = endTime.toISOString().slice(0, 16);
+
+        setFormData({
+            waktu_mulai: startStr,
+            waktu_selesai: endStr,
+            posisi: randomScenario.posisi,
+            objek_pengguna: `Siswa Kelas ${randomClass} (${studentCount} Siswa)`,
+            uraian_kegiatan: randomScenario.uraian,
+            hasil_kegiatan: randomScenario.hasil,
+        });
+        return;
+    }
+
+    // --- LOGIC STANDAR UNTUK FORM LAIN ---
     const autoFillData: Record<string, Record<string, string>> = {
-      agenda_kegiatan: {
-        waktu_mulai: '2025-12-09T08:00',
-        waktu_selesai: '2025-12-09T10:00',
-        posisi: 'Lab Komputer 2',
-        objek_pengguna: 'Siswa Kelas 11B',
-        uraian_kegiatan: 'Praktikum Jaringan Komputer Dasar.',
-        hasil_kegiatan: 'Semua siswa berhasil mengkonfigurasi IP Address.',
-      },
       lapor_kerusakan: {
         nama_barang: 'Proyektor Epson',
         lokasi: 'Ruang Rapat A',
@@ -202,7 +261,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
       },
       booking_ruangan: {
         objek: 'Aula Utama',
-        tanggal: '2025-12-16',
+        tanggal: new Date().toISOString().slice(0, 10),
         jam_mulai: '09:00',
         jam_selesai: '12:00',
         keperluan: 'Rapat persiapan acara Peringatan Hari Kemerdekaan oleh OSIS.',
