@@ -103,6 +103,20 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
       )}
     </div>
   );
+
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-blue-600" />
+            Status Laporan & Pemesanan Saya
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Section title="Laporan Kerusakan Terbaru" data={myReports} type="report" />
+            <Section title="Peminjaman & Booking Terbaru" data={myBookings} type="booking" />
+        </div>
+    </div>
+  );
 };
 
 export default MyStatusDashboard;

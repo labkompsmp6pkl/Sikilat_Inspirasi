@@ -276,13 +276,12 @@ const App: React.FC = () => {
                 />
             )}
 
-            {currentUser.peran === 'guru' && (
-                <MyStatusDashboard
-                    currentUser={currentUser}
-                    reports={reports}
-                    bookings={bookings}
-                />
-            )}
+            {/* My Status Dashboard - Available for ALL users to track their own items */}
+            <MyStatusDashboard
+                currentUser={currentUser}
+                reports={reports}
+                bookings={bookings}
+            />
         </div>
 
         {/* AI Assistant Section */}
