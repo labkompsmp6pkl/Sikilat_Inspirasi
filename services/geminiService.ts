@@ -1,9 +1,8 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
 import db from './dbService';
 
-const API_KEY = process.env.API_KEY || '';
+const API_KEY = process.env.API_KEY;
 
 let ai: GoogleGenAI | null = null;
 try {
@@ -251,7 +250,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
   // 2. Jika tidak tertangani simulasi, kirim ke Real AI
   if (!ai) {
-    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API_KEY is missing in env._`};
+    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API Key belum dikonfigurasi (process.env.API_KEY)._`};
   }
   
   try {
