@@ -112,7 +112,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     // If replying, prefix the prompt with context so AI understands
     let promptToSend = text;
     if (currentReplyingTo) {
-        const cleanReplyText = currentReplyingTo.text.replace(/:::DATA_JSON:::.*$/s, '').slice(0, 300); // Strip heavy JSON and limit length
+        // Remove heavy JSON data from context to save tokens and avoid confusion
+        const cleanReplyText = currentReplyingTo.text.replace(/:::DATA_JSON:::.*$/s, '').slice(0, 300); 
         promptToSend = `[CONTEXT: User is replying to this previous message: "${cleanReplyText}"].\n\nUser's Reply: ${text}`;
     }
 

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
+import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian, AgendaKegiatan } from "../types";
 import db from './dbService';
 
 // --- KONFIGURASI API KEY ---
@@ -66,6 +66,142 @@ const generateReportId = (user: User) => {
 // --- INTELLIGENT SIMULATION ENGINE ---
 const runSimulation = (message: string, user: User): GeminiResponse | null => {
     const lowerMsg = message.toLowerCase();
+
+    // --- 1. PRIORITAS UTAMA: PARSING FORMULIR OFFLINE (HEMAT KUOTA) ---
+    // Menangkap input formulir standar dan memprosesnya TANPA memanggil API AI.
+    // Ini mencegah error 429 saat melakukan input data rutin.
+    if (message.includes('📝 Input Formulir:')) {
+        
+        // A. Handle Agenda Kegiatan
+        if (message.includes('Input Agenda Kegiatan')) {
+            try {
+                // Helper regex untuk ekstrak nilai setelah tanda titik dua
+                const parse = (label: string) => {
+                    // Regex mencari 'Label: isi...'
+                    // Menggunakan 'u' flag untuk unicode support jika perlu, dan multiline handling sederhana
+                    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
+                    const regex = new RegExp(`${escapedLabel}:\\s*(.*)`);
+                    const match = message.match(regex);
+                    return match ? match[1].trim() : '';
+                };
+
+                const waktuMulai = parse('Waktu Mulai');
+                const waktuSelesai = parse('Waktu Selesai');
+                const posisi = parse('Posisi / Lokasi');
+                const objek = parse('Objek Pengguna');
+                const uraian = parse('Uraian Kegiatan');
+                const hasil = parse('Hasil Kegiatan');
+                
+                // Validasi minimal
+                if (waktuMulai && posisi && uraian) {
+                    const newAgenda: AgendaKegiatan = {
+                        id: `AGD-${Date.now()}`,
+                        nama_pj: user.nama_lengkap,
+                        id_pj: user.id_pengguna,
+                        waktu_mulai: waktuMulai, // String ISO dari form
+                        waktu_selesai: waktuSelesai,
+                        posisi: posisi,
+                        objek_pengguna: objek || 'Umum',
+                        uraian_kegiatan: uraian,
+                        hasil_kegiatan: hasil || '-',
+                        status: 'Pending'
+                    };
+
+                    const dataToSave: SavedData = {
+                        table: 'agenda_kegiatan',
+                        payload: newAgenda
+                    };
+
+                    return {
+                        text: `✅ **Agenda Berhasil Dicatat (Mode Offline)**\n\nInput Anda telah berhasil disimpan ke database.\n\n**Detail Kegiatan:**\n- 📅 **Waktu:** ${newAgenda.waktu_mulai.toString().replace('T', ' ')}\n- 📍 **Lokasi:** ${newAgenda.posisi}\n- 📝 **Uraian:** ${newAgenda.uraian_kegiatan}\n\n_Catatan: Data diproses secara lokal untuk menghemat kuota AI._`,
+                        dataToSave
+                    };
+                }
+            } catch (e) {
+                console.error("Error parsing agenda offline", e);
+                // Jika gagal parsing manual, biarkan lanjut ke AI (fallback)
+            }
+        }
+
+        // B. Handle Lapor Kerusakan
+        if (message.includes('Formulir Lapor Kerusakan')) {
+             try {
+                const parse = (label: string) => {
+                    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(`${escapedLabel}:\\s*(.*)`);
+                    const match = message.match(regex);
+                    return match ? match[1].trim() : '';
+                };
+
+                const barang = parse('Nama Barang');
+                const lokasi = parse('Lokasi');
+                const masalah = parse('Deskripsi Masalah');
+                const urgensi = parse('Tingkat Urgensi');
+
+                if (barang && masalah) {
+                    const newReportId = generateReportId(user);
+                    const newReport: PengaduanKerusakan = {
+                        id: newReportId,
+                        id_barang: 'MANUAL-INPUT',
+                        id_pengadu: user.id_pengguna,
+                        nama_pengadu: user.nama_lengkap,
+                        tanggal_lapor: new Date(),
+                        nama_barang: barang,
+                        lokasi_kerusakan: lokasi,
+                        deskripsi_masalah: `${masalah} [Urgensi: ${urgensi}]`,
+                        status: 'Pending',
+                        kategori_aset: 'General' // Default logic
+                    };
+
+                    return {
+                        text: `✅ **Laporan Kerusakan Diterima (Mode Offline)**\n\nLaporan Anda telah disimpan. Tim teknis akan segera meninjau.\n\n**ID Tiket:** \`${newReportId}\`\n**Barang:** ${barang}\n**Masalah:** ${masalah}`,
+                        dataToSave: { table: 'pengaduan_kerusakan', payload: newReport }
+                    };
+                }
+             } catch (e) {
+                 console.error("Error parsing report offline", e);
+             }
+        }
+        
+        // C. Handle Booking Ruangan
+        if (message.includes('Booking Ruangan')) {
+             try {
+                const parse = (label: string) => {
+                    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(`${escapedLabel}:\\s*(.*)`);
+                    const match = message.match(regex);
+                    return match ? match[1].trim() : '';
+                };
+
+                const objek = parse('Ruangan / Alat');
+                const tanggal = parse('Tanggal Peminjaman');
+                const jamMulai = parse('Jam Mulai');
+                const jamSelesai = parse('Jam Selesai');
+                const keperluan = parse('Keperluan');
+
+                if (objek && tanggal) {
+                     const newBooking: PeminjamanAntrian = {
+                        id_peminjaman: `BOOK-${Date.now()}`,
+                        id_barang: 'MANUAL',
+                        nama_barang: objek,
+                        id_pengguna: user.id_pengguna,
+                        tanggal_peminjaman: new Date(tanggal),
+                        jam_mulai: jamMulai,
+                        jam_selesai: jamSelesai,
+                        keperluan: keperluan,
+                        tanggal_pengembalian_rencana: new Date(tanggal),
+                        status_peminjaman: 'Menunggu'
+                    };
+
+                    return {
+                        text: `✅ **Pengajuan Booking Diterima (Mode Offline)**\n\nPermintaan peminjaman **${objek}** untuk tanggal ${tanggal} sedang diproses.\n\nSilakan cek status secara berkala.`,
+                        dataToSave: { table: 'peminjaman_antrian', payload: newBooking }
+                    };
+                }
+             } catch (e) { console.error(e) }
+        }
+    }
+
 
     // CRITICAL FIX: BYPASS SIMULATION FOR ANALYSIS REQUESTS *ONLY IF AI IS AVAILABLE*
     // If AI is NOT available (missing API Key), we skip this bypass so the fallback simulation logic below can handle it.
@@ -355,7 +491,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
 
 export const sendMessageToGemini = async (message: string, user: User, imageBase64?: string | null, mimeType?: string | null): Promise<GeminiResponse> => {
  
-  // 1. Coba jalankan simulasi dulu (untuk respon cepat/tugas sederhana/fallback)
+  // 1. Coba jalankan simulasi dulu (untuk respon cepat/tugas sederhana/fallback/hemat kuota)
   const simulationResult = runSimulation(message, user);
   if (simulationResult) {
     return new Promise(resolve => setTimeout(() => resolve(simulationResult), 500));
@@ -460,6 +596,14 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
   } catch (error: any) {
     console.error("Gemini API Error:", error);
 
+    // --- HANDLE QUOTA EXCEEDED (429) GRACEFULLY ---
+    const errorMsg = error.message || JSON.stringify(error);
+    if (errorMsg.includes('429') || errorMsg.includes('Quota exceeded') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+         return {
+            text: `⚠️ **Kuota AI Habis (Limit Harian Tercapai)**\n\nMaaf, kuota penggunaan AI (Gemini Free Tier) untuk hari ini telah habis.\n\n**Solusi:**\n1. Gunakan fitur **Input Formulir** (tetap berjalan normal karena diproses Offline).\n2. Coba lagi besok saat kuota direset.\n3. Hubungi admin untuk upgrade ke akun berbayar jika ini sering terjadi.`
+         }
+    }
+
     // --- ROBUST FALLBACK FOR OVERLOADED API (503) OR NETWORK ISSUES ---
     // Specifically handle analysis requests to provide a seamless "Offline Mode" experience
     if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi|prediksi)/)) {
@@ -473,7 +617,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
         const dominantCat = itCount > sarprasCount ? 'IT' : 'Sarpras';
 
         return {
-            text: `⚠️ **AI Sedang Sibuk (Mode Offline)**\n\nKoneksi ke model AI mengalami kepadatan tinggi (Error 503). Namun, sistem tetap dapat menyajikan **Analisis Statistik Lokal** untuk Anda:\n\n### 📊 Ringkasan Data Real-time\n- **Total Laporan:** ${total} tiket tercatat.\n- **Perhatian Khusus:** Terdapat **${pending} tiket Pending** yang membutuhkan tindakan segera.\n- **Dominasi Masalah:** Kategori **${dominantCat}** memiliki frekuensi laporan tertinggi bulan ini.\n\n### 💡 Rekomendasi Tindakan (Auto-Generated)\n1. Prioritaskan penyelesaian tiket dengan status 'Pending'.\n2. Lakukan pengecekan stok suku cadang untuk aset kategori ${dominantCat}.\n3. Coba lakukan analisis mendalam dengan AI lagi dalam beberapa menit.\n\n_Sistem beralih ke mode statistik internal karena Gemini API overloaded._`
+            text: `⚠️ **AI Sedang Sibuk (Mode Offline)**\n\nKoneksi ke model AI mengalami gangguan. Namun, sistem tetap dapat menyajikan **Analisis Statistik Lokal** untuk Anda:\n\n### 📊 Ringkasan Data Real-time\n- **Total Laporan:** ${total} tiket tercatat.\n- **Perhatian Khusus:** Terdapat **${pending} tiket Pending** yang membutuhkan tindakan segera.\n- **Dominasi Masalah:** Kategori **${dominantCat}** memiliki frekuensi laporan tertinggi bulan ini.\n\n### 💡 Rekomendasi Tindakan (Auto-Generated)\n1. Prioritaskan penyelesaian tiket dengan status 'Pending'.\n2. Lakukan pengecekan stok suku cadang untuk aset kategori ${dominantCat}.\n\n_Sistem beralih ke mode statistik internal._`
         };
     }
 
@@ -496,7 +640,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     }
 
     return { 
-        text: `⚠️ *Gagal Terhubung ke AI*\n\nSistem menolak permintaan Anda. Kemungkinan penyebab:\n\n1. **API Key Tidak Valid:** Cek kembali pengaturan Vercel.\n2. **Kuota Habis (429):** Batas harian terlampaui.\n3. **Model Tidak Tersedia:** Akun Anda mungkin belum mendukung fitur ini.\n\n**Pesan Error Asli:**\n_${error.message || JSON.stringify(error)}_` 
+        text: `⚠️ *Gagal Terhubung ke AI*\n\nSistem menolak permintaan Anda. Kemungkinan penyebab:\n\n1. **API Key Tidak Valid:** Cek kembali pengaturan Vercel.\n2. **Koneksi Bermasalah:** Periksa internet Anda.\n\n**Pesan Error Asli:**\n_${error.message || JSON.stringify(error)}_` 
     };
   }
 };
