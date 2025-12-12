@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Database, X, CheckSquare, Zap, Check, CheckCheck, MoreVertical, Paperclip, Smile, Wrench, AlertTriangle, ListChecks, FileSearch, Lightbulb, ThumbsUp, ThumbsDown, ArrowRight, Share2, Calendar, Users, ChevronsRight, FileText, ClipboardList, Building2, Monitor, Phone, Mail, ChevronDown, ChevronUp, Info, Clock, Key } from 'lucide-react';
+import { Send, Sparkles, Database, X, CheckSquare, Zap, Check, CheckCheck, MoreVertical, Paperclip, Smile, Wrench, AlertTriangle, ListChecks, FileSearch, Lightbulb, ThumbsUp, ThumbsDown, ArrowRight, Share2, Calendar, Users, ChevronsRight, FileText, ClipboardList, Building2, Monitor, Phone, Mail, ChevronDown, ChevronUp, Info, Clock, Key, Reply } from 'lucide-react';
 import { User, Message, RoleConfig, FormTemplate, QuickAction, DetailedItemReport, HistorySection, SavedData, PaginationInfo, ChatInterfaceProps, MaintenanceGuide, TroubleshootingGuide, WorkReportDraft, LaporanStatus, GeminiResponse } from '../types';
 import { sendMessageToGemini, updateApiKey } from '../services/geminiService';
 import { FORM_TEMPLATES } from '../constants';
@@ -23,6 +23,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
   const [isTyping, setIsTyping] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null); // NEW: State for reply context
   
   const [activeForm, setActiveForm] = useState<FormTemplate | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -71,6 +72,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
       });
   };
 
+  const handleReplyClick = (msg: Message) => {
+      setReplyingTo(msg);
+      textareaRef.current?.focus();
+  };
+
   const handleSend = async (text: string) => {
     if (!text.trim() && !imageFile) return;
 
@@ -79,17 +85,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         imageBase64 = await fileToBase64(imageFile);
     }
 
+    const currentReplyingTo = replyingTo; // Capture current ref
+
     const userMsg: Message = {
       id: Date.now().toString(),
       sender: 'user',
       text: text,
       timestamp: new Date(),
       imageUrl: imagePreview || undefined,
+      replyTo: currentReplyingTo || undefined // Attach reply context to the message
     };
+
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
     setImageFile(null);
     setImagePreview(null);
+    setReplyingTo(null); // Clear reply state
     setIsTyping(true);
 
     // Pastikan chat terbuka saat pesan dikirim
@@ -97,7 +108,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         onToggle();
     }
 
-    const response: GeminiResponse = await sendMessageToGemini(text, user, imageBase64, imageFile?.type);
+    // --- CONTEXT INJECTION FOR AI ---
+    // If replying, prefix the prompt with context so AI understands
+    let promptToSend = text;
+    if (currentReplyingTo) {
+        const cleanReplyText = currentReplyingTo.text.replace(/:::DATA_JSON:::.*$/s, '').slice(0, 300); // Strip heavy JSON and limit length
+        promptToSend = `[CONTEXT: User is replying to this previous message: "${cleanReplyText}"].\n\nUser's Reply: ${text}`;
+    }
+
+    const response: GeminiResponse = await sendMessageToGemini(promptToSend, user, imageBase64, imageFile?.type);
 
     // CHECK FOR API KEY ERROR
     if (response.text.includes("API_KEY_INVALID") || response.text.includes("API key not valid")) {
@@ -539,7 +558,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
             <div className="space-y-6">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex items-end gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`w-full max-w-lg p-3 rounded-2xl ${msg.sender === 'user' ? `bg-emerald-100 text-emerald-900 rounded-br-none` : 'bg-white text-slate-800 rounded-bl-none shadow-sm'}`}>
+                  <div className={`w-full max-w-lg p-3 rounded-2xl relative group ${msg.sender === 'user' ? `bg-emerald-100 text-emerald-900 rounded-br-none` : 'bg-white text-slate-800 rounded-bl-none shadow-sm'}`}>
+                    
+                    {/* Reply Action Button (Visible on Hover) */}
+                    <button 
+                        onClick={() => handleReplyClick(msg)}
+                        className={`absolute top-2 ${msg.sender === 'user' ? '-left-8' : '-right-8'} p-1.5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity`}
+                        title="Balas Pesan Ini"
+                    >
+                        <Reply className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Quoted Message Display */}
+                    {msg.replyTo && (
+                        <div className={`mb-2 p-2 rounded text-xs border-l-4 ${msg.sender === 'user' ? 'bg-emerald-200/50 border-emerald-500 text-emerald-800' : 'bg-slate-100 border-slate-400 text-slate-600'}`}>
+                            <div className="font-bold mb-0.5">{msg.replyTo.sender === 'ai' ? 'SIKILAT Assistant' : 'Anda'}</div>
+                            <div className="truncate opacity-80">{msg.replyTo.text.replace(/:::DATA_JSON:::.*$/s, '')}</div>
+                        </div>
+                    )}
+
                     {msg.imageUrl && <img src={msg.imageUrl} alt="upload preview" className="rounded-lg mb-2 max-h-60" />}
                     {renderMessageContent(msg.text)}
                     <div className="text-right text-xs text-slate-400 mt-2 flex items-center justify-end gap-1">
@@ -566,6 +603,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
                 );
              })}
           </div>
+          
+          {/* Reply Preview Area */}
+          {replyingTo && (
+              <div className="px-4 pt-3 bg-slate-50 animate-slide-up">
+                  <div className="bg-white border-l-4 border-blue-500 rounded-r-lg p-2 shadow-sm flex justify-between items-center">
+                      <div className="overflow-hidden">
+                          <div className="text-xs font-bold text-blue-600 mb-0.5">Membalas ke {replyingTo.sender === 'ai' ? 'SIKILAT Assistant' : 'Anda'}</div>
+                          <div className="text-xs text-slate-500 truncate">{replyingTo.text.replace(/:::DATA_JSON:::.*$/s, '')}</div>
+                      </div>
+                      <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-slate-100 rounded-full text-slate-500">
+                          <X className="w-4 h-4" />
+                      </button>
+                  </div>
+              </div>
+          )}
+
           <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
             <div className="relative">
               <textarea ref={textareaRef} value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ketik pesan Anda... (Shift+Enter untuk baris baru)" className="w-full pl-4 pr-24 py-3 bg-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm resize-none" rows={1}/>

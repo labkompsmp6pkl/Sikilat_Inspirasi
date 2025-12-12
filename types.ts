@@ -94,6 +94,7 @@ export interface Message {
   text: string;
   timestamp: Date;
   imageUrl?: string; // Support for image uploads
+  replyTo?: Message; // NEW: Reference to the message being replied to
 }
 
 // Form System Interfaces
