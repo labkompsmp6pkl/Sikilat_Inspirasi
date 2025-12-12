@@ -2,13 +2,29 @@ import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
 import db from './dbService';
 
-// Use process.env.API_KEY as per guidelines
-const API_KEY = process.env.API_KEY;
+// Robust function to safely get API Key without crashing
+const getApiKey = (): string => {
+  try {
+    // Check if we are in a Vite environment
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      return import.meta.env.VITE_API_KEY || '';
+    }
+  } catch (e) {
+    console.warn("Environment variable access failed, running in offline mode.");
+  }
+  return '';
+};
+
+const API_KEY = getApiKey();
 
 let ai: GoogleGenAI | null = null;
 try {
   if (API_KEY) {
     ai = new GoogleGenAI({ apiKey: API_KEY });
+  } else {
+    console.warn("VITE_API_KEY is missing. AI features will run in simulation mode.");
   }
 } catch (error) {
   console.error("Failed to initialize Gemini client", error);
@@ -251,7 +267,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
   // 2. Jika tidak tertangani simulasi, kirim ke Real AI
   if (!ai) {
-    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API Key belum dikonfigurasi (process.env.API_KEY)._`};
+    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API Key belum dikonfigurasi (VITE_API_KEY tidak ditemukan)._`};
   }
   
   try {
