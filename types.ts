@@ -100,7 +100,7 @@ export interface Message {
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'datetime-local' | 'select' | 'date' | 'dropdown';
+  type: 'text' | 'textarea' | 'datetime-local' | 'select' | 'date' | 'dropdown' | 'creatable-select';
   options?: string[];
   placeholder?: string;
   required?: boolean;

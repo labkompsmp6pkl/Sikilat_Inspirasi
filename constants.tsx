@@ -199,6 +199,38 @@ export const MOCK_INVENTARIS: Inventaris[] = [
     { id_barang: 'inv06', nama_barang: 'Rak Buku', kategori: 'Sarpras', status_barang: 'Rusak Ringan', id_lokasi: 'L03' },
 ];
 
+// Helper to generate User Options
+const generateUserOptions = () => {
+    const staffOptions = [
+        'Staff IT', 
+        'Staff Sarpras', 
+        'Staff Admin', 
+        'Guru', 
+        'Kepala Sekolah', 
+        'Tamu / Eksternal',
+        'Petugas Perpustakaan'
+    ];
+    
+    const ekskulOptions = [
+        '[EKSKUL] Komputer',
+        '[EKSKUL] Pramuka',
+        '[EKSKUL] OSIS',
+        '[EKSKUL] PMR',
+        '[EKSKUL] Basket'
+    ];
+
+    const studentOptions: string[] = [];
+    const levels = ['7', '8', '9'];
+    const classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    
+    levels.forEach(level => {
+        classes.forEach(cls => {
+            studentOptions.push(`Siswa Kelas ${level}${cls}`);
+        });
+    });
+
+    return [...staffOptions, ...ekskulOptions, ...studentOptions];
+};
 
 // Form Templates Definition
 export const FORM_TEMPLATES: Record<string, FormTemplate> = {
@@ -210,7 +242,14 @@ export const FORM_TEMPLATES: Record<string, FormTemplate> = {
       { name: 'waktu_mulai', label: 'Waktu Mulai', type: 'datetime-local', required: true },
       { name: 'waktu_selesai', label: 'Waktu Selesai', type: 'datetime-local', required: true },
       { name: 'posisi', label: 'Posisi / Lokasi', type: 'text', placeholder: 'Contoh: Lab Komputer 1', required: true },
-      { name: 'objek_pengguna', label: 'Objek Pengguna', type: 'text', placeholder: 'Contoh: Siswa Kelas 8A / Guru', required: true },
+      { 
+          name: 'objek_pengguna', 
+          label: 'Objek Pengguna', 
+          type: 'creatable-select', 
+          placeholder: 'Pilih dari list atau ketik baru (Contoh: Siswa Kelas 9A)', 
+          required: true,
+          options: generateUserOptions()
+      },
       { name: 'uraian_kegiatan', label: 'Uraian Kegiatan', type: 'textarea', placeholder: 'Jelaskan detail aktivitas yang dilakukan...', required: true },
       { name: 'hasil_kegiatan', label: 'Hasil Kegiatan', type: 'textarea', placeholder: 'Hasil atau status akhir kegiatan...', required: true },
     ]

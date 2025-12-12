@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
 import db from './dbService';
@@ -375,7 +376,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
   let generationConfig: any = { systemInstruction };
   
   // --- CONTEXT INJECTION: ANALISIS (USING GEMINI 2.0 FLASH THINKING) ---
-  if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
+  if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi|prediksi)/)) {
       const inventaris = db.getTable('inventaris');
       const reports = db.getTable('pengaduan_kerusakan');
       const bookings = db.getTable('peminjaman_antrian');
@@ -459,7 +460,24 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
   } catch (error: any) {
     console.error("Gemini API Error:", error);
 
-    // --- FALLBACK MECHANISM ---
+    // --- ROBUST FALLBACK FOR OVERLOADED API (503) OR NETWORK ISSUES ---
+    // Specifically handle analysis requests to provide a seamless "Offline Mode" experience
+    if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi|prediksi)/)) {
+        const reports = db.getTable('pengaduan_kerusakan');
+        const total = reports.length;
+        const pending = reports.filter(r => r.status === 'Pending').length;
+        
+        // Find top category
+        const itCount = reports.filter(r => r.kategori_aset === 'IT').length;
+        const sarprasCount = reports.filter(r => r.kategori_aset === 'Sarpras').length;
+        const dominantCat = itCount > sarprasCount ? 'IT' : 'Sarpras';
+
+        return {
+            text: `⚠️ **AI Sedang Sibuk (Mode Offline)**\n\nKoneksi ke model AI mengalami kepadatan tinggi (Error 503). Namun, sistem tetap dapat menyajikan **Analisis Statistik Lokal** untuk Anda:\n\n### 📊 Ringkasan Data Real-time\n- **Total Laporan:** ${total} tiket tercatat.\n- **Perhatian Khusus:** Terdapat **${pending} tiket Pending** yang membutuhkan tindakan segera.\n- **Dominasi Masalah:** Kategori **${dominantCat}** memiliki frekuensi laporan tertinggi bulan ini.\n\n### 💡 Rekomendasi Tindakan (Auto-Generated)\n1. Prioritaskan penyelesaian tiket dengan status 'Pending'.\n2. Lakukan pengecekan stok suku cadang untuk aset kategori ${dominantCat}.\n3. Coba lakukan analisis mendalam dengan AI lagi dalam beberapa menit.\n\n_Sistem beralih ke mode statistik internal karena Gemini API overloaded._`
+        };
+    }
+
+    // --- FALLBACK MECHANISM FOR OTHER REQUESTS ---
     if (modelName === 'gemini-3-pro-preview') {
         console.warn("⚠️ Falling back to gemini-2.5-flash due to error...");
         try {

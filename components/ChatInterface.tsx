@@ -194,53 +194,62 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     // --- LOGIC PRESET KEGIATAN MANAJEMEN ASET (IT & SARPRAS) ---
     // Diperbarui: Objek Pengguna kini merujuk pada Manusia/Kelompok (Siswa, Guru, Staff)
     if (activeForm.id === 'agenda_kegiatan') {
-        const assetTasks = [
+        const maintenancePresets = [
+            // --- IT PRESETS ---
             {
                 posisi: "Lab Komputer 1",
-                objek: "[KELAS] 9A (Guru Mapel: Bu Ani)",
-                uraian: "Maintenance PC saat jam kosong sebelum digunakan praktik. Pengecekan konektivitas internet dan update antivirus.",
-                hasil: "PC Siap digunakan untuk praktik. Koneksi LAN stabil."
-            },
-            {
-                posisi: "Ruang Server Utama",
-                objek: "[STAFF] Tim IT / Administrator",
-                uraian: "Pengecekan rutin suhu ruang server dan backup database SIKILAT. Memastikan tidak ada error log pada sistem.",
-                hasil: "Suhu server stabil (22°C). Backup database berhasil dilakukan."
+                objek: "Siswa Kelas 9A",
+                uraian: "Maintenance Rutin: Pengecekan software, update antivirus, dan pembersihan file sampah di 30 unit PC.",
+                hasil: "28 PC Normal, 2 PC perlu install ulang Windows (dijadwalkan besok)."
             },
             {
                 posisi: "Ruang Guru",
-                objek: "[INDIVIDU] Guru: Pak Budi Santoso",
-                uraian: "Menindaklanjuti laporan printer macet (paper jam) yang digunakan oleh Pak Budi.",
-                hasil: "Kertas macet berhasil dikeluarkan. Printer berfungsi kembali."
+                objek: "Guru",
+                uraian: "Perbaikan Jaringan: Menangani laporan WiFi 'limited access' dan printer sharing tidak terdeteksi.",
+                hasil: "Access Point direstart, IP Conflict teratasi. Printer sharing sudah bisa diakses semua guru."
             },
             {
-                posisi: "Koridor Kelas 8",
-                objek: "[KELOMPOK] Siswa Kelas 8 & Guru Piket",
-                uraian: "Perbaikan koneksi Wi-Fi (Access Point) yang dilaporkan lambat oleh guru piket saat jam istirahat.",
-                hasil: "Access Point direstart dan firmware diupdate. Sinyal kembali kuat."
+                posisi: "Ruang Server",
+                objek: "Staff IT",
+                uraian: "Backup Data & Cek Suhu: Backup database mingguan SIKILAT dan pengecekan suhu ruang server.",
+                hasil: "Backup berhasil (Size: 4.5GB). Suhu ruang server stabil di 20°C."
             },
             {
-                posisi: "Ruang Kelas 9D",
-                objek: "[KELAS] 9D (Wali Kelas: Pak Joko)",
-                uraian: "Inventarisasi meja dan kursi siswa setelah jam sekolah. Mengecek laporan adanya kursi yang goyah.",
-                hasil: "Ditemukan 5 kursi perlu pengencangan baut. Akan dikerjakan besok oleh tim teknis."
+                posisi: "Lab Bahasa",
+                objek: "Siswa Kelas 8C",
+                uraian: "Pengecekan Headset: Memeriksa fungsi audio dan microphone pada headset lab bahasa sebelum ujian.",
+                hasil: "5 Headset kabel putus (diganti baru), sisanya berfungsi baik."
+            },
+            
+            // --- SARPRAS PRESETS ---
+            {
+                posisi: "Ruang Kelas 7B",
+                objek: "Siswa Kelas 7B",
+                uraian: "Perbaikan Mebel: Memperbaiki 3 meja siswa yang goyah dan 1 kursi yang sandarannya lepas.",
+                hasil: "Meja dan kursi telah diperkuat dengan paku tembak dan lem kayu. Aman digunakan."
             },
             {
                 posisi: "Perpustakaan",
-                objek: "[STAFF] Petugas Pustaka & Pengunjung",
-                uraian: "Pengecekan keluhan AC tidak dingin dari petugas perpustakaan. Membersihkan filter udara.",
-                hasil: "Filter AC kotor telah dibersihkan. Suhu ruangan kembali sejuk."
+                objek: "Petugas Perpustakaan",
+                uraian: "Service AC: Cuci AC Split dan cek tekanan freon karena laporan AC tidak dingin.",
+                hasil: "Filter sangat kotor sudah dibersihkan. Tekanan freon normal. Suhu output sudah dingin (18°C)."
             },
             {
-                posisi: "Lab Komputer 2",
-                objek: "[KELOMPOK] Ekstrakurikuler Komputer",
-                uraian: "Persiapan proyektor dan sound system untuk kegiatan ekskul. Cek kabel VGA/HDMI.",
-                hasil: "Peralatan berfungsi baik. Kabel HDMI diganti baru karena konektor longgar."
+                posisi: "Koridor Utama",
+                objek: "Staff Sarpras",
+                uraian: "Pergantian Lampu: Mengganti 4 titik lampu LED downlight yang mati di area koridor menuju kantin.",
+                hasil: "Lampu diganti dengan LED 12W baru. Area kembali terang."
+            },
+            {
+                posisi: "Toilet Siswa Lt.1",
+                objek: "Siswa",
+                uraian: "Perbaikan Sanitasi: Memperbaiki kran air wastafel yang bocor dan flush toilet yang macet.",
+                hasil: "Seal kran diganti, kebocoran berhenti. Mekanisme flush diperbaiki."
             }
         ];
 
         // Pilih satu preset secara acak
-        const randomTask = assetTasks[Math.floor(Math.random() * assetTasks.length)];
+        const randomTask = maintenancePresets[Math.floor(Math.random() * maintenancePresets.length)];
         
         // Waktu sekarang
         const now = new Date();
@@ -624,6 +633,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
                                         <option value="" disabled>Pilih salah satu...</option>
                                         {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                     </select>
+                                ) : field.type === 'creatable-select' ? (
+                                    <div className="relative">
+                                        <input 
+                                            list={`list-${field.name}`}
+                                            name={field.name}
+                                            required={field.required} 
+                                            placeholder={field.placeholder} 
+                                            value={formData[field.name] || ''} 
+                                            onChange={e => setFormData({...formData, [field.name]: e.target.value})} 
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                                            autoComplete="off"
+                                        />
+                                        <datalist id={`list-${field.name}`}>
+                                            {field.options?.map(opt => <option key={opt} value={opt} />)}
+                                        </datalist>
+                                        <p className="text-[10px] text-slate-400 mt-1 ml-1">*Pilih dari daftar atau ketik manual jika tidak tersedia.</p>
+                                    </div>
                                 ) : (<input type={field.type} name={field.name} required={field.required} placeholder={field.placeholder} value={formData[field.name] || ''} onChange={e => setFormData({...formData, [field.name]: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"/>)}
                             </div>
                         ))}
