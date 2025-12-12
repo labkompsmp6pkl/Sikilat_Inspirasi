@@ -53,6 +53,9 @@ export interface PengaduanKerusakan {
   nama_barang: string; // Added for easier access
   nama_pengadu: string;
   lokasi_kerusakan: string;
+  // New fields for resolution tracking
+  diselesaikan_oleh?: string;
+  catatan_penyelesaian?: string;
 }
 
 export interface PeminjamanAntrian {

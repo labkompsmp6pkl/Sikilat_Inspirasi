@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { User, PengaduanKerusakan, PeminjamanAntrian } from '../types';
-import { ClipboardList, CalendarCheck, AlertTriangle, Clock, CheckCircle, XCircle, Wrench, Info } from 'lucide-react';
+import { ClipboardList, CalendarCheck, AlertTriangle, Clock, CheckCircle, XCircle, Wrench, Info, UserCheck } from 'lucide-react';
 
 interface MyStatusDashboardProps {
   currentUser: User;
@@ -41,7 +42,7 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
             const statusInfo = statusMap[item.status || item.status_peminjaman] || { text: item.status || item.status_peminjaman, color: 'bg-slate-500', Icon: AlertTriangle };
             const Icon = statusInfo.Icon;
             return (
-              <li key={item.id || item.id_peminjaman} className="flex items-start gap-4 p-3 bg-slate-50/70 hover:bg-slate-100 transition-colors rounded-xl">
+              <li key={item.id || item.id_peminjaman} className="flex items-start gap-4 p-3 bg-slate-50/70 hover:bg-slate-100 transition-colors rounded-xl border border-transparent hover:border-slate-200">
                 <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white ${statusInfo.color}`}>
                   <Icon className="w-5 h-5" />
                 </div>
@@ -55,6 +56,7 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
                     </div>
                     <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusInfo.color.replace('bg-','bg-').replace('-500','-100')} ${statusInfo.color.replace('bg-','text-').replace('-500','-700')}`}>{statusInfo.text}</span>
                   </div>
+                  
                   <div className="mt-2 text-xs text-slate-600 border-l-2 border-slate-200 pl-2 space-y-1">
                     {type === 'booking' && item.jam_mulai && (
                       <>
@@ -66,8 +68,25 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
                       <p><span className="font-semibold text-slate-500">Masalah:</span> {item.deskripsi_masalah}</p>
                     )}
                   </div>
+
+                  {/* INFO PENYELESAIAN OLEH PENANGGUNG JAWAB */}
+                  {type === 'report' && item.status === 'Selesai' && item.diselesaikan_oleh && (
+                     <div className="mt-2 text-xs bg-emerald-50 text-emerald-800 p-2 rounded border border-emerald-100 flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 font-semibold text-emerald-700">
+                           <UserCheck className="w-3.5 h-3.5" />
+                           Diselesaikan oleh: {item.diselesaikan_oleh}
+                        </div>
+                        {item.catatan_penyelesaian && (
+                           <div className="pl-5 text-emerald-600 opacity-90">
+                              "{item.catatan_penyelesaian}"
+                           </div>
+                        )}
+                     </div>
+                  )}
+
+                  {/* INFO PENOLAKAN BOOKING */}
                   {item.status_peminjaman === 'Ditolak' && item.alasan_penolakan && (
-                    <div className="mt-2 text-xs text-rose-700 bg-rose-50 p-2 rounded-md flex items-start gap-2">
+                    <div className="mt-2 text-xs text-rose-700 bg-rose-50 p-2 rounded-md flex items-start gap-2 border border-rose-100">
                         <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <div>
                             <span className="font-semibold">Alasan Penolakan:</span> {item.alasan_penolakan}
@@ -82,21 +101,6 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
       ) : (
         <p className="text-center text-sm text-slate-500 py-4 bg-slate-50 rounded-lg">Tidak ada data terbaru.</p>
       )}
-    </div>
-  );
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-      <div className="p-4 border-b">
-        <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-blue-600" />
-          Status Laporan & Pemesanan Saya
-        </h3>
-      </div>
-      <div className="p-4 space-y-6">
-        <Section title="Laporan Kerusakan Terbaru" data={myReports} type="report" />
-        <Section title="Pemesanan Ruangan atau Alat Terbaru" data={myBookings} type="booking" />
-      </div>
     </div>
   );
 };

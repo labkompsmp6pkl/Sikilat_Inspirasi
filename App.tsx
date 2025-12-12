@@ -224,8 +224,8 @@ const App: React.FC = () => {
                         <ShieldCheck className="w-6 h-6" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-slate-800">Dashboard: {roleConfig.label}</h2>
-                        <p className="text-slate-600 text-sm">{roleConfig.transformativeValue}</p>
+                        <h2 className="text-lg font-bold text-slate-800">Dashboard: {currentUser.nama_lengkap}</h2>
+                        <p className="text-slate-600 text-sm">Role: {roleConfig.label}</p>
                     </div>
                 </div>
                 {exportAccessRoles.includes(currentUser.peran) && (
