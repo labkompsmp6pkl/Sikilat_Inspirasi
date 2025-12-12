@@ -270,90 +270,89 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API Key belum dikonfigurasi (VITE_API_KEY tidak ditemukan)._`};
   }
   
-  try {
-    let systemInstruction = `Anda adalah asisten AI untuk sistem SIKILAT (Sistem Informasi Kilat & Manajemen Aset). 
+  // Setup Variables for Request
+  let systemInstruction = `Anda adalah asisten AI untuk sistem SIKILAT (Sistem Informasi Kilat & Manajemen Aset). 
     Peran pengguna saat ini: ${user.peran} (${user.nama_lengkap}).
     Jawablah dengan profesional, ringkas, dan membantu. Gunakan format Markdown.`;
 
-    let userPrompt = message;
-    let modelName = 'gemini-2.5-flash';
-    let generationConfig: any = { systemInstruction };
-    
-    // --- CONTEXT INJECTION: ANALISIS ---
-    if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
-        const inventaris = db.getTable('inventaris');
-        const reports = db.getTable('pengaduan_kerusakan');
-        const bookings = db.getTable('peminjaman_antrian');
-        
-        const totalAset = inventaris.length;
-        const asetRusakBerat = inventaris.filter(i => i.status_barang === 'Rusak Berat').length;
-        const asetRusakRingan = inventaris.filter(i => i.status_barang === 'Rusak Ringan').length;
-        const asetBaik = inventaris.filter(i => i.status_barang === 'Baik').length;
-        
-        const laporanPending = reports.filter(r => r.status === 'Pending').length;
-        const laporanProses = reports.filter(r => r.status === 'Proses').length;
-        const laporanSelesai = reports.filter(r => r.status === 'Selesai').length;
-        
-        const recentReports = reports
-            .slice(0, 5)
-            .map(r => `- [${r.tanggal_lapor.toLocaleDateString()}] ${r.nama_barang} di ${r.lokasi_kerusakan}: ${r.deskripsi_masalah} (Status: ${r.status})`)
-            .join('\n');
+  let userPrompt = message;
+  let modelName = 'gemini-2.5-flash';
+  let generationConfig: any = { systemInstruction };
+  
+  // --- CONTEXT INJECTION: ANALISIS ---
+  if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
+      const inventaris = db.getTable('inventaris');
+      const reports = db.getTable('pengaduan_kerusakan');
+      const bookings = db.getTable('peminjaman_antrian');
+      
+      const totalAset = inventaris.length;
+      const asetRusakBerat = inventaris.filter(i => i.status_barang === 'Rusak Berat').length;
+      const asetRusakRingan = inventaris.filter(i => i.status_barang === 'Rusak Ringan').length;
+      const asetBaik = inventaris.filter(i => i.status_barang === 'Baik').length;
+      
+      const laporanPending = reports.filter(r => r.status === 'Pending').length;
+      const laporanProses = reports.filter(r => r.status === 'Proses').length;
+      const laporanSelesai = reports.filter(r => r.status === 'Selesai').length;
+      
+      const recentReports = reports
+          .slice(0, 5)
+          .map(r => `- [${r.tanggal_lapor.toLocaleDateString()}] ${r.nama_barang} di ${r.lokasi_kerusakan}: ${r.deskripsi_masalah} (Status: ${r.status})`)
+          .join('\n');
 
-        const contextData = `
-        [DATA STATISTIK SISTEM REAL-TIME]
-        - Total Aset: ${totalAset} (Baik: ${asetBaik}, Rusak: ${asetRusakRingan + asetRusakBerat})
-        - Tiket Pending: ${laporanPending}, Proses: ${laporanProses}, Selesai: ${laporanSelesai}
-        - Total Peminjaman: ${bookings.length}
-        - Laporan Terakhir:
-        ${recentReports}
-        
-        Instruksi: Berikan analisis manajerial dan rekomendasi strategis mengenai kesimpulan kinerja penanganan laporan dan kondisi aset saat ini berdasarkan data di atas.`;
-        
-        userPrompt = `${userPrompt}\n\n${contextData}`;
+      const contextData = `
+      [DATA STATISTIK SISTEM REAL-TIME]
+      - Total Aset: ${totalAset} (Baik: ${asetBaik}, Rusak: ${asetRusakRingan + asetRusakBerat})
+      - Tiket Pending: ${laporanPending}, Proses: ${laporanProses}, Selesai: ${laporanSelesai}
+      - Total Peminjaman: ${bookings.length}
+      - Laporan Terakhir:
+      ${recentReports}
+      
+      Instruksi: Berikan analisis manajerial dan rekomendasi strategis mengenai kesimpulan kinerja penanganan laporan dan kondisi aset saat ini berdasarkan data di atas.`;
+      
+      userPrompt = `${userPrompt}\n\n${contextData}`;
 
-        // USE THINKING MODEL FOR COMPLEX ANALYSIS
-        modelName = 'gemini-3-pro-preview';
-        generationConfig = {
-            systemInstruction,
-            thinkingConfig: { thinkingBudget: 32768 } // Max budget for deep reasoning
-        };
-    }
+      // TRY COMPLEX MODEL FIRST
+      modelName = 'gemini-3-pro-preview';
+      generationConfig = {
+          systemInstruction,
+          thinkingConfig: { thinkingBudget: 32768 } 
+      };
+  }
 
-    // --- CONTEXT INJECTION: KONTAK ADMIN/PETUGAS ---
-    // Jika user minta kontak, kita ambil data pengguna (role admin/pengawas) dari DB dan suntikkan ke prompt.
-    if (message.toLowerCase().match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
-        const allUsers = db.getTable('pengguna');
-        // Filter hanya menampilkan kontak petugas penting, bukan user biasa
-        const officialContacts = allUsers.filter(u => 
-            ['admin', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras', 'penanggung_jawab'].includes(u.peran)
-        );
+  // --- CONTEXT INJECTION: KONTAK ADMIN/PETUGAS ---
+  if (message.toLowerCase().match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
+      const allUsers = db.getTable('pengguna');
+      const officialContacts = allUsers.filter(u => 
+          ['admin', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras', 'penanggung_jawab'].includes(u.peran)
+      );
 
-        const contactList = officialContacts.map(u => 
-            `- ${u.nama_lengkap} (${u.peran.replace('_', ' ').toUpperCase()}): ${u.no_hp} | ${u.email}`
-        ).join('\n');
+      const contactList = officialContacts.map(u => 
+          `- ${u.nama_lengkap} (${u.peran.replace('_', ' ').toUpperCase()}): ${u.no_hp} | ${u.email}`
+      ).join('\n');
 
-        const contactContext = `
-        [DATA KONTAK PETUGAS RESMI SIKILAT]
-        Berikut adalah daftar kontak petugas yang BISA diberikan kepada pengguna jika diminta:
-        ${contactList}
+      const contactContext = `
+      [DATA KONTAK PETUGAS RESMI SIKILAT]
+      Berikut adalah daftar kontak petugas yang BISA diberikan kepada pengguna jika diminta:
+      ${contactList}
 
-        Instruksi: User meminta kontak. Berikan informasi kontak di atas dengan format yang rapi dan mudah dibaca. JANGAN menolak memberikan informasi ini karena ini adalah data publik layanan.
-        `;
+      Instruksi: User meminta kontak. Berikan informasi kontak di atas dengan format yang rapi dan mudah dibaca. JANGAN menolak memberikan informasi ini karena ini adalah data publik layanan.
+      `;
 
-        userPrompt = `${userPrompt}\n\n${contactContext}`;
-    }
+      userPrompt = `${userPrompt}\n\n${contactContext}`;
+  }
 
-    let parts: any[] = [{ text: userPrompt }];
+  let parts: any[] = [{ text: userPrompt }];
 
-    if (imageBase64 && mimeType) {
-        parts.push({
-            inlineData: {
-                data: imageBase64,
-                mimeType: mimeType
-            }
-        });
-    }
+  if (imageBase64 && mimeType) {
+      parts.push({
+          inlineData: {
+              data: imageBase64,
+              mimeType: mimeType
+          }
+      });
+  }
 
+  try {
     const response = await ai.models.generateContent({
         model: modelName,
         config: generationConfig,
@@ -362,8 +361,32 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     
     return { text: response.text || "Maaf, saya tidak dapat memproses permintaan saat ini." };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return { text: "⚠️ *Gagal Terhubung ke AI*\nMaaf, terjadi gangguan koneksi. Pastikan API Key valid dan koneksi internet stabil." };
+
+    // --- FALLBACK MECHANISM ---
+    // Jika model 'pro' gagal (misal karena kuota/akses), coba downgrade ke 'flash' yang lebih stabil.
+    if (modelName === 'gemini-3-pro-preview') {
+        console.warn("⚠️ Falling back to gemini-2.5-flash due to error...");
+        try {
+            const fallbackResponse = await ai.models.generateContent({
+                model: 'gemini-2.5-flash', // Model standar
+                config: { systemInstruction }, // Reset config (hapus thinkingConfig)
+                contents: [{ parts: parts }],
+            });
+            return { text: fallbackResponse.text || "Maaf, respon kosong." };
+        } catch (fallbackError: any) {
+             console.error("Fallback Failed:", fallbackError);
+             // Jika fallback juga gagal, tampilkan error asli
+             return { 
+                text: `⚠️ *Gagal Terhubung ke AI*\n\nTerjadi kesalahan pada model utama dan model cadangan.\n\n**Detail Error:** _${fallbackError.message || 'Unknown Error'}_` 
+            };
+        }
+    }
+
+    // Tampilkan error deskriptif agar user tahu penyebabnya (misal: 403 Forbidden, 429 Too Many Requests)
+    return { 
+        text: `⚠️ *Gagal Terhubung ke AI*\n\nSistem menolak permintaan Anda. Kemungkinan penyebab:\n\n1. **API Key Tidak Valid:** Cek kembali pengaturan Vercel.\n2. **Kuota Habis (429):** Batas harian terlampaui.\n3. **Model Tidak Tersedia:** Akun Anda mungkin belum mendukung fitur ini.\n\n**Pesan Error Asli:**\n_${error.message || JSON.stringify(error)}_` 
+    };
   }
 };
