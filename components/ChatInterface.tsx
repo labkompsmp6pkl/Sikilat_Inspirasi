@@ -187,50 +187,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     if (!activeForm) return;
 
     // --- LOGIC PRESET KEGIATAN MANAJEMEN ASET (IT & SARPRAS) ---
+    // Diperbarui: Objek Pengguna kini merujuk pada Manusia/Kelompok (Siswa, Guru, Staff)
     if (activeForm.id === 'agenda_kegiatan') {
-        // Preset tugas-tugas rutin manajemen aset
         const assetTasks = [
             {
                 posisi: "Lab Komputer 1",
-                objek: "20 Unit PC & Jaringan LAN",
-                uraian: "Maintenance Rutin Mingguan: Pengecekan konektivitas internet, update antivirus, dan pembersihan file sampah (cache) pada komputer siswa.",
-                hasil: "Semua PC berjalan normal. 2 PC memerlukan update driver manual. Koneksi LAN stabil."
+                objek: "[KELAS] 9A (Guru Mapel: Bu Ani)",
+                uraian: "Maintenance PC saat jam kosong sebelum digunakan praktik. Pengecekan konektivitas internet dan update antivirus.",
+                hasil: "PC Siap digunakan untuk praktik. Koneksi LAN stabil."
             },
             {
                 posisi: "Ruang Server Utama",
-                objek: "Server Database & Mikrotik",
-                uraian: "Pengecekan log server harian, monitoring suhu ruangan server, dan backup database SIKILAT ke cloud storage.",
-                hasil: "Suhu server stabil (22°C). Backup database berhasil dilakukan tanpa error."
+                objek: "[STAFF] Tim IT / Administrator",
+                uraian: "Pengecekan rutin suhu ruang server dan backup database SIKILAT. Memastikan tidak ada error log pada sistem.",
+                hasil: "Suhu server stabil (22°C). Backup database berhasil dilakukan."
             },
             {
                 posisi: "Ruang Guru",
-                objek: "Printer & Scanner Bersama",
-                uraian: "Perbaikan laporan kertas macet (paper jam) dan pengisian ulang tinta printer yang habis.",
-                hasil: "Printer sudah dapat digunakan kembali. Tinta Hitam dan Warna telah diisi penuh."
+                objek: "[INDIVIDU] Guru: Pak Budi Santoso",
+                uraian: "Menindaklanjuti laporan printer macet (paper jam) yang digunakan oleh Pak Budi.",
+                hasil: "Kertas macet berhasil dikeluarkan. Printer berfungsi kembali."
             },
             {
-                posisi: "Seluruh Area Sekolah",
-                objek: "Infrastruktur Wi-Fi (Access Point)",
-                uraian: "Monitoring sinyal Wi-Fi di titik-titik blindspot dan restart rutin Access Point untuk refresh koneksi.",
-                hasil: "Sinyal Wi-Fi di area koridor kelas 8 meningkat setelah reposisi antena AP."
+                posisi: "Koridor Kelas 8",
+                objek: "[KELOMPOK] Siswa Kelas 8 & Guru Piket",
+                uraian: "Perbaikan koneksi Wi-Fi (Access Point) yang dilaporkan lambat oleh guru piket saat jam istirahat.",
+                hasil: "Access Point direstart dan firmware diupdate. Sinyal kembali kuat."
             },
             {
-                posisi: "Ruang Kelas 9A - 9D",
-                objek: "Fasilitas Meja & Kursi Siswa",
-                uraian: "Inventarisasi kondisi meja dan kursi siswa. Menandai aset yang rusak ringan (baut lepas/kayu retak) untuk perbaikan.",
-                hasil: "Ditemukan 5 kursi dengan kondisi kaki goyah. Dijadwalkan perbaikan oleh tim Sarpras besok."
+                posisi: "Ruang Kelas 9D",
+                objek: "[KELAS] 9D (Wali Kelas: Pak Joko)",
+                uraian: "Inventarisasi meja dan kursi siswa setelah jam sekolah. Mengecek laporan adanya kursi yang goyah.",
+                hasil: "Ditemukan 5 kursi perlu pengencangan baut. Akan dikerjakan besok oleh tim teknis."
             },
             {
                 posisi: "Perpustakaan",
-                objek: "AC Split & Lampu Ruangan",
-                uraian: "Pengecekan keluhan AC tidak dingin. Pembersihan filter udara dan cek arus listrik pada lampu baca.",
-                hasil: "Filter AC kotor telah dibersihkan. Suhu kembali dingin. 2 Lampu baca diganti baru."
+                objek: "[STAFF] Petugas Pustaka & Pengunjung",
+                uraian: "Pengecekan keluhan AC tidak dingin dari petugas perpustakaan. Membersihkan filter udara.",
+                hasil: "Filter AC kotor telah dibersihkan. Suhu ruangan kembali sejuk."
             },
             {
                 posisi: "Lab Komputer 2",
-                objek: "Proyektor Infocus",
-                uraian: "Pengecekan tampilan proyektor yang buram/berbintik. Membersihkan lensa dan cek kabel VGA/HDMI.",
-                hasil: "Tampilan kembali jernih. Kabel HDMI diganti baru karena konektor longgar."
+                objek: "[KELOMPOK] Ekstrakurikuler Komputer",
+                uraian: "Persiapan proyektor dan sound system untuk kegiatan ekskul. Cek kabel VGA/HDMI.",
+                hasil: "Peralatan berfungsi baik. Kabel HDMI diganti baru karena konektor longgar."
             }
         ];
 
