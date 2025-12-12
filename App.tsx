@@ -153,14 +153,21 @@ const App: React.FC = () => {
   const themeBg = `bg-${roleConfig.color}-600`;
 
   // DEFINISI HAK AKSES DASHBOARD
-  // 1. Chart (Analisis): Hanya untuk Penanggung Jawab & Admin (Strategic View)
-  const chartAccessRoles: UserRole[] = ['penanggung_jawab', 'admin'];
   
-  // 2. Table (Eksekusi): EKSKLUSIF untuk Penanggung Jawab & Admin.
-  // Pengawas (IT/Sarpras) TIDAK BOLEH melihat tabel ini karena berisi tombol aksi "Mulai Perbaikan".
-  const ticketAccessRoles: UserRole[] = ['penanggung_jawab', 'admin'];
+  // 1. Logic Read-Only:
+  // Role 'penanggung_jawab' dan 'admin' adalah EKSEKUTOR (bisa klik tombol).
+  // Role 'pengawas_*' adalah MONITORING (hanya lihat data).
+  const isReadOnly = !['penanggung_jawab', 'admin'].includes(currentUser.peran);
+
+  // 2. Chart (Analisis):
+  // Dulu hanya PJ & Admin. Sekarang semua Pengawas juga boleh lihat untuk analisis, tapi tanpa tombol aksi.
+  const chartAccessRoles: UserRole[] = ['penanggung_jawab', 'admin', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin'];
   
-  // 3. Export CSV: Penanggung Jawab, Admin, dan Pengawas Admin
+  // 3. Table (Eksekusi/Monitoring):
+  // Semua Pengawas boleh lihat antrian tiket untuk monitoring, tapi tidak bisa eksekusi.
+  const ticketAccessRoles: UserRole[] = ['penanggung_jawab', 'admin', 'pengawas_it', 'pengawas_sarpras'];
+  
+  // 4. Export CSV: Penanggung Jawab, Admin, dan Pengawas Admin
   const exportAccessRoles: UserRole[] = ['penanggung_jawab', 'pengawas_admin', 'admin'];
 
 
@@ -239,7 +246,7 @@ const App: React.FC = () => {
                 )}
             </div>
             
-            {/* Live Schema Monitor (Khusus Admin & Pengawas Admin sebagai pengganti Chart) */}
+            {/* Live Schema Monitor (Khusus Admin & Pengawas Admin) */}
             {(currentUser.peran === 'admin' || currentUser.peran === 'pengawas_admin') && (
               <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                   <div className="p-4 border-b">
@@ -260,19 +267,21 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* Damage Report Chart - HANYA UNTUK PENANGGUNG JAWAB & ADMIN */}
+            {/* Damage Report Chart - UNTUK PENANGGUNG JAWAB, ADMIN, & PENGAWAS (View Only) */}
             {chartAccessRoles.includes(currentUser.peran) && (
                 <DamageReportChart 
                     reports={filteredReportsForChart} 
                     onProcessAction={handleTriggerChatAction} 
+                    isReadOnly={isReadOnly}
                 />
             )}
             
-            {/* Pending Ticket Table - UNTUK PJ & ADMIN SAJA (EXECUTION TEAM) */}
+            {/* Pending Ticket Table - UNTUK PJ, ADMIN (Execute) & PENGAWAS IT/SARPRAS (View Only) */}
             {ticketAccessRoles.includes(currentUser.peran) && (
                 <PendingTicketTable 
                     reports={filteredReportsForChart}
                     onProcessAction={handleTriggerChatAction}
+                    isReadOnly={isReadOnly}
                 />
             )}
 

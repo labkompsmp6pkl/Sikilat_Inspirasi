@@ -6,6 +6,7 @@ import { BarChart2, Monitor, Building2, Wrench, ArrowRightCircle, Filter } from 
 interface DamageReportChartProps {
   reports: PengaduanKerusakan[];
   onProcessAction?: (prompt: string) => void;
+  isReadOnly?: boolean;
 }
 
 interface AggregatedDamage {
@@ -14,7 +15,7 @@ interface AggregatedDamage {
   category: 'IT' | 'Sarpras' | 'General';
 }
 
-const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProcessAction }) => {
+const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProcessAction, isReadOnly = false }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedLocation, setSelectedLocation] = useState<string>('Semua');
 
@@ -115,17 +116,19 @@ const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProces
                                 style={{ width: `${maxCount > 0 ? (item.count / maxCount) * 100 : 0}%` }}
                             ></div>
                         </div>
-                        {/* Action Button */}
-                        <div className="flex justify-end">
-                            <button 
-                                onClick={() => handleSOPAction(item)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 shadow-sm bg-white transition-colors ${theme.btnHover} opacity-90 group-hover:opacity-100`}
-                            >
-                                <Wrench className="w-3.5 h-3.5" />
-                                <span className="font-semibold">Tindakan SOP</span>
-                                <ArrowRightCircle className="w-3.5 h-3.5 opacity-50" />
-                            </button>
-                        </div>
+                        {/* Action Button - HIDE IF READ ONLY */}
+                        {!isReadOnly && (
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => handleSOPAction(item)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 shadow-sm bg-white transition-colors ${theme.btnHover} opacity-90 group-hover:opacity-100`}
+                                >
+                                    <Wrench className="w-3.5 h-3.5" />
+                                    <span className="font-semibold">Tindakan SOP</span>
+                                    <ArrowRightCircle className="w-3.5 h-3.5 opacity-50" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -138,7 +141,7 @@ const DamageReportChart: React.FC<DamageReportChartProps> = ({ reports, onProces
       <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h3 className="font-semibold text-slate-700 flex items-center gap-2">
           <BarChart2 className="w-4 h-4 text-violet-600" />
-          Analisis Kerusakan Aset
+          Analisis Kerusakan Aset {isReadOnly && <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full">Mode Monitor</span>}
         </h3>
         
         <div className="flex items-center gap-2">

@@ -6,9 +6,10 @@ import { Clock, Play, AlertCircle, MapPin, User, ArrowRight } from 'lucide-react
 interface PendingTicketTableProps {
   reports: PengaduanKerusakan[];
   onProcessAction: (prompt: string) => void;
+  isReadOnly?: boolean;
 }
 
-const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProcessAction }) => {
+const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProcessAction, isReadOnly = false }) => {
   const pendingReports = reports.filter(r => r.status === 'Pending').sort((a, b) => new Date(a.tanggal_lapor).getTime() - new Date(b.tanggal_lapor).getTime());
 
   if (pendingReports.length === 0) {
@@ -21,8 +22,9 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
         <h3 className="font-semibold text-slate-800 flex items-center gap-2">
           <Clock className="w-4 h-4 text-amber-600" />
           Antrian Tiket Pending ({pendingReports.length})
+          {isReadOnly && <span className="text-xs text-slate-400 font-normal ml-2">(Mode Monitor)</span>}
         </h3>
-        <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-md">Perlu Tindakan</span>
+        {!isReadOnly && <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-md">Perlu Tindakan</span>}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
@@ -31,7 +33,7 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
               <th className="px-4 py-3 font-medium">ID & Tanggal</th>
               <th className="px-4 py-3 font-medium">Aset & Masalah</th>
               <th className="px-4 py-3 font-medium">Lokasi & Pelapor</th>
-              <th className="px-4 py-3 font-medium text-right">Aksi</th>
+              {!isReadOnly && <th className="px-4 py-3 font-medium text-right">Aksi</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -62,15 +64,17 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
                         <User className="w-3 h-3 text-slate-400" /> {report.nama_pengadu}
                     </div>
                 </td>
-                <td className="px-4 py-3 align-middle text-right">
-                  <button
-                    onClick={() => onProcessAction(`Perbarui status laporan ${report.id} menjadi Proses`)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm shadow-blue-200 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <Play className="w-3 h-3 fill-current" />
-                    Mulai Perbaikan
-                  </button>
-                </td>
+                {!isReadOnly && (
+                    <td className="px-4 py-3 align-middle text-right">
+                    <button
+                        onClick={() => onProcessAction(`Perbarui status laporan ${report.id} menjadi Proses`)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm shadow-blue-200 transition-all hover:scale-105 active:scale-95"
+                    >
+                        <Play className="w-3 h-3 fill-current" />
+                        Mulai Perbaikan
+                    </button>
+                    </td>
+                )}
               </tr>
             ))}
           </tbody>
