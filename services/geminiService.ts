@@ -2,10 +2,21 @@ import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian } from "../types";
 import db from './dbService';
 
+// --- KONFIGURASI API KEY ---
+// Jika Anda kesulitan mengatur Environment Variable (Vercel/.env),
+// Anda bisa menempelkan (paste) API Key Anda langsung di bawah ini.
+// Contoh: const MANUAL_API_KEY = "AIzaSy...";
+const MANUAL_API_KEY: string = ""; 
+
 // Robust function to safely get API Key without crashing
 const getApiKey = (): string => {
+  // 1. Cek Hardcoded Key (Prioritas Utama untuk Debugging)
+  if (MANUAL_API_KEY && MANUAL_API_KEY.length > 10) {
+      return MANUAL_API_KEY;
+  }
+
   try {
-    // Check if we are in a Vite environment
+    // 2. Cek Environment Variable (Vite)
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env) {
       // @ts-ignore
@@ -20,15 +31,26 @@ const getApiKey = (): string => {
 const API_KEY = getApiKey();
 
 let ai: GoogleGenAI | null = null;
-try {
-  if (API_KEY) {
-    ai = new GoogleGenAI({ apiKey: API_KEY });
-  } else {
-    console.warn("VITE_API_KEY is missing. AI features will run in simulation mode.");
-  }
-} catch (error) {
-  console.error("Failed to initialize Gemini client", error);
-}
+
+const initializeAI = (key: string) => {
+    try {
+        if (key) {
+            ai = new GoogleGenAI({ apiKey: key });
+        }
+    } catch (error) {
+        console.error("Failed to initialize Gemini client", error);
+    }
+};
+
+// Initial setup
+initializeAI(API_KEY);
+
+// Allow runtime update of API Key
+export const updateApiKey = (key: string) => {
+    if (!key) return;
+    initializeAI(key);
+    console.log("API Key updated manually at runtime");
+};
 
 const generateReportId = (user: User) => {
     const date = new Date();
@@ -267,7 +289,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
   // 2. Jika tidak tertangani simulasi, kirim ke Real AI
   if (!ai) {
-    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API Key belum dikonfigurasi (VITE_API_KEY tidak ditemukan)._`};
+    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API Key belum dikonfigurasi atau tidak valid._`};
   }
   
   // Setup Variables for Request
@@ -377,7 +399,6 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
             return { text: fallbackResponse.text || "Maaf, respon kosong." };
         } catch (fallbackError: any) {
              console.error("Fallback Failed:", fallbackError);
-             // Jika fallback juga gagal, tampilkan error asli
              return { 
                 text: `⚠️ *Gagal Terhubung ke AI*\n\nTerjadi kesalahan pada model utama dan model cadangan.\n\n**Detail Error:** _${fallbackError.message || 'Unknown Error'}_` 
             };

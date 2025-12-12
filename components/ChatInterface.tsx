@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Database, X, CheckSquare, Zap, Check, CheckCheck, MoreVertical, Paperclip, Smile, Wrench, AlertTriangle, ListChecks, FileSearch, Lightbulb, ThumbsUp, ThumbsDown, ArrowRight, Share2, Calendar, Users, ChevronsRight, FileText, ClipboardList, Building2, Monitor, Phone, Mail, ChevronDown, ChevronUp, Info, Clock } from 'lucide-react';
+import { Send, Sparkles, Database, X, CheckSquare, Zap, Check, CheckCheck, MoreVertical, Paperclip, Smile, Wrench, AlertTriangle, ListChecks, FileSearch, Lightbulb, ThumbsUp, ThumbsDown, ArrowRight, Share2, Calendar, Users, ChevronsRight, FileText, ClipboardList, Building2, Monitor, Phone, Mail, ChevronDown, ChevronUp, Info, Clock, Key } from 'lucide-react';
 import { User, Message, RoleConfig, FormTemplate, QuickAction, DetailedItemReport, HistorySection, SavedData, PaginationInfo, ChatInterfaceProps, MaintenanceGuide, TroubleshootingGuide, WorkReportDraft, LaporanStatus, GeminiResponse } from '../types';
-import { sendMessageToGemini } from '../services/geminiService';
+import { sendMessageToGemini, updateApiKey } from '../services/geminiService';
 import { FORM_TEMPLATES } from '../constants';
 
 
@@ -25,6 +25,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
   
   const [activeForm, setActiveForm] = useState<FormTemplate | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
+  
+  // API Key Manual Input State
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +98,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
     const response: GeminiResponse = await sendMessageToGemini(text, user, imageBase64, imageFile?.type);
 
+    // CHECK FOR API KEY ERROR
+    if (response.text.includes("API_KEY_INVALID") || response.text.includes("API key not valid")) {
+        setShowApiKeyModal(true);
+    }
+
     const aiMsg: Message = {
       id: (Date.now() + 1).toString(),
       sender: 'ai',
@@ -108,6 +117,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
     setIsTyping(false);
     setMessages(prev => [...prev, aiMsg]);
+  };
+
+  const handleSaveApiKey = () => {
+      if (tempApiKey.trim()) {
+          updateApiKey(tempApiKey.trim());
+          setShowApiKeyModal(false);
+          setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              sender: 'ai',
+              text: '✅ **API Key Diperbarui!**\n\nKunci API berhasil disimpan sementara. Silakan coba kirim pesan Anda lagi.',
+              timestamp: new Date()
+          }]);
+      }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -371,7 +393,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-slate-100">
+    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-slate-100 relative">
       <div className="flex items-center justify-between p-4 border-b border-slate-200 flex-shrink-0">
          <div className="flex items-center gap-3">
              <div className="relative">
@@ -431,6 +453,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
           </div>
         </div>
       </div>
+
+      {/* API Key Modal */}
+      {showApiKeyModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm rounded-2xl animate-fade-in">
+           <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-6 w-full max-w-sm">
+                <div className="flex flex-col items-center text-center mb-4">
+                    <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-3">
+                        <Key className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800">Masalah Konfigurasi API Key</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                        Sistem mendeteksi API Key tidak valid atau kadaluarsa. Masukkan kunci baru untuk melanjutkan.
+                    </p>
+                </div>
+                
+                <input 
+                    type="password" 
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                    placeholder="Paste Gemini API Key (AI Studio)"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none mb-3"
+                />
+                
+                <button 
+                    onClick={handleSaveApiKey}
+                    disabled={!tempApiKey.trim()}
+                    className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+                >
+                    Simpan & Lanjutkan
+                </button>
+                
+                <div className="text-center">
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                        Dapatkan API Key Gratis di sini
+                    </a>
+                </div>
+           </div>
+        </div>
+      )}
 
       {activeForm && (
          <div className="fixed inset-0 bg-slate-900 bg-opacity-60 flex items-center justify-center z-50 animate-fade-in">
