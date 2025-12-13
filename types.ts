@@ -165,6 +165,25 @@ export interface DetailedItemReport {
   riwayat_peminjaman?: HistorySection;
 }
 
+export interface QueueItem {
+    peminjam: string;
+    waktu: string;
+    keperluan: string;
+    status: string;
+}
+
+export interface QueueStatus {
+    type: 'queue_status';
+    nama_barang: string;
+    sedang_dipakai: boolean;
+    pemakai_saat_ini?: {
+        nama: string;
+        sampai_jam: string;
+    };
+    jumlah_antrian: number;
+    antrian_berikutnya: QueueItem[];
+}
+
 export interface TroubleshootingGuide {
     type: 'troubleshooting_guide';
     id_tiket: string;

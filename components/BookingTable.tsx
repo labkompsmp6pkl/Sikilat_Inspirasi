@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { PeminjamanAntrian } from '../types';
-import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface BookingTableProps {
   bookings: PeminjamanAntrian[];
@@ -12,7 +13,9 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings }) => {
 
   // Filter out "Kembali" if you only want active bookings, or keep all.
   // For dashboard monitor, usually active/upcoming is relevant.
-  const activeBookings = bookings.sort((a, b) => new Date(b.tanggal_peminjaman).getTime() - new Date(a.tanggal_peminjaman).getTime());
+  const activeBookings = useMemo(() => {
+    return [...bookings].sort((a, b) => new Date(b.tanggal_peminjaman).getTime() - new Date(a.tanggal_peminjaman).getTime());
+  }, [bookings]);
 
   if (activeBookings.length === 0) return null;
 

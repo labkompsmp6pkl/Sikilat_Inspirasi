@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { PengaduanKerusakan } from '../types';
-import { Clock, Play, AlertCircle, MapPin, User, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Play, MapPin, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PendingTicketTableProps {
   reports: PengaduanKerusakan[];
@@ -12,9 +13,11 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const pendingReports = reports
-    .filter(r => r.status === 'Pending')
-    .sort((a, b) => new Date(a.tanggal_lapor).getTime() - new Date(b.tanggal_lapor).getTime());
+  const pendingReports = useMemo(() => {
+    return reports
+      .filter(r => r.status === 'Pending')
+      .sort((a, b) => new Date(a.tanggal_lapor).getTime() - new Date(b.tanggal_lapor).getTime());
+  }, [reports]);
 
   if (pendingReports.length === 0) {
     return null; // Don't render if no pending tickets

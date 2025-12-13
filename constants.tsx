@@ -284,6 +284,14 @@ export const FORM_TEMPLATES: Record<string, FormTemplate> = {
     fields: [
       { name: 'id_laporan', label: 'Masukkan ID Laporan Anda', type: 'text', placeholder: 'Contoh: SKL-TAMU-240729-ABC', required: true },
     ]
+  },
+  cek_antrian_form: {
+    id: 'cek_antrian_form',
+    title: 'Cek Antrian & Ketersediaan',
+    submitLabel: 'Lihat Antrian',
+    fields: [
+      { name: 'nama_aset', label: 'Nama Ruangan / Alat', type: 'text', placeholder: 'Contoh: Lab Komputer, Aula, Proyektor...', required: true },
+    ]
   }
 };
 
@@ -298,7 +306,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     actions: [
       { label: 'Lapor Kerusakan', prompt: 'Saya ingin melaporkan kerusakan aset.', icon: AlertCircle, formId: 'lapor_kerusakan' },
       { label: 'Booking Ruangan', prompt: 'Saya ingin melakukan booking ruangan.', icon: Calendar, formId: 'booking_ruangan' },
-      { label: 'Cek Antrian', prompt: 'Tampilkan data dari tabel peminjaman_antrian.', icon: Clock },
+      { label: 'Cek Antrian', prompt: 'Saya ingin cek antrian.', icon: Clock, formId: 'cek_antrian_form' },
       { label: 'Tanya Inventaris', prompt: 'Cek status barang di tabel inventaris.', icon: Search },
     ]
   },

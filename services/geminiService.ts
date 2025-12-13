@@ -1,57 +1,24 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian, AgendaKegiatan } from "../types";
+import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, TroubleshootingGuide, DetailedItemReport, Inventaris, PeminjamanAntrian, AgendaKegiatan, QueueStatus } from "../types";
 import db from './dbService';
 
-// --- KONFIGURASI API KEY ---
-// Jika Anda kesulitan mengatur Environment Variable (Vercel/.env),
-// Anda bisa menempelkan (paste) API Key Anda langsung di bawah ini.
-// Contoh: const MANUAL_API_KEY = "AIzaSy...";
-const MANUAL_API_KEY: string = ""; 
-
-// Robust function to safely get API Key without crashing
-const getApiKey = (): string => {
-  // 1. Cek Hardcoded Key (Prioritas Utama untuk Debugging)
-  if (MANUAL_API_KEY && MANUAL_API_KEY.length > 10) {
-      return MANUAL_API_KEY;
-  }
-
-  try {
-    // 2. Cek Environment Variable (Vite)
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
-      return import.meta.env.VITE_API_KEY || '';
-    }
-  } catch (e) {
-    console.warn("Environment variable access failed, running in offline mode.");
-  }
-  return '';
-};
-
-const API_KEY = getApiKey();
+// Ensure process.env is typed if types are missing in the environment
+declare var process: { env: { API_KEY: string } };
 
 let ai: GoogleGenAI | null = null;
 
-const initializeAI = (key: string) => {
-    try {
-        if (key) {
-            ai = new GoogleGenAI({ apiKey: key });
-        }
-    } catch (error) {
-        console.error("Failed to initialize Gemini client", error);
+try {
+    // API Key must be obtained exclusively from process.env.API_KEY per guidelines
+    // Using a try-catch block to prevent app crash if key is missing, maintaining simulation/offline capabilities
+    if (process.env.API_KEY) {
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    } else {
+        console.warn("API_KEY not found in process.env. App will run in offline simulation mode.");
     }
-};
-
-// Initial setup
-initializeAI(API_KEY);
-
-// Allow runtime update of API Key
-export const updateApiKey = (key: string) => {
-    if (!key) return;
-    initializeAI(key);
-    console.log("API Key updated manually at runtime");
-};
+} catch (error) {
+    console.error("Failed to initialize Gemini client. Running in offline/simulation mode.", error);
+}
 
 const generateReportId = (user: User) => {
     const date = new Date();
@@ -65,23 +32,29 @@ const generateReportId = (user: User) => {
 
 // --- INTELLIGENT SIMULATION ENGINE ---
 const runSimulation = (message: string, user: User): GeminiResponse | null => {
-    const lowerMsg = message.toLowerCase();
+    // [CRITICAL FIX] Bersihkan pesan dari Konteks Reply agar simulasi tidak bingung.
+    // Kita hanya ingin memproses apa yang user ketik SAAT INI, bukan history chat yang di-quote.
+    const cleanMessage = message.replace(/\[CONTEXT:[\s\S]*?\]\.\n\nUser's Reply:\s*/, "").trim();
+    const lowerMsg = cleanMessage.toLowerCase();
+
+    // --- 0. BYPASS UNTUK KELUHAN & PROBING (BIARKAN AI BEKERJA) ---
+    // Jika user komplain atau bingung, JANGAN gunakan simulasi database.
+    // Serahkan ke Gemini agar bisa menjawab dengan empati dan bertanya balik (probing).
+    if (ai && lowerMsg.match(/(kacau|aneh|salah|gak sesuai|tidak sesuai|error|masalah|kenapa|kok|padahal|gimana ini|bingung|tolong cek|kurang nyambung|bukan itu)/)) {
+        return null; 
+    }
 
     // --- 1. PRIORITAS UTAMA: PARSING FORMULIR OFFLINE (HEMAT KUOTA) ---
     // Menangkap input formulir standar dan memprosesnya TANPA memanggil API AI.
-    // Ini mencegah error 429 saat melakukan input data rutin.
-    if (message.includes('📝 Input Formulir:')) {
+    if (cleanMessage.includes('📝 Input Formulir:')) {
         
         // A. Handle Agenda Kegiatan
-        if (message.includes('Input Agenda Kegiatan')) {
+        if (cleanMessage.includes('Input Agenda Kegiatan')) {
             try {
-                // Helper regex untuk ekstrak nilai setelah tanda titik dua
                 const parse = (label: string) => {
-                    // Regex mencari 'Label: isi...'
-                    // Menggunakan 'u' flag untuk unicode support jika perlu, dan multiline handling sederhana
                     const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
                     const regex = new RegExp(`${escapedLabel}:\\s*(.*)`);
-                    const match = message.match(regex);
+                    const match = cleanMessage.match(regex);
                     return match ? match[1].trim() : '';
                 };
 
@@ -92,13 +65,12 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
                 const uraian = parse('Uraian Kegiatan');
                 const hasil = parse('Hasil Kegiatan');
                 
-                // Validasi minimal
                 if (waktuMulai && posisi && uraian) {
                     const newAgenda: AgendaKegiatan = {
                         id: `AGD-${Date.now()}`,
                         nama_pj: user.nama_lengkap,
                         id_pj: user.id_pengguna,
-                        waktu_mulai: waktuMulai, // String ISO dari form
+                        waktu_mulai: waktuMulai,
                         waktu_selesai: waktuSelesai,
                         posisi: posisi,
                         objek_pengguna: objek || 'Umum',
@@ -119,17 +91,16 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
                 }
             } catch (e) {
                 console.error("Error parsing agenda offline", e);
-                // Jika gagal parsing manual, biarkan lanjut ke AI (fallback)
             }
         }
 
         // B. Handle Lapor Kerusakan
-        if (message.includes('Formulir Lapor Kerusakan')) {
+        if (cleanMessage.includes('Formulir Lapor Kerusakan')) {
              try {
                 const parse = (label: string) => {
                     const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     const regex = new RegExp(`${escapedLabel}:\\s*(.*)`);
-                    const match = message.match(regex);
+                    const match = cleanMessage.match(regex);
                     return match ? match[1].trim() : '';
                 };
 
@@ -150,7 +121,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
                         lokasi_kerusakan: lokasi,
                         deskripsi_masalah: `${masalah} [Urgensi: ${urgensi}]`,
                         status: 'Pending',
-                        kategori_aset: 'General' // Default logic
+                        kategori_aset: 'General'
                     };
 
                     return {
@@ -158,18 +129,16 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
                         dataToSave: { table: 'pengaduan_kerusakan', payload: newReport }
                     };
                 }
-             } catch (e) {
-                 console.error("Error parsing report offline", e);
-             }
+             } catch (e) { console.error(e) }
         }
         
         // C. Handle Booking Ruangan
-        if (message.includes('Booking Ruangan')) {
+        if (cleanMessage.includes('Booking Ruangan')) {
              try {
                 const parse = (label: string) => {
                     const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     const regex = new RegExp(`${escapedLabel}:\\s*(.*)`);
-                    const match = message.match(regex);
+                    const match = cleanMessage.match(regex);
                     return match ? match[1].trim() : '';
                 };
 
@@ -203,19 +172,11 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
 
 
-    // CRITICAL FIX: BYPASS SIMULATION FOR ANALYSIS REQUESTS *ONLY IF AI IS AVAILABLE*
-    // If AI is NOT available (missing API Key), we skip this bypass so the fallback simulation logic below can handle it.
-    if (ai && lowerMsg.match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) {
-        return null; 
-    }
+    // CRITICAL: BYPASS SIMULATION FOR ANALYSIS & CONTACT REQUESTS
+    if (ai && lowerMsg.match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi)/)) return null; 
+    if (ai && lowerMsg.match(/(kontak|hubungi|telepon|email|admin|petugas)/)) return null;
     
-    // CRITICAL FIX: BYPASS SIMULATION FOR CONTACT REQUESTS
-    // Biarkan AI menangani permintaan kontak agar bisa membaca data injeksi
-    if (ai && lowerMsg.match(/(kontak|hubungi|telepon|email|admin|petugas)/)) {
-        return null;
-    }
-    
-    // --- QUICK ACTION HANDLERS (Fixing "Kenapa muncul SQL?") ---
+    // --- QUICK ACTION HANDLERS ---
 
     // Handler 1: Tiket Pending
     if (lowerMsg.includes("query data status='pending'") || lowerMsg.includes("tiket pending")) {
@@ -236,23 +197,135 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         }
     }
 
-    // Handler 2: Cek Antrian Peminjaman
-    if (lowerMsg.includes("tampilkan data dari tabel peminjaman_antrian") || lowerMsg.includes("cek antrian")) {
+    // Handler 2: Cek Antrian Peminjaman (HIGH PRIORITY)
+    // Updated Regex: Handles "Cek status antrian", "Cek booking", "Lihat antrian"
+    // Allows words in between like "status" or "data"
+    const queueKeywords = /(?:cek|lihat|tampilkan|status)\s+.*(?:antrian|booking|peminjaman)/i;
+    
+    if (queueKeywords.test(lowerMsg)) {
         const bookings = db.getTable('peminjaman_antrian');
-        // Sort by date descending
-        const sorted = bookings.sort((a,b) => new Date(b.tanggal_peminjaman).getTime() - new Date(a.tanggal_peminjaman).getTime()).slice(0, 10);
+        const uniqueItems = Array.from(new Set(bookings.map(b => b.nama_barang)));
         
-        if (sorted.length > 0) {
-             const formatted = sorted.map(b => ({
-                ID: b.id_peminjaman,
-                Peminjam: db.getTable('pengguna').find(u => u.id_pengguna === b.id_pengguna)?.nama_lengkap || 'Unknown',
-                Barang: b.nama_barang,
-                Waktu: `${new Date(b.tanggal_peminjaman).toLocaleDateString()} (${b.jam_mulai}-${b.jam_selesai})`,
-                Status: b.status_peminjaman
-             }));
-             return { text: `📅 **Data Peminjaman & Antrian Terbaru**\n:::DATA_JSON:::${JSON.stringify(formatted)}` };
+        // 1. Try to find if user requested a specific item
+        let targetItem = "";
+        
+        // Parse from "Cek status antrian untuk: [Item Name]" (Explicit)
+        const specificMatch = cleanMessage.match(/(?:untuk|:)\s+(.*)/i);
+        
+        if (specificMatch && specificMatch[1]) {
+            targetItem = specificMatch[1].trim();
+            // Clean up common suffix punctuation if any
+            targetItem = targetItem.replace(/[?.!]*$/, "");
         } else {
-            return { text: "📂 Belum ada data peminjaman dalam sistem." };
+            // Fallback: Check if message contains any known item name from DB
+            for (const item of uniqueItems) {
+                if (lowerMsg.includes(item.toLowerCase())) {
+                    targetItem = item;
+                    break;
+                }
+            }
+        }
+
+        // If targetItem is still empty, and user didn't specify one, 
+        // we can default to a busy one OR ask them to specify.
+        // For better UX, if they typed just "Cek antrian", show general. 
+        // But if they typed "Cek antrian untuk X", we have X.
+        
+        if (!targetItem) {
+             // If completely vague, simulate showing the most active item or a list
+             if (uniqueItems.length > 0) targetItem = uniqueItems[0];
+             else return { text: "📂 Belum ada data peminjaman di database saat ini. Anda bisa langsung melakukan booking." };
+        }
+
+        // Filter bookings for the target item
+        const itemBookings = bookings
+            .filter(b => b.nama_barang.toLowerCase() === targetItem.toLowerCase() && b.status_peminjaman !== 'Kembali' && b.status_peminjaman !== 'Ditolak')
+            .sort((a,b) => new Date(a.tanggal_peminjaman).getTime() - new Date(b.tanggal_peminjaman).getTime());
+
+        // Determine current status
+        const now = new Date();
+        const currentTimeStr = now.toTimeString().slice(0, 5); // HH:MM
+        
+        let currentUser = undefined;
+        let isOccupied = false;
+
+        // Check if anyone is using it NOW
+        const activeNow = itemBookings.find(b => {
+            const date = new Date(b.tanggal_peminjaman);
+            const isToday = date.toDateString() === now.toDateString();
+            if (!isToday || !b.jam_mulai || !b.jam_selesai) return false;
+            return currentTimeStr >= b.jam_mulai && currentTimeStr <= b.jam_selesai;
+        });
+
+        if (activeNow) {
+            isOccupied = true;
+            const userObj = db.getTable('pengguna').find(u => u.id_pengguna === activeNow.id_pengguna);
+            currentUser = {
+                nama: userObj ? userObj.nama_lengkap : activeNow.id_pengguna,
+                sampai_jam: activeNow.jam_selesai || 'Selesai'
+            };
+        }
+
+        const queueList = itemBookings
+            .filter(b => b !== activeNow) 
+            .map(b => {
+                const userObj = db.getTable('pengguna').find(u => u.id_pengguna === b.id_pengguna);
+                return {
+                    peminjam: userObj ? userObj.nama_lengkap : b.id_pengguna,
+                    waktu: `${new Date(b.tanggal_peminjaman).toLocaleDateString()} ${b.jam_mulai ? `(${b.jam_mulai}-${b.jam_selesai})` : ''}`,
+                    keperluan: b.keperluan || '-',
+                    status: b.status_peminjaman
+                }
+            });
+
+        const statusResponse: QueueStatus = {
+            type: 'queue_status',
+            nama_barang: targetItem, 
+            sedang_dipakai: isOccupied,
+            pemakai_saat_ini: currentUser,
+            jumlah_antrian: queueList.length,
+            antrian_berikutnya: queueList
+        };
+
+        const responseText = isOccupied 
+            ? `Saat ini **${targetItem}** sedang digunakan. Berikut detail antriannya:`
+            : `✅ **${targetItem} Tersedia!**\n\nRuangan/Alat ini saat ini kosong dan tidak ada antrian. Anda bisa langsung memesannya sekarang.`;
+
+        return { 
+            text: `${responseText}\n:::DATA_JSON:::${JSON.stringify(statusResponse)}` 
+        };
+    }
+
+    // RULE 2: Handle "Cek Status Laporan" from form/text
+    // [MODIFIED] Stricter regex to avoid catching "Cek status antrian"
+    const statusCheckRegex = /(?:cek status|lacak)\s+laporan\s+(?:id\s+)?([A-Z0-9-]+)|(?:id\s+)(SKL-[A-Z0-9-]+)/i;
+    let match = lowerMsg.match(statusCheckRegex);
+    if (!match && lowerMsg.startsWith('cek status untuk id laporan:')) {
+         const idFromForm = cleanMessage.split(':')[1]?.trim();
+         match = [idFromForm, idFromForm];
+    }
+
+    if (match) {
+        const reportId = (match[1] || match[2]).trim();
+        if (reportId.length < 3) return null;
+
+        const reports = db.getTable('pengaduan_kerusakan');
+        const foundReport = reports.find(r => r.id.toUpperCase() === reportId.toUpperCase());
+        
+        if (foundReport) {
+            const statusReport: LaporanStatus = {
+                type: 'laporan_status',
+                id_laporan: foundReport.id,
+                deskripsi_laporan: foundReport.deskripsi_masalah,
+                status_laporan: foundReport.status,
+                catatan_status: foundReport.status === "Pending"
+                    ? "Laporan telah diterima dan sedang menunggu verifikasi dari tim administrasi."
+                    : `Laporan sedang ditangani. Status terakhir: ${foundReport.status}.`,
+                tanggal_update: new Date(foundReport.tanggal_lapor).toLocaleString('id-ID')
+            };
+            return { text: `Baik, *${user.nama_lengkap}*. Berikut status terbaru untuk laporan *${reportId}*:\n:::DATA_JSON:::${JSON.stringify(statusReport)}` };
+        } else {
+            return { text: `Maaf, laporan dengan ID *${reportId}* tidak dapat ditemukan di database kami. Pastikan ID yang Anda masukkan benar.` };
         }
     }
 
@@ -271,7 +344,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
 
     // Handler 4: Aset Rusak (IT/Sarpras)
-    if (lowerMsg.includes("query inventaris yang statusnya 'rusak") || lowerMsg.includes("aset rusak") || lowerMsg.includes("rekomendasi peremajaan")) {
+    if (lowerMsg.includes("query inventaris yang statusnya 'rusak") || lowerMsg.includes("rekomendasi peremajaan")) {
         const inventaris = db.getTable('inventaris');
         const damagedItems = inventaris.filter(i => i.status_barang === 'Rusak Berat' || i.status_barang === 'Rusak Ringan');
         
@@ -289,14 +362,10 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
 
     // RULE 0: Handle Update Status (Explicit Command from Buttons)
-    // Regex: "Perbarui status laporan [ID] menjadi [Status]"
     const updateStatusRegex = /(?:perbarui|ubah|ganti)\s+status\s+(?:laporan\s+)?([A-Z0-9-]+)\s+menjadi\s+(\w+)/i;
     const updateMatch = lowerMsg.match(updateStatusRegex);
     
     if (updateMatch && updateMatch[1] && updateMatch[2]) {
-        // --- SECURITY CHECK (RBAC) ---
-        // Hanya Penanggung Jawab dan Admin yang boleh mengubah status (Eksekusi)
-        // Pengawas hanya boleh melihat (Monitoring)
         const allowedRoles = ['penanggung_jawab', 'admin'];
         if (!allowedRoles.includes(user.peran)) {
             return { 
@@ -306,8 +375,6 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
 
         const reportId = updateMatch[1].trim();
         const newStatusRaw = updateMatch[2].trim();
-        
-        // Normalize status to match type definition
         let newStatus: 'Pending' | 'Proses' | 'Selesai' | null = null;
         if (newStatusRaw.match(/proses|diproses/i)) newStatus = 'Proses';
         else if (newStatusRaw.match(/selesai|beres|tuntas/i)) newStatus = 'Selesai';
@@ -319,13 +386,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
             
             if (reportIndex !== -1) {
                 const updatedReport = { ...reports[reportIndex], status: newStatus };
-                
-                // Construct SavedData payload
-                const dataToSave: SavedData = {
-                    table: 'pengaduan_kerusakan',
-                    payload: updatedReport
-                };
-                
+                const dataToSave: SavedData = { table: 'pengaduan_kerusakan', payload: updatedReport };
                 return {
                     text: `✅ *Status Diperbarui*\n\nStatus laporan *${reportId}* berhasil diubah menjadi **${newStatus}**.\nSistem telah memperbarui database dan menotifikasi pelapor.`,
                     dataToSave
@@ -336,31 +397,20 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         }
     }
 
-    // RULE 0.1: Handle General "Update Status" Request (e.g. from Quick Action Button)
-    // When user says "Saya ingin update status..." without specific details.
+    // RULE 0.1: Handle General "Update Status" Request
     if (lowerMsg.includes('ingin update status') || lowerMsg.includes('ingin mengubah status')) {
-        // Security check for general intent as well
         const allowedRoles = ['penanggung_jawab', 'admin'];
         if (!allowedRoles.includes(user.peran)) {
-             return { 
-                text: `⛔ *Menu Terbatas*\n\nFitur pembaruan status hanya tersedia untuk **Penanggung Jawab**. Sebagai Pengawas, Anda dapat menanyakan status terkini kepada saya.` 
-            };
+             return { text: `⛔ *Menu Terbatas*\n\nFitur pembaruan status hanya tersedia untuk **Penanggung Jawab**. Sebagai Pengawas, Anda dapat menanyakan status terkini kepada saya.` };
         }
 
         const reports = db.getTable('pengaduan_kerusakan');
-        // Prioritaskan yang belum selesai (Pending atau Proses)
         const activeReports = reports.filter(r => r.status !== 'Selesai').sort((a,b) => b.tanggal_lapor.getTime() - a.tanggal_lapor.getTime());
         
-        if (activeReports.length === 0) {
-            return { text: "Saat ini tidak ada laporan aktif yang memerlukan pembaruan status (semua sudah Selesai)." };
-        }
+        if (activeReports.length === 0) return { text: "Saat ini tidak ada laporan aktif yang memerlukan pembaruan status (semua sudah Selesai)." };
 
-        const reportList = activeReports.slice(0, 5).map(r => 
-            `- **${r.id}**: ${r.nama_barang} (Status Saat Ini: ${r.status})`
-        ).join('\n');
-
+        const reportList = activeReports.slice(0, 5).map(r => `- **${r.id}**: ${r.nama_barang} (Status Saat Ini: ${r.status})`).join('\n');
         const exampleId = activeReports[0].id;
-
         return {
             text: `Untuk memperbarui status, Anda perlu menyebutkan ID laporan dan status tujuannya.\n\nSilakan ketik perintah dengan format berikut:\n👉 "**Perbarui status laporan ${exampleId} menjadi Proses**"\n👉 "**Perbarui status laporan ${exampleId} menjadi Selesai**"\n\nBerikut daftar laporan aktif yang bisa Anda update:\n${reportList}`
         };
@@ -388,39 +438,6 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         };
     }
     
-    // RULE 2: Handle "Cek Status Laporan" from form/text
-    const statusCheckRegex = /(?:cek status|lacak laporan|status untuk)\s+(?:id\s+)?([A-Z0-9-]+)/i;
-    let match = lowerMsg.match(statusCheckRegex);
-    
-    if (!match && lowerMsg.startsWith('cek status untuk id laporan:')) {
-         const idFromForm = message.split(':')[1]?.trim();
-         match = [idFromForm, idFromForm];
-    }
-
-    if (match && match[1]) {
-        const reportId = match[1].trim();
-        if (reportId.length < 3) return null;
-
-        const reports = db.getTable('pengaduan_kerusakan');
-        const foundReport = reports.find(r => r.id.toUpperCase() === reportId.toUpperCase());
-        
-        if (foundReport) {
-            const statusReport: LaporanStatus = {
-                type: 'laporan_status',
-                id_laporan: foundReport.id,
-                deskripsi_laporan: foundReport.deskripsi_masalah,
-                status_laporan: foundReport.status,
-                catatan_status: foundReport.status === "Pending"
-                    ? "Laporan telah diterima dan sedang menunggu verifikasi dari tim administrasi."
-                    : `Laporan sedang ditangani. Status terakhir: ${foundReport.status}.`,
-                tanggal_update: new Date(foundReport.tanggal_lapor).toLocaleString('id-ID')
-            };
-            return { text: `Baik, *${user.nama_lengkap}*. Berikut status terbaru untuk laporan *${reportId}*:\n:::DATA_JSON:::${JSON.stringify(statusReport)}` };
-        } else {
-            return { text: `Maaf, laporan dengan ID *${reportId}* tidak dapat ditemukan di database kami. Pastikan ID yang Anda masukkan benar.` };
-        }
-    }
-
     // RULE 3: Handle "Tampilkan riwayat dan detail teknis"
     const detailRegex = /tampilkan riwayat dan detail teknis untuk id\s+([A-Z0-9-]+)/i;
     match = lowerMsg.match(detailRegex);
@@ -448,7 +465,10 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
     
     // RULE 4: Generic Fallback for Inventory
-    if (lowerMsg.match(/(cek|cari|lihat|tampilkan|status|info)\s+.*(inventaris|aset|barang|server|jaringan|wifi|komputer|laptop|proyektor)/i) || lowerMsg.includes('inventaris kategori')) {
+    // [MODIFIED] Lebih ketat agar tidak "hallucinate" pada percakapan biasa
+    // Hanya respon jika user secara eksplisit minta "cek/cari/lihat" + "inventaris/aset/barang"
+    const inventoryKeywords = /(cek|cari|lihat|tampilkan|status|info)\s+.*(inventaris|aset|barang|server|jaringan|wifi|komputer|laptop|proyektor)/i;
+    if (lowerMsg.match(inventoryKeywords)) {
         const inventaris = db.getTable('inventaris');
         const locations = db.getTable('lokasi');
         let filtered = inventaris;
@@ -459,7 +479,6 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         else if (lowerMsg.includes('sarpras')) filtered = filtered.filter(i => i.kategori === 'Sarpras');
         
         if (filtered.length === 0 && !lowerMsg.match(/(server|jaringan|wifi)/)) {
-             // Return top 5 if no specific filter but intent is inventory
              filtered = inventaris.slice(0, 5);
         }
 
@@ -499,7 +518,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
   // 2. Jika tidak tertangani simulasi, kirim ke Real AI
   if (!ai) {
-    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nSaat ini sistem berjalan dalam mode demo terbatas. Saya hanya dapat menjawab pertanyaan terkait data yang tersimpan di database (Simulasi), seperti cek status laporan, pencarian inventaris sederhana, atau rekap statistik dasar.\n\n_Pesan error debug: API Key belum dikonfigurasi atau tidak valid._`};
+    return { text: `⚠️ **Konfigurasi Diperlukan**\n\nFitur ini memerlukan **Google Gemini API Key**.\n\nAPI Key tidak ditemukan dalam konfigurasi lingkungan (environment variable). Silakan hubungi administrator.\n\n_Pesan error debug: API Key missing in process.env_`};
   }
   
   // Setup Variables for Request
@@ -547,7 +566,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
       modelName = 'gemini-3-pro-preview';
       generationConfig = {
           systemInstruction,
-          thinkingConfig: { thinkingBudget: 32768 } // Max budget for pro
+          thinkingConfig: { thinkingBudget: 32768 } // max budget for pro
       };
   }
 
@@ -640,7 +659,7 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     }
 
     return { 
-        text: `⚠️ *Gagal Terhubung ke AI*\n\nSistem menolak permintaan Anda. Kemungkinan penyebab:\n\n1. **API Key Tidak Valid:** Cek kembali pengaturan Vercel.\n2. **Koneksi Bermasalah:** Periksa internet Anda.\n\n**Pesan Error Asli:**\n_${error.message || JSON.stringify(error)}_` 
+        text: `⚠️ *Gagal Terhubung ke AI*\n\nSistem menolak permintaan Anda. Kemungkinan penyebab:\n\n1. **API Key Tidak Valid/Missing.**\n2. **Koneksi Bermasalah:** Periksa internet Anda.\n\n**Pesan Error Asli:**\n_${error.message || JSON.stringify(error)}_` 
     };
   }
 };

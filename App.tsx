@@ -1,12 +1,12 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import Login from './components/Login';
 import ChatInterface from './components/ChatInterface';
 import MyStatusDashboard from './components/MyStatusDashboard';
 import DamageReportChart from './components/DamageReportChart';
 import PendingTicketTable from './components/PendingTicketTable';
 import BookingTable from './components/BookingTable';
-import AgendaActivityTable from './components/AgendaActivityTable'; // Import new component
+import AgendaActivityTable from './components/AgendaActivityTable'; 
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan } from './types';
 import db from './services/dbService'; 
@@ -29,7 +29,7 @@ const App: React.FC = () => {
   const [inventaris, setInventaris] = useState<Inventaris[]>([]);
   const [allUsers, setAllUsers] = useState<Pengguna[]>([]);
   const [locations, setLocations] = useState<Lokasi[]>([]);
-  const [activities, setActivities] = useState<AgendaKegiatan[]>([]); // New State
+  const [activities, setActivities] = useState<AgendaKegiatan[]>([]); 
   
   // Load data from DB on startup
   useEffect(() => {
@@ -38,19 +38,19 @@ const App: React.FC = () => {
       setInventaris(db.getTable('inventaris'));
       setAllUsers(db.getTable('pengguna'));
       setLocations(db.getTable('lokasi'));
-      setActivities(db.getTable('agenda_kegiatan')); // Load agendas
+      setActivities(db.getTable('agenda_kegiatan')); 
   }, []);
 
 
-  const handleLogin = (role: UserRole) => {
+  const handleLogin = useCallback((role: UserRole) => {
     // In a real app, you'd fetch the specific user. Here we find the first user with that role.
     const user = db.getTable('pengguna').find(u => u.peran === role);
     setCurrentUser(user || null);
-  };
+  }, []);
   
-  const handleToggleChat = () => setIsChatOpen(prev => !prev);
+  const handleToggleChat = useCallback(() => setIsChatOpen(prev => !prev), []);
 
-  const handleRegister = (data: { nama: string; email: string; hp: string; peran: UserRole }) => {
+  const handleRegister = useCallback((data: { nama: string; email: string; hp: string; peran: UserRole }) => {
     const newUser: User = {
       id_pengguna: `u_custom_${Date.now()}`,
       nama_lengkap: data.nama,
@@ -62,12 +62,12 @@ const App: React.FC = () => {
     db.addRecord('pengguna', newUser);
     setAllUsers(db.getTable('pengguna'));
     setCurrentUser(newUser);
-  };
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setIsProfileMenuOpen(false);
     setCurrentUser(null);
-  };
+  }, []);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -79,62 +79,68 @@ const App: React.FC = () => {
     return () => { document.removeEventListener('mousedown', handleClickOutside); };
   }, []);
 
-  const handleDataSaved = (data: SavedData) => {
+  const handleDataSaved = useCallback((data: SavedData) => {
       // Logic addRecord di dbService sudah mengupdate DB
       db.addRecord(data.table, data.payload);
 
-      // Refresh state lokal
+      // Refresh state lokal based on the modified table only
       if (data.table === 'peminjaman_antrian') {
           setBookings(db.getTable('peminjaman_antrian'));
-      }
-      if (data.table === 'pengaduan_kerusakan') {
+      } else if (data.table === 'pengaduan_kerusakan') {
           setReports(db.getTable('pengaduan_kerusakan'));
-      }
-      if (data.table === 'pengguna') {
+      } else if (data.table === 'pengguna') {
           setAllUsers(db.getTable('pengguna'));
-      }
-      if (data.table === 'agenda_kegiatan') {
+      } else if (data.table === 'agenda_kegiatan') {
           setActivities(db.getTable('agenda_kegiatan'));
+      } else if (data.table === 'inventaris') {
+          setInventaris(db.getTable('inventaris'));
       }
       
       setShowSavedNotification(true);
       setTimeout(() => setShowSavedNotification(false), 3000);
-  };
+  }, []);
   
   // NEW: Callback passed to child components to trigger chat
-  const handleTriggerChatAction = (prompt: string) => {
+  const handleTriggerChatAction = useCallback((prompt: string) => {
       setExternalMessage(prompt);
       setIsChatOpen(true); // Open chat if closed
-  };
+  }, []);
 
   // Agenda Approval Logic
-  const handleAgendaUpdateStatus = (id: string, status: 'Disetujui' | 'Ditolak') => {
-      const activity = activities.find(a => a.id === id);
-      if (activity) {
-          const updated = { ...activity, status };
-          db.addRecord('agenda_kegiatan', updated);
-          setActivities(db.getTable('agenda_kegiatan')); // Refresh UI
-      }
-  };
-
-  const handleAgendaApproveAllToday = () => {
-      const today = new Date().toDateString();
-      const pendingToday = activities.filter(a => 
-          new Date(a.waktu_mulai).toDateString() === today && 
-          a.status === 'Pending'
-      );
-      
-      pendingToday.forEach(a => {
-          const updated = { ...a, status: 'Disetujui' as const };
-          db.addRecord('agenda_kegiatan', updated);
+  const handleAgendaUpdateStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak') => {
+      // Optimistic update for cleaner UI feel, though we reload from DB anyway
+      setActivities(prev => {
+          const activity = prev.find(a => a.id === id);
+          if (activity) {
+            const updated = { ...activity, status };
+            db.addRecord('agenda_kegiatan', updated);
+            return db.getTable('agenda_kegiatan');
+          }
+          return prev;
       });
-      
-      if (pendingToday.length > 0) {
-          setActivities(db.getTable('agenda_kegiatan')); // Refresh UI
-          setShowSavedNotification(true);
-          setTimeout(() => setShowSavedNotification(false), 3000);
-      }
-  };
+  }, []);
+
+  const handleAgendaApproveAllToday = useCallback(() => {
+      const today = new Date().toDateString();
+      setActivities(prev => {
+        const pendingToday = prev.filter(a => 
+            new Date(a.waktu_mulai).toDateString() === today && 
+            a.status === 'Pending'
+        );
+        
+        pendingToday.forEach(a => {
+            const updated = { ...a, status: 'Disetujui' as const };
+            db.addRecord('agenda_kegiatan', updated);
+        });
+
+        if (pendingToday.length > 0) {
+            setShowSavedNotification(true);
+            setTimeout(() => setShowSavedNotification(false), 3000);
+            return db.getTable('agenda_kegiatan');
+        }
+        return prev;
+      });
+  }, []);
 
 
   const filteredReportsForChart = useMemo(() => {
@@ -149,7 +155,7 @@ const App: React.FC = () => {
     }
   }, [currentUser, reports]);
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (filteredReportsForChart.length === 0) {
         alert("Tidak ada data laporan untuk diekspor.");
         return;
@@ -181,7 +187,7 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, [filteredReportsForChart]);
 
   if (!currentUser) {
     return <Login onLogin={handleLogin} onRegister={handleRegister} />;
@@ -223,6 +229,7 @@ const App: React.FC = () => {
     ]
   });
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const tableStats = getTableStats();
 
   return (
