@@ -372,11 +372,12 @@ const App: React.FC = () => {
                 />
             )}
 
-            {/* My Status Dashboard - Available for ALL users to track their own items */}
+            {/* My Status Dashboard - Updated to handle both Personal and Team views */}
             <MyStatusDashboard
                 currentUser={currentUser}
                 reports={reports}
                 bookings={bookings}
+                activities={activities}
             />
         </div>
 
