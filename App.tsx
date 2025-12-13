@@ -142,6 +142,27 @@ const App: React.FC = () => {
       });
   }, []);
 
+  // Booking Approval Logic (PJ)
+  const handleBookingUpdateStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
+      setBookings(prev => {
+          const booking = prev.find(b => b.id_peminjaman === id);
+          if (booking) {
+              const updated = { 
+                  ...booking, 
+                  status_peminjaman: status,
+                  alasan_penolakan: reason || booking.alasan_penolakan 
+              };
+              db.addRecord('peminjaman_antrian', updated);
+              
+              setShowSavedNotification(true);
+              setTimeout(() => setShowSavedNotification(false), 3000);
+              
+              return db.getTable('peminjaman_antrian');
+          }
+          return prev;
+      });
+  }, []);
+
 
   const filteredReportsForChart = useMemo(() => {
     if (!currentUser) return [];
@@ -344,7 +365,11 @@ const App: React.FC = () => {
             
             {/* Booking / Antrian Table - Visible for Teachers, Admins, Sarpras, PJ */}
             {bookingAccessRoles.includes(currentUser.peran) && bookings.length > 0 && (
-                <BookingTable bookings={bookings} />
+                <BookingTable 
+                    bookings={bookings} 
+                    currentUserRole={currentUser.peran}
+                    onUpdateStatus={handleBookingUpdateStatus}
+                />
             )}
 
             {/* My Status Dashboard - Available for ALL users to track their own items */}

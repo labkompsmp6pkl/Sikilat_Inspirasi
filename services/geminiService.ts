@@ -33,21 +33,16 @@ const generateReportId = (user: User) => {
 // --- INTELLIGENT SIMULATION ENGINE ---
 const runSimulation = (message: string, user: User): GeminiResponse | null => {
     // [CRITICAL FIX] Bersihkan pesan dari Konteks Reply agar simulasi tidak bingung.
-    // Kita hanya ingin memproses apa yang user ketik SAAT INI, bukan history chat yang di-quote.
     const cleanMessage = message.replace(/\[CONTEXT:[\s\S]*?\]\.\n\nUser's Reply:\s*/, "").trim();
     const lowerMsg = cleanMessage.toLowerCase();
 
-    // --- 0. BYPASS UNTUK KELUHAN & PROBING (BIARKAN AI BEKERJA) ---
-    // Jika user komplain atau bingung, JANGAN gunakan simulasi database.
-    // Serahkan ke Gemini agar bisa menjawab dengan empati dan bertanya balik (probing).
-    if (ai && lowerMsg.match(/(kacau|aneh|salah|gak sesuai|tidak sesuai|error|masalah|kenapa|kok|padahal|gimana ini|bingung|tolong cek|kurang nyambung|bukan itu)/)) {
+    // --- 0. BYPASS UNTUK KELUHAN & PROBING ---
+    if (ai && lowerMsg.match(/(kacau|aneh|salah|gak sesuai|tidak sesuai|error|masalah|kenapa|kok|padahal|gimana ini|bingung|tolong cek|kurang nyambung|bukan itu|dipakai statusnya)/)) {
         return null; 
     }
 
-    // --- 1. PRIORITAS UTAMA: PARSING FORMULIR OFFLINE (HEMAT KUOTA) ---
-    // Menangkap input formulir standar dan memprosesnya TANPA memanggil API AI.
+    // --- 1. PRIORITAS UTAMA: PARSING FORMULIR OFFLINE ---
     if (cleanMessage.includes('📝 Input Formulir:')) {
-        
         // A. Handle Agenda Kegiatan
         if (cleanMessage.includes('Input Agenda Kegiatan')) {
             try {
@@ -198,26 +193,18 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
 
     // Handler 2: Cek Antrian Peminjaman (HIGH PRIORITY)
-    // Updated Regex: Handles "Cek status antrian", "Cek booking", "Lihat antrian"
-    // Allows words in between like "status" or "data"
     const queueKeywords = /(?:cek|lihat|tampilkan|status)\s+.*(?:antrian|booking|peminjaman)/i;
     
     if (queueKeywords.test(lowerMsg)) {
         const bookings = db.getTable('peminjaman_antrian');
         const uniqueItems = Array.from(new Set(bookings.map(b => b.nama_barang)));
         
-        // 1. Try to find if user requested a specific item
         let targetItem = "";
-        
-        // Parse from "Cek status antrian untuk: [Item Name]" (Explicit)
         const specificMatch = cleanMessage.match(/(?:untuk|:)\s+(.*)/i);
         
         if (specificMatch && specificMatch[1]) {
-            targetItem = specificMatch[1].trim();
-            // Clean up common suffix punctuation if any
-            targetItem = targetItem.replace(/[?.!]*$/, "");
+            targetItem = specificMatch[1].trim().replace(/[?.!]*$/, "");
         } else {
-            // Fallback: Check if message contains any known item name from DB
             for (const item of uniqueItems) {
                 if (lowerMsg.includes(item.toLowerCase())) {
                     targetItem = item;
@@ -226,35 +213,61 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
             }
         }
 
-        // If targetItem is still empty, and user didn't specify one, 
-        // we can default to a busy one OR ask them to specify.
-        // For better UX, if they typed just "Cek antrian", show general. 
-        // But if they typed "Cek antrian untuk X", we have X.
-        
         if (!targetItem) {
-             // If completely vague, simulate showing the most active item or a list
              if (uniqueItems.length > 0) targetItem = uniqueItems[0];
              else return { text: "📂 Belum ada data peminjaman di database saat ini. Anda bisa langsung melakukan booking." };
         }
 
-        // Filter bookings for the target item
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        // Helper untuk parse waktu "HH:MM" ke integer menit
+        const parseMinutes = (timeStr: string) => {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':');
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        };
+
+        // Filter bookings for the target item AND Remove Expired Past Bookings
         const itemBookings = bookings
-            .filter(b => b.nama_barang.toLowerCase() === targetItem.toLowerCase() && b.status_peminjaman !== 'Kembali' && b.status_peminjaman !== 'Ditolak')
+            .filter(b => {
+                const isTarget = b.nama_barang.toLowerCase() === targetItem.toLowerCase();
+                const isNotReturned = b.status_peminjaman !== 'Kembali' && b.status_peminjaman !== 'Ditolak';
+                
+                if (!isTarget || !isNotReturned) return false;
+
+                const bookingDate = new Date(b.tanggal_peminjaman);
+                const [endHour, endMinute] = b.jam_selesai ? b.jam_selesai.split(':').map(Number) : [23, 59];
+                bookingDate.setHours(endHour, endMinute, 0);
+
+                if (bookingDate < now) return false;
+
+                return true;
+            })
             .sort((a,b) => new Date(a.tanggal_peminjaman).getTime() - new Date(b.tanggal_peminjaman).getTime());
 
         // Determine current status
-        const now = new Date();
-        const currentTimeStr = now.toTimeString().slice(0, 5); // HH:MM
-        
         let currentUser = undefined;
         let isOccupied = false;
 
-        // Check if anyone is using it NOW
+        // Check if anyone is using it NOW (Lebih Akurat menggunakan Menit)
         const activeNow = itemBookings.find(b => {
-            const date = new Date(b.tanggal_peminjaman);
-            const isToday = date.toDateString() === now.toDateString();
-            if (!isToday || !b.jam_mulai || !b.jam_selesai) return false;
-            return currentTimeStr >= b.jam_mulai && currentTimeStr <= b.jam_selesai;
+            const bDate = new Date(b.tanggal_peminjaman);
+            
+            // Cek Tanggal (Exact Date Only)
+            const isSameDate = bDate.getDate() === now.getDate() && 
+                               bDate.getMonth() === now.getMonth() && 
+                               bDate.getFullYear() === now.getFullYear();
+
+            if (!isSameDate) return false;
+            if (b.status_peminjaman !== 'Disetujui') return false; 
+            if (!b.jam_mulai || !b.jam_selesai) return false;
+
+            const startMins = parseMinutes(b.jam_mulai);
+            const endMins = parseMinutes(b.jam_selesai);
+
+            // Cek Range Waktu (Inclusive Start, Exclusive End)
+            return currentMinutes >= startMins && currentMinutes < endMins;
         });
 
         if (activeNow) {
@@ -270,11 +283,17 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
             .filter(b => b !== activeNow) 
             .map(b => {
                 const userObj = db.getTable('pengguna').find(u => u.id_pengguna === b.id_pengguna);
+                
+                let statusLabel: string = b.status_peminjaman;
+                if (b.status_peminjaman === 'Menunggu') {
+                    statusLabel = 'Belum Diproses (Menunggu PJ)';
+                }
+
                 return {
                     peminjam: userObj ? userObj.nama_lengkap : b.id_pengguna,
                     waktu: `${new Date(b.tanggal_peminjaman).toLocaleDateString()} ${b.jam_mulai ? `(${b.jam_mulai}-${b.jam_selesai})` : ''}`,
                     keperluan: b.keperluan || '-',
-                    status: b.status_peminjaman
+                    status: statusLabel
                 }
             });
 
@@ -288,8 +307,8 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         };
 
         const responseText = isOccupied 
-            ? `Saat ini **${targetItem}** sedang digunakan. Berikut detail antriannya:`
-            : `✅ **${targetItem} Tersedia!**\n\nRuangan/Alat ini saat ini kosong dan tidak ada antrian. Anda bisa langsung memesannya sekarang.`;
+            ? `⚠️ **${targetItem} Sedang Digunakan!**\n\nRuangan ini sedang dipakai oleh **${currentUser?.nama}** sampai jam ${currentUser?.sampai_jam}.`
+            : `✅ **${targetItem} Tersedia!**\n\nRuangan/Alat ini saat ini kosong dan tidak ada antrian aktif. Anda bisa langsung memesannya sekarang.`;
 
         return { 
             text: `${responseText}\n:::DATA_JSON:::${JSON.stringify(statusResponse)}` 
@@ -297,7 +316,6 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
 
     // RULE 2: Handle "Cek Status Laporan" from form/text
-    // [MODIFIED] Stricter regex to avoid catching "Cek status antrian"
     const statusCheckRegex = /(?:cek status|lacak)\s+laporan\s+(?:id\s+)?([A-Z0-9-]+)|(?:id\s+)(SKL-[A-Z0-9-]+)/i;
     let match = lowerMsg.match(statusCheckRegex);
     if (!match && lowerMsg.startsWith('cek status untuk id laporan:')) {
@@ -465,8 +483,6 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     }
     
     // RULE 4: Generic Fallback for Inventory
-    // [MODIFIED] Lebih ketat agar tidak "hallucinate" pada percakapan biasa
-    // Hanya respon jika user secara eksplisit minta "cek/cari/lihat" + "inventaris/aset/barang"
     const inventoryKeywords = /(cek|cari|lihat|tampilkan|status|info)\s+.*(inventaris|aset|barang|server|jaringan|wifi|komputer|laptop|proyektor)/i;
     if (lowerMsg.match(inventoryKeywords)) {
         const inventaris = db.getTable('inventaris');
@@ -624,13 +640,10 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
     }
 
     // --- ROBUST FALLBACK FOR OVERLOADED API (503) OR NETWORK ISSUES ---
-    // Specifically handle analysis requests to provide a seamless "Offline Mode" experience
     if (message.toLowerCase().match(/(kesimpulan|analisis|rangkuman|kinerja|strategis|rekomendasi|prediksi)/)) {
         const reports = db.getTable('pengaduan_kerusakan');
         const total = reports.length;
         const pending = reports.filter(r => r.status === 'Pending').length;
-        
-        // Find top category
         const itCount = reports.filter(r => r.kategori_aset === 'IT').length;
         const sarprasCount = reports.filter(r => r.kategori_aset === 'Sarpras').length;
         const dominantCat = itCount > sarprasCount ? 'IT' : 'Sarpras';
