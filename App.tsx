@@ -76,7 +76,6 @@ const App: React.FC = () => {
       else if (data.table === 'agenda_kegiatan') setActivities(db.getTable('agenda_kegiatan'));
       else if (data.table === 'inventaris') setInventaris(db.getTable('inventaris'));
       
-      // Simulate Cloud Sync
       if (cloudConfig) {
           setIsSyncing(true);
           setTimeout(() => setIsSyncing(false), 1500);
@@ -131,11 +130,11 @@ const App: React.FC = () => {
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
   
-  // ROLE ACCESS LOGIC UPDATED
-  // Admin is now View-Only for operational tasks
-  const isReadOnly = !['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
-  const canSeePendingTickets = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
+  // Logic Hak Akses Operasional
+  const isTechnicalStaff = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
+  const canSeePendingTickets = isTechnicalStaff; // Admin tidak melihat antrian tiket pending
   const canSeeAgenda = ['admin', 'penanggung_jawab', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
+  const isReadOnly = !isTechnicalStaff; // Admin bersifat Read-Only untuk dashboard operasional
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -147,7 +146,6 @@ const App: React.FC = () => {
                 <span className="hidden sm:inline font-bold text-slate-800 tracking-tight text-lg">SIKILAT SMP 6 Pekalongan</span>
                 <span className="sm:hidden font-bold text-slate-800 tracking-tight text-lg">SIKILAT</span>
              </div>
-             {/* CLOUD CONNECTION BADGE */}
              <div className="flex items-center gap-2 ml-4">
                 {cloudConfig ? (
                     <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
@@ -276,7 +274,7 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* MIGRATION GUIDE MODAL (Step-by-step) */}
+      {/* MIGRATION GUIDE MODAL */}
       {showMigrationGuide && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowMigrationGuide(false)} />

@@ -80,6 +80,7 @@ const AgendaActivityTable: React.FC<AgendaActivityTableProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
+            {/* Hanya tampilkan tombol "Setujui Semua" jika user punya hak akses operasional */}
             {canApprove && pendingTodayCount > 0 && (
                 <button 
                     onClick={onApproveAllToday}
@@ -157,6 +158,7 @@ const AgendaActivityTable: React.FC<AgendaActivityTableProps> = ({
                             </span>
                         )}
 
+                        {/* Hanya tampilkan tombol persetujuan satuan jika user punya hak akses operasional */}
                         {canApprove && item.status === 'Pending' && onUpdateStatus && (
                             <div className="flex gap-1">
                                 <button 

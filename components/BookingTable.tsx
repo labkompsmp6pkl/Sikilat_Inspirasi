@@ -77,8 +77,7 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
     if (currentPage > 1) setCurrentPage(prev => prev - 1);
   };
 
-  // Admin dikeluarkan dari fungsi manajerial operasional (Persetujuan)
-  const canManage = ['penanggung_jawab', 'pengawas_sarpras', 'pengawas_it'].includes(currentUserRole || '');
+  const canManage = currentUserRole === 'penanggung_jawab' || currentUserRole === 'admin';
 
   const handleOpenRejectModal = (e: React.MouseEvent, id: string) => {
       e.stopPropagation(); 
@@ -125,7 +124,7 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
         </div>
         {canManage && (
              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3" /> Mode Otoritas
+                <ShieldAlert className="w-3 h-3" /> Mode Penanggung Jawab
              </span>
         )}
       </div>
@@ -145,7 +144,7 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
                 <td className="px-4 py-3 align-top">
                     <div className="font-medium text-slate-800">{booking.nama_barang}</div>
                     <div className="text-[10px] text-slate-400 font-mono mt-1">{booking.id_peminjaman}</div>
-                    {/* Show Conflict Warning for Operational Roles */}
+                    {/* Show Conflict Warning for PJ */}
                     {canManage && getConflictWarning(booking)}
                 </td>
                 <td className="px-4 py-3 align-top">
@@ -176,7 +175,7 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
                     <div className="flex flex-col items-end gap-2">
                         {getStatusBadge(booking.status_peminjaman)}
                         
-                        {/* Approval Actions for Operational Roles Only */}
+                        {/* Approval Actions for PJ */}
                         {canManage && booking.status_peminjaman === 'Menunggu' && onUpdateStatus && (
                             <div className="flex gap-1 mt-1">
                                 <button 
