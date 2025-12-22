@@ -138,25 +138,27 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-8 pt-24 pb-32">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-8 pt-24 pb-32">
         {isGuru ? (
-            <div className="animate-fade-in space-y-8 max-w-4xl mx-auto">
-                <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-[3rem] p-10 shadow-2xl text-white relative overflow-hidden">
+            <div className="animate-fade-in space-y-8 max-w-5xl mx-auto">
+                <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-[3rem] p-8 sm:p-12 shadow-2xl text-white relative overflow-hidden">
                     <div className="relative z-10">
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border border-white/20">
                             <Sparkles className="w-3.5 h-3.5 text-blue-300" /> Workspace
                         </div>
-                        <h2 className="text-4xl font-black mb-4">Halo, Bapak/Ibu {currentUser.nama_lengkap.split(' ')[0]}</h2>
-                        <p className="text-blue-100/80 text-lg max-w-xl font-medium">Monitoring status dan peminjaman inventaris Anda secara real-time.</p>
+                        <h2 className="text-4xl font-black mb-4">Halo, {currentUser.nama_lengkap.split(' ')[0]}!</h2>
+                        <p className="text-blue-100/80 text-lg max-w-xl font-medium leading-relaxed">Kelola peminjaman dan pantau status laporan aset Anda dalam satu dashboard terintegrasi.</p>
                     </div>
+                    <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
                 </div>
                 <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} />
-                <BookingTable bookings={bookings} />
+                <BookingTable bookings={bookings} currentUserRole={currentUser.peran} />
             </div>
         ) : (
             <div className="animate-fade-in space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                    <div className="lg:col-span-2 space-y-10">
+                {/* Dashboard Grid Updated for spacing */}
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                    <div className="xl:col-span-3 space-y-8">
                         <BookingTable 
                             bookings={bookings} 
                             currentUserRole={currentUser.peran} 
@@ -167,9 +169,9 @@ const App: React.FC = () => {
                             currentUserRole={currentUser.peran} 
                             onUpdateStatus={handleUpdateAgendaStatus}
                         />
-                        <PendingTicketTable reports={reports} onProcessAction={() => {}} />
+                        <PendingTicketTable reports={reports} onProcessAction={(p) => { setExternalMessage(p); setIsChatOpen(true); }} />
                     </div>
-                    <div className="space-y-10">
+                    <div className="xl:col-span-1 space-y-8">
                          <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />
                     </div>
                 </div>
@@ -189,6 +191,8 @@ const App: React.FC = () => {
                     stats={reports.filter(r => r.status === 'Pending').length} 
                     isOpen={isChatOpen} 
                     onToggle={() => setIsChatOpen(false)} 
+                    externalMessage={externalMessage}
+                    onClearExternalMessage={() => setExternalMessage(null)}
                   />
               </div>
           ) : (
@@ -206,8 +210,8 @@ const App: React.FC = () => {
                     <Cloud className="w-5 h-5" />
                 </div>
                 <div>
-                    <p className="text-sm font-black">Syncing to Couchbase...</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Capella Node Verified &bull; OK</p>
+                    <p className="text-sm font-black">Cloud Synced Successfully</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Couchbase Node: cb.0inyiwf3... &bull; OK</p>
                 </div>
             </div>
         </div>
