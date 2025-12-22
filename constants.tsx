@@ -94,6 +94,19 @@ export const FORM_TEMPLATES: Record<string, FormTemplate> = {
       { name: 'keperluan', label: 'Keperluan Penggunaan', type: 'textarea', placeholder: 'Contoh: Ujian Praktik TIK Kelas 9', required: true },
     ]
   },
+  input_kegiatan: {
+    id: 'input_kegiatan',
+    title: 'Formulir Input Kegiatan PJ',
+    submitLabel: 'Simpan Agenda',
+    fields: [
+      { name: 'posisi', label: 'Lokasi Kegiatan', type: 'text', placeholder: 'Contoh: Lab Komputer 1', required: true },
+      { name: 'uraian_kegiatan', label: 'Uraian Kegiatan', type: 'textarea', placeholder: 'Jelaskan apa yang dilakukan...', required: true },
+      { name: 'hasil_kegiatan', label: 'Hasil / Output', type: 'text', placeholder: 'Contoh: 20 PC Selesai Maintenance', required: true },
+      { name: 'objek_pengguna', label: 'Target Pengguna', type: 'text', placeholder: 'Contoh: Siswa Kelas 9A', required: true },
+      { name: 'waktu_mulai', label: 'Waktu Mulai', type: 'datetime-local', required: true },
+      { name: 'waktu_selesai', label: 'Waktu Selesai', type: 'datetime-local', required: true },
+    ]
+  },
   lapor_kerusakan: {
     id: 'lapor_kerusakan',
     title: 'Formulir Lapor Kerusakan',
@@ -139,7 +152,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     actions: [
       { label: 'Cek Antrian Booking', prompt: 'Tampilkan semua data dari tabel peminjaman_antrian untuk direview.', icon: CalendarCheck },
       { label: 'Buat Kesimpulan AI', prompt: 'Buatkan analisis dan kesimpulan manajerial mengenai kinerja penanganan laporan, kondisi aset, dan sentimen penilaian pengguna saat ini.', icon: PieChart },
-      { label: 'Input Kegiatan', prompt: 'Catat kegiatan penanganan hari ini.', icon: PenTool },
+      { label: 'Input Kegiatan', prompt: 'Catat kegiatan penanganan hari ini.', icon: PenTool, formId: 'input_kegiatan' },
     ]
   },
   pengawas_it: {

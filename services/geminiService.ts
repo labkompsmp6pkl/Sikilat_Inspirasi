@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, PenilaianAset, PeminjamanAntrian } from "../types";
+import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, PenilaianAset, PeminjamanAntrian, AgendaKegiatan } from "../types";
 import db from './dbService';
 
 export const generateReplySuggestion = async (reviewText: string, user: User): Promise<string> => {
@@ -28,14 +28,13 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     const cleanMessage = message.replace(/\[CONTEXT:[\s\S]*?\]\.\n\nUser's Reply:\s*/, "").trim();
     const lowerMsg = cleanMessage.toLowerCase();
 
-    // 1. Handling Asset Evaluation Form Trigger (Conversational Start)
+    // 1. Handling Asset Evaluation Form Trigger
     if (lowerMsg.includes('saya ingin memberi penilaian untuk aset:')) {
         if (user.peran !== 'tamu') {
             return {
-                text: `Mohon maaf, Bapak/Ibu **${user.nama_lengkap}**. Fitur penilaian aset publik khusus disediakan bagi Tamu dan Pengunjung untuk evaluasi kualitas layanan sekolah. Sebagai ${user.peran}, Anda dapat menggunakan fitur **Lapor Kerusakan** atau **Tanya Inventaris** di dashboard utama.`
+                text: `Mohon maaf, Bapak/Ibu **${user.nama_lengkap}**. Fitur penilaian aset publik khusus disediakan bagi Tamu dan Pengunjung untuk evaluasi kualitas layanan sekolah.`
             };
         }
-
         const assetName = cleanMessage.split(':').pop()?.trim() || 'Aset';
         return {
             text: `Mempersiapkan formulir penilaian untuk **${assetName}**... \n\nSilakan lengkapi ulasan Anda melalui tombol di bawah: \n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "penilaian_aset", "label": "Beri Penilaian ${assetName}", "assetName": "${assetName}"}`
@@ -45,49 +44,49 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     // 2. Handling Booking Trigger
     if (lowerMsg.includes('booking') || lowerMsg.includes('pinjam') || lowerMsg.includes('gunakan ruangan')) {
         return {
-            text: `Baik Bapak/Ibu **${user.nama_lengkap}**, saya akan membantu proses peminjaman aset/ruangan. Silakan isi detail waktu dan keperluan Anda pada formulir di bawah ini:\n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "booking_ruangan", "label": "Buka Formulir Booking"}`
+            text: `Baik Bapak/Ibu **${user.nama_lengkap}**, silakan isi detail waktu dan keperluan Anda pada formulir booking di bawah ini:\n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "booking_ruangan", "label": "Buka Formulir Booking"}`
         };
     }
 
-    // 3. Handling Damage Report Trigger
-    if (lowerMsg.includes('lapor kerusakan') || lowerMsg.includes('melaporkan kerusakan')) {
+    // 3. Handling Input Kegiatan (PJ) Trigger
+    if (lowerMsg.includes('catat kegiatan') || lowerMsg.includes('input kegiatan')) {
         return {
-            text: `Mohon maaf atas kendala yang terjadi. Mari kita buat laporan kerusakan agar tim teknis segera menindaklanjuti. Silakan isi formulir laporan di bawah:\n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "lapor_kerusakan", "label": "Buka Formulir Laporan"}`
+            text: `Baik Bapak/Ibu **${user.nama_lengkap}**, saya siap mencatat kegiatan operasional hari ini. Silakan lengkapi laporannya pada formulir di bawah:\n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "input_kegiatan", "label": "Buka Formulir Kegiatan"}`
         };
     }
 
-    // 4. Handling Asset Evaluation Form Submission
-    if (cleanMessage.includes('📝 Input Formulir: Beri Penilaian Aset')) {
+    // 4. Handling Input Kegiatan Form Submission
+    if (cleanMessage.includes('📝 Input Formulir: Formulir Input Kegiatan PJ')) {
         try {
             const parse = (label: string) => {
-                const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(`${escapedLabel}:\\s*(.*)`);
+                const regex = new RegExp(`🔹 ${label}:\\s*(.*)`);
                 const match = cleanMessage.match(regex);
                 return match ? match[1].trim() : '';
             };
 
-            const barang = parse('Nama Aset / Ruangan');
-            const skor = parseInt(parse('Rating (1-5)')) || 5;
-            const ulasan = parse('Ulasan / Masukan');
+            const posisi = parse('Lokasi Kegiatan');
+            const uraian = parse('Uraian Kegiatan');
+            const hasil = parse('Hasil / Output');
+            const objek = parse('Target Pengguna');
+            const mulai = parse('Waktu Mulai');
+            const selesai = parse('Waktu Selesai');
 
-            if (barang && ulasan) {
-                const newEval: PenilaianAset = {
-                    id: `EV-${Date.now()}`,
-                    id_barang: 'ASET-MANUAL',
-                    nama_barang: barang,
-                    id_pengguna: user.id_pengguna,
-                    nama_pengguna: user.nama_lengkap,
-                    skor: skor,
-                    ulasan: ulasan,
-                    tanggal: new Date(),
-                    status_penanganan: 'Terbuka'
-                };
+            const newAgenda: AgendaKegiatan = {
+                id: `AGD-${Date.now()}`,
+                nama_pj: user.nama_lengkap,
+                waktu_mulai: mulai,
+                waktu_selesai: selesai,
+                posisi: posisi,
+                uraian_kegiatan: uraian,
+                hasil_kegiatan: hasil,
+                objek_pengguna: objek,
+                status: 'Pending'
+            };
 
-                return {
-                    text: `🌟 **Penilaian Berhasil Disimpan!**\n\nTerima kasih atas ulasan Anda untuk **${barang}**. Masukan Anda sangat berharga bagi pemeliharaan fasilitas sekolah kami.`,
-                    dataToSave: { table: 'penilaian_aset', payload: newEval }
-                };
-            }
+            return {
+                text: `✅ **Kegiatan Berhasil Dicatat!**\n\nAgenda Anda di **${posisi}** telah disimpan dan menunggu verifikasi Pengawas. Data ini juga sudah disinkronkan ke Couchbase.`,
+                dataToSave: { table: 'agenda_kegiatan', payload: newAgenda }
+            };
         } catch (e) { console.error(e) }
     }
 
@@ -120,31 +119,10 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
             };
 
             return {
-                text: `✅ **Booking Berhasil Diajukan!**\n\nPengajuan Anda untuk **${barang}** pada tanggal **${tgl}** sedang menunggu persetujuan Penanggung Jawab. Anda dapat mengecek statusnya di dashboard.`,
+                text: `✅ **Booking Berhasil Diajukan!**\n\nPengajuan Anda untuk **${barang}** telah tersimpan di antrian cloud.`,
                 dataToSave: { table: 'peminjaman_antrian', payload: newBooking }
             };
         } catch (e) { console.error(e) }
-    }
-
-    // 6. Audit Penilaian
-    if (lowerMsg.includes('audit penilaian') || lowerMsg.includes('tampilkan semua data dari tabel penilaian_aset')) {
-        if (!['admin', 'pengawas_admin'].includes(user.peran)) {
-            return { text: "Akses Ditolak. Anda tidak memiliki otoritas untuk melihat data penilaian pengguna secara mendalam." };
-        }
-        const evals = db.getTable('penilaian_aset');
-        if (evals.length > 0) {
-            const formatted = evals.map(e => ({
-                ID: e.id,
-                Status: e.status_penanganan || 'Terbuka',
-                Aset: e.nama_barang,
-                Rating: `${e.skor}/5`,
-                Ulasan: e.ulasan,
-                Oleh: e.nama_pengguna,
-                Balasan: e.balasan_admin ? "Sudah Dibalas" : "Belum Dibalas"
-            }));
-            return { text: `📜 **Audit Penilaian Aset Terbaru**\nBerikut adalah log ulasan dari tamu dan pengunjung:\n:::DATA_JSON:::${JSON.stringify(formatted)}` };
-        }
-        return { text: "Belum ada data penilaian aset yang tercatat di database." };
     }
 
     return null;
@@ -157,38 +135,17 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
   if (!process.env.API_KEY) return { text: `⚠️ **Offline Mode**: Fitur AI memerlukan API Key.`};
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  let systemInstruction = `Anda adalah SIKILAT AI Assistant.
-  PANDUAN INTERAKSI:
-  1. GURU/PJ/IT: Fokus teknis operasional perbaikan dan peminjaman.
-  2. TAMU: Fokus penilaian & komplain. Bantu mereka mengisi formulir penilaian aset.
-  3. PENGAWAS ADMIN: Fokus audit manajemen. Berikan analisis strategis jika diminta.
-  
-  User saat ini: ${user.nama_lengkap} (Role: ${user.peran}).`;
-
-  let userPrompt = message;
-  let modelName = 'gemini-3-flash-preview';
-
-  if (message.toLowerCase().match(/(kesimpulan ai|analisis strategis|prediksi tren)/)) {
-      const reports = db.getTable('pengaduan_kerusakan');
-      const evals = db.getTable('penilaian_aset');
-      const avgRating = evals.length > 0 ? (evals.reduce((a, b) => a + b.skor, 0) / evals.length).toFixed(1) : "0.0";
-      const contextData = `
-      [STATISTIK REAL-TIME]
-      - Rata-rata Rating Aset: ${avgRating}/5
-      - Total Laporan Kerusakan: ${reports.length}
-      - Laporan Status Pending: ${reports.filter(r => r.status === 'Pending').length}`;
-      userPrompt = `${userPrompt}\n\n${contextData}`;
-      modelName = 'gemini-3-pro-preview';
-  }
+  let systemInstruction = `Anda adalah SIKILAT AI Assistant. 
+  Bantu pengguna sesuai perannya: Guru (Peminjaman), PJ (Kegiatan), Pengawas (Audit/Kesimpulan).`;
 
   try {
     const response = await ai.models.generateContent({
-        model: modelName,
+        model: "gemini-3-flash-preview",
         config: { systemInstruction },
-        contents: [{ parts: [{ text: userPrompt }] }],
+        contents: [{ parts: [{ text: message }] }],
     });
     return { text: response.text || "Terjadi kendala dalam memproses permintaan Anda." };
   } catch (error: any) {
-    return { text: `⚠️ AI sedang sibuk. Silakan coba sesaat lagi.` };
+    return { text: `⚠️ AI sedang sibuk.` };
   }
 };

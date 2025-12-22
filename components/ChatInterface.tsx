@@ -546,6 +546,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         return;
     }
 
+    if (activeForm.id === 'input_kegiatan') {
+        const now = new Date();
+        const hourLater = new Date(now.getTime() + (60 * 60 * 1000));
+        setFormData({
+            posisi: 'Lab Komputer 1',
+            uraian_kegiatan: 'Maintenance PC berkala dan pembersihan debu CPU.',
+            hasil_kegiatan: '20 Unit PC dibersihkan & Update OS selesai.',
+            objek_pengguna: 'Siswa Kelas 9B',
+            waktu_mulai: now.toISOString().slice(0, 16),
+            waktu_selesai: hourLater.toISOString().slice(0, 16)
+        });
+        return;
+    }
+
     const autoFillData: Record<string, Record<string, string>> = {
       lapor_kerusakan: {
         nama_barang: 'Proyektor Epson',
