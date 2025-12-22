@@ -4,20 +4,24 @@ import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, Tab
 import db from './dbService';
 
 export const generateReplySuggestion = async (reviewText: string, user: User): Promise<string> => {
-    if (!process.env.API_KEY) return "Terima kasih atas masukannya, akan segera kami tindak lanjuti.";
+    if (!process.env.API_KEY) return "Terima kasih atas masukannya.";
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
+    // Tailor suggestion based on role
+    const isAdmin = ['admin', 'pengawas_admin'].includes(user.peran);
+    const systemInstruction = isAdmin 
+        ? "Anda adalah Pengawas Admin sekolah yang bijak. Buatlah balasan singkat (maks 20 kata), profesional, dan solutif untuk ulasan fasilitas dari pengunjung/tamu berikut ini."
+        : "Anda adalah Pengunjung/Tamu sekolah. Buatlah komentar tindak lanjut singkat (maks 15 kata) untuk memperjelas ulasan Anda sebelumnya mengenai fasilitas sekolah.";
+
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
-            config: {
-                systemInstruction: "Anda adalah Pengawas Admin sekolah yang bijak. Buatlah balasan singkat (maks 20 kata), profesional, dan solutif untuk ulasan fasilitas dari pengunjung/tamu berikut ini."
-            },
-            contents: [{ parts: [{ text: `Ulasan pengunjung: "${reviewText}"` }] }],
+            config: { systemInstruction },
+            contents: [{ parts: [{ text: `Ulasan/Konteks sebelumnya: "${reviewText}"` }] }],
         });
-        return response.text || "Terima kasih, tim kami akan segera mengecek kondisi tersebut.";
+        return response.text || (isAdmin ? "Terima kasih, kami akan segera mengecek." : "Terima kasih atas tanggapannya.");
     } catch (e) {
-        return "Terima kasih atas laporannya, kami akan segera melakukan pengecekan.";
+        return isAdmin ? "Terima kasih atas laporannya, kami akan segera melakukan pengecekan." : "Ini adalah ulasan tambahan saya.";
     }
 };
 

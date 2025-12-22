@@ -17,12 +17,15 @@ const AssetEvaluationSummary: React.FC<{
     inventaris: Inventaris[], 
     onReviewAsset?: (name: string) => void, 
     onSaveReply: (evalId: string, reply: string) => void,
+    onSaveFollowUp: (evalId: string, comment: string, rating: number) => void,
     onCompleteAction: (evalId: string, status: 'Selesai' | 'Terbuka') => void, 
     currentUser: User 
-}> = ({ evaluations, inventaris, onReviewAsset, onSaveReply, onCompleteAction, currentUser }) => {
+}> = ({ evaluations, inventaris, onReviewAsset, onSaveReply, onSaveFollowUp, onCompleteAction, currentUser }) => {
     const [filterCategory, setFilterCategory] = useState<'All' | 'IT' | 'Sarpras'>('All');
     const [replyingId, setReplyingId] = useState<string | null>(null);
-    const [replyText, setReplyText] = useState('');
+    const [commentingId, setCommentingId] = useState<string | null>(null);
+    const [interactionText, setInteractionText] = useState('');
+    const [interactionRating, setInteractionRating] = useState(5);
     const [isGenerating, setIsGenerating] = useState(false);
 
     const isManager = ['admin', 'pengawas_admin'].includes(currentUser.peran);
@@ -34,16 +37,25 @@ const AssetEvaluationSummary: React.FC<{
         return 'Sarpras';
     };
 
-    const handleStartReply = (ev: PenilaianAset) => {
+    const handleStartAdminReply = (ev: PenilaianAset) => {
         setReplyingId(ev.id);
-        setReplyText(ev.balasan_admin || '');
+        setCommentingId(null);
+        setInteractionText(ev.balasan_admin || '');
+    };
+
+    const handleStartGuestComment = (ev: PenilaianAset) => {
+        setCommentingId(ev.id);
+        setReplyingId(null);
+        setInteractionText('');
+        setInteractionRating(ev.skor);
     };
 
     const handleAutoSuggest = async (ev: PenilaianAset) => {
         setIsGenerating(true);
         try {
+            // Context differs if it's admin replying or guest commenting
             const suggestion = await generateReplySuggestion(ev.ulasan, currentUser);
-            setReplyText(suggestion);
+            setInteractionText(suggestion);
         } catch (e) {
             console.error(e);
         } finally {
@@ -51,11 +63,18 @@ const AssetEvaluationSummary: React.FC<{
         }
     };
 
-    const handleSave = (id: string) => {
-        if (!replyText.trim()) return;
-        onSaveReply(id, replyText);
+    const handleSaveAdmin = (id: string) => {
+        if (!interactionText.trim()) return;
+        onSaveReply(id, interactionText);
         setReplyingId(null);
-        setReplyText('');
+        setInteractionText('');
+    };
+
+    const handleSaveGuest = (id: string) => {
+        if (!interactionText.trim()) return;
+        onSaveFollowUp(id, interactionText, interactionRating);
+        setCommentingId(null);
+        setInteractionText('');
     };
 
     const filteredList = useMemo(() => {
@@ -92,8 +111,10 @@ const AssetEvaluationSummary: React.FC<{
                 {filteredList.length > 0 ? filteredList.map(ev => {
                     const isMyEvaluation = ev.id_pengguna === currentUser.id_pengguna;
                     const hasAdminReply = !!ev.balasan_admin;
+                    const hasGuestFollowUp = !!ev.tanggapan_tamu;
                     const isResolved = ev.status_penanganan === 'Selesai';
-                    const isCurrentlyReplying = replyingId === ev.id;
+                    const isCurrentlyAdminReplying = replyingId === ev.id;
+                    const isCurrentlyGuestCommenting = commentingId === ev.id;
 
                     return (
                         <div key={ev.id} className={`p-5 rounded-3xl border transition-all ${isResolved ? 'bg-emerald-50/40 border-emerald-100 opacity-80' : 'bg-slate-50/50 border-slate-100 shadow-sm'} group relative`}>
@@ -114,10 +135,10 @@ const AssetEvaluationSummary: React.FC<{
                                     ))}
                                 </div>
                             </div>
-                            <p className="text-[12px] text-slate-600 italic leading-relaxed mb-5 px-1 border-l-4 border-slate-200">"{ev.ulasan}"</p>
+                            <p className="text-[12px] text-slate-600 italic leading-relaxed mb-4 px-1 border-l-4 border-slate-200">"{ev.ulasan}"</p>
                             
-                            {/* THREAD BALASAN (SOCIAL STYLE) */}
-                            {(hasAdminReply && !isCurrentlyReplying) && (
+                            {/* THREAD BALASAN ADMIN */}
+                            {(hasAdminReply && !isCurrentlyAdminReplying) && (
                                 <div className="ml-4 mb-4 p-4 bg-white/60 rounded-2xl border border-blue-100 shadow-sm relative animate-fade-in">
                                     <div className="flex justify-between items-center mb-2">
                                         <div className="flex items-center gap-2">
@@ -130,14 +151,27 @@ const AssetEvaluationSummary: React.FC<{
                                 </div>
                             )}
 
-                            {/* INLINE REPLY INPUT (MANAGER ONLY) */}
-                            {isCurrentlyReplying && (
+                            {/* THREAD BALASAN TAMU (FOLLOW UP) */}
+                            {(hasGuestFollowUp && !isCurrentlyGuestCommenting) && (
+                                <div className="ml-4 mb-4 p-4 bg-slate-100/50 rounded-2xl border border-slate-200 shadow-sm relative animate-fade-in">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[8px] font-black">T</div>
+                                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">Komentar Lagi</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[11px] text-slate-700 leading-relaxed">"{ev.tanggapan_tamu}"</p>
+                                </div>
+                            )}
+
+                            {/* INLINE ADMIN REPLY INPUT */}
+                            {isCurrentlyAdminReplying && (
                                 <div className="ml-4 mb-4 space-y-3 animate-slide-up">
                                     <div className="relative group">
                                         <textarea
-                                            value={replyText}
-                                            onChange={(e) => setReplyText(e.target.value)}
-                                            placeholder="Tulis balasan Anda secara langsung..."
+                                            value={interactionText}
+                                            onChange={(e) => setInteractionText(e.target.value)}
+                                            placeholder="Tulis balasan admin..."
                                             className="w-full text-xs p-4 rounded-2xl border border-blue-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white min-h-[100px] shadow-sm transition-all"
                                             autoFocus
                                         />
@@ -145,19 +179,54 @@ const AssetEvaluationSummary: React.FC<{
                                             onClick={() => handleAutoSuggest(ev)}
                                             disabled={isGenerating}
                                             className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
-                                            title="Saran Balasan AI"
                                         >
                                             <Sparkle className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                                            AI Suggest
+                                            Saran AI
                                         </button>
                                     </div>
                                     <div className="flex justify-end gap-2">
-                                        <button onClick={() => setReplyingId(null)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all">Batal</button>
-                                        <button 
-                                            onClick={() => handleSave(ev.id)} 
-                                            className="px-5 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-blue-600 flex items-center gap-2 transition-all active:scale-95"
-                                        >
+                                        <button onClick={() => setReplyingId(null)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-slate-100 rounded-xl transition-all">Batal</button>
+                                        <button onClick={() => handleSaveAdmin(ev.id)} className="px-5 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-blue-600 flex items-center gap-2 transition-all active:scale-95">
                                             <Send className="w-3.5 h-3.5" /> Kirim Balasan
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* INLINE GUEST COMMENT INPUT */}
+                            {isCurrentlyGuestCommenting && (
+                                <div className="ml-4 mb-4 space-y-3 animate-slide-up bg-white p-4 rounded-2xl border border-slate-200 shadow-inner">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase">Review Bintang Selanjutnya</span>
+                                        <div className="flex gap-1">
+                                            {[1, 2, 3, 4, 5].map(star => (
+                                                <button key={star} onClick={() => setInteractionRating(star)}>
+                                                    <Star className={`w-4 h-4 ${star <= interactionRating ? 'text-amber-400 fill-current' : 'text-slate-200'}`} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="relative group">
+                                        <textarea
+                                            value={interactionText}
+                                            onChange={(e) => setInteractionText(e.target.value)}
+                                            placeholder="Tulis ulasan tambahan Anda..."
+                                            className="w-full text-xs p-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white min-h-[100px] shadow-sm transition-all"
+                                            autoFocus
+                                        />
+                                        <button 
+                                            onClick={() => handleAutoSuggest(ev)}
+                                            disabled={isGenerating}
+                                            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                                        >
+                                            <Sparkle className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                                            Bantu AI
+                                        </button>
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => setCommentingId(null)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-slate-100 rounded-xl transition-all">Batal</button>
+                                        <button onClick={() => handleSaveGuest(ev.id)} className="px-5 py-2 bg-blue-600 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-blue-700 flex items-center gap-2 transition-all active:scale-95">
+                                            <Send className="w-3.5 h-3.5" /> Kirim Komentar
                                         </button>
                                     </div>
                                 </div>
@@ -171,9 +240,9 @@ const AssetEvaluationSummary: React.FC<{
                                  
                                  <div className="flex gap-2">
                                      {/* Admin Action */}
-                                     {isManager && !isResolved && !isCurrentlyReplying && (
+                                     {isManager && !isResolved && !isCurrentlyAdminReplying && (
                                         <button 
-                                            onClick={() => handleStartReply(ev)} 
+                                            onClick={() => handleStartAdminReply(ev)} 
                                             className="text-[10px] font-black text-blue-600 flex items-center gap-1.5 hover:bg-blue-50 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm transition-all active:scale-95"
                                         >
                                             <Undo2 className="w-3.5 h-3.5" /> {hasAdminReply ? 'Ubah Balasan' : 'Balas Cepat'}
@@ -181,21 +250,23 @@ const AssetEvaluationSummary: React.FC<{
                                      )}
 
                                      {/* Tamu Action */}
-                                     {isTamu && isMyEvaluation && hasAdminReply && (
+                                     {isTamu && isMyEvaluation && !isCurrentlyGuestCommenting && (
                                         <>
                                             {!isResolved ? (
                                                 <div className="flex gap-2">
+                                                    {hasAdminReply && (
+                                                        <button 
+                                                            onClick={() => onCompleteAction(ev.id, 'Selesai')} 
+                                                            className="px-4 py-1.5 bg-emerald-600 text-white text-[10px] font-black rounded-xl uppercase hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
+                                                        >
+                                                            <Check className="w-3 h-3" /> Selesaikan
+                                                        </button>
+                                                    )}
                                                     <button 
-                                                        onClick={() => onCompleteAction(ev.id, 'Selesai')} 
-                                                        className="px-4 py-1.5 bg-emerald-600 text-white text-[10px] font-black rounded-xl uppercase hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
-                                                    >
-                                                        <Check className="w-3 h-3" /> Selesaikan
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => onReviewAsset?.(ev.nama_barang)} 
+                                                        onClick={() => handleStartGuestComment(ev)} 
                                                         className="text-[10px] font-black text-slate-500 hover:text-blue-600 border border-slate-200 px-3 py-1.5 rounded-xl bg-white shadow-sm transition-all"
                                                     >
-                                                        Lanjut Tanya
+                                                        Komentari Lagi
                                                     </button>
                                                 </div>
                                             ) : (
@@ -207,9 +278,9 @@ const AssetEvaluationSummary: React.FC<{
                                         </>
                                      )}
                                      
-                                     {/* Tamu - Feedback button if not replied */}
-                                     {isTamu && !hasAdminReply && !isResolved && (
-                                        <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-black text-blue-600 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm hover:bg-blue-50 transition-all active:scale-95">Komentari Lagi</button>
+                                     {/* General Review trigger (if user wants new fresh review) */}
+                                     {isTamu && isResolved && (
+                                        <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-black text-blue-600 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm hover:bg-blue-50 transition-all active:scale-95">Beri Review Baru</button>
                                      )}
                                  </div>
                             </div>
@@ -338,6 +409,19 @@ const App: React.FC = () => {
       }
   }, []);
 
+  const handleSaveFollowUp = useCallback((evalId: string, comment: string, rating: number) => {
+    const allEvals = db.getTable('penilaian_aset');
+    const target = allEvals.find(e => e.id === evalId);
+    if (target) {
+        target.tanggapan_tamu = comment;
+        target.skor = rating; // Update rating based on follow up
+        db.addRecord('penilaian_aset', target);
+        setEvaluations(db.getTable('penilaian_aset'));
+        setShowSavedNotification(true);
+        setTimeout(() => setShowSavedNotification(false), 3000);
+    }
+  }, []);
+
   const handleCompleteEvaluation = useCallback((evalId: string, status: 'Selesai' | 'Terbuka') => {
       const allEvals = db.getTable('penilaian_aset');
       const target = allEvals.find(e => e.id === evalId);
@@ -462,7 +546,15 @@ const App: React.FC = () => {
                          </div>
                     </div>
                     <div className="h-fit lg:sticky lg:top-24">
-                        <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} onReviewAsset={handleReviewAsset} onSaveReply={handleSaveInlineReply} onCompleteAction={handleCompleteEvaluation} currentUser={currentUser} />
+                        <AssetEvaluationSummary 
+                            evaluations={evaluations} 
+                            inventaris={inventaris} 
+                            onReviewAsset={handleReviewAsset} 
+                            onSaveReply={handleSaveInlineReply} 
+                            onSaveFollowUp={handleSaveFollowUp}
+                            onCompleteAction={handleCompleteEvaluation} 
+                            currentUser={currentUser} 
+                        />
                     </div>
                  </div>
             </div>
@@ -498,7 +590,14 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="space-y-10">
-                        {canSeeEvaluations && <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} onSaveReply={handleSaveInlineReply} onCompleteAction={handleCompleteEvaluation} currentUser={currentUser} />}
+                        {canSeeEvaluations && <AssetEvaluationSummary 
+                            evaluations={evaluations} 
+                            inventaris={inventaris} 
+                            onSaveReply={handleSaveInlineReply} 
+                            onSaveFollowUp={handleSaveFollowUp}
+                            onCompleteAction={handleCompleteEvaluation} 
+                            currentUser={currentUser} 
+                        />}
                         <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />
                     </div>
                 </div>
