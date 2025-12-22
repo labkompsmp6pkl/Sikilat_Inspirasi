@@ -5,7 +5,7 @@ import { User, Message, RoleConfig, FormTemplate, QuickAction, DetailedItemRepor
 import { sendMessageToGemini } from '../services/geminiService';
 import { FORM_TEMPLATES } from '../constants';
 
-// --- HELPER FUNCTIONS (Moved outside main component for performance & cleaner code) ---
+// --- HELPER FUNCTIONS ---
 
 const renderValueRecursively = (val: any, key: string, level = 0): React.ReactNode => {
     if (val === null || val === undefined) return <span className="text-slate-300 italic"> - </span>;
@@ -35,7 +35,6 @@ const renderValueRecursively = (val: any, key: string, level = 0): React.ReactNo
         return (
             <div className={`grid gap-y-1 w-full`}>
                 {Object.entries(val).map(([subKey, subVal]) => {
-                     // Status Badge Logic
                      const isStatus = subKey.toLowerCase().includes('status');
                      if (isStatus && typeof subVal === 'string') {
                          const statusColors: Record<string, string> = {
@@ -81,7 +80,6 @@ const renderValueRecursively = (val: any, key: string, level = 0): React.ReactNo
         );
     }
     
-    // String/Number
     return <span className="text-slate-700">{String(val)}</span>;
 };
 
@@ -113,7 +111,6 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
        
        textToParse = textToParse.substring(start);
        
-       // Basic balancing logic
        const openChar = textToParse.charAt(0);
        const closeChar = openChar === '{' ? '}' : ']';
        let balance = 0;
@@ -141,7 +138,6 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
            const queueData = data as QueueStatus;
            return (
                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden my-3">
-                   {/* Header Status */}
                    <div className={`p-4 flex justify-between items-center ${queueData.sedang_dipakai ? 'bg-rose-50 border-b border-rose-100' : 'bg-emerald-50 border-b border-emerald-100'}`}>
                         <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${queueData.sedang_dipakai ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -163,7 +159,6 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
                    </div>
 
                    <div className="p-4">
-                       {/* Current User Info */}
                        {queueData.sedang_dipakai && queueData.pemakai_saat_ini && (
                            <div className="mb-4 flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
                                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">
@@ -176,13 +171,11 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
                            </div>
                        )}
 
-                       {/* Queue Stats */}
                        <div className="flex items-center gap-2 mb-3">
                            <Users className="w-4 h-4 text-slate-400" />
                            <span className="text-sm font-semibold text-slate-700">Antrian Berikutnya ({queueData.jumlah_antrian})</span>
                        </div>
 
-                       {/* Queue List */}
                        {queueData.antrian_berikutnya.length > 0 ? (
                            <div className="space-y-2 mb-4">
                                {queueData.antrian_berikutnya.slice(0, 3).map((item, idx) => (
@@ -210,7 +203,6 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
                            </div>
                        )}
 
-                       {/* Action Button */}
                        <button 
                            onClick={() => onAction("Saya ingin booking ruangan ini", "booking_ruangan", { objek: queueData.nama_barang })}
                            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-sm hover:shadow-md active:scale-95 ${
@@ -254,7 +246,6 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
            )
        }
        
-       // --- RENDER DETAILED ITEM REPORT ---
        if (data.type === 'detailed_item_report') {
            const report = data as DetailedItemReport;
            const renderHistorySection = (title: string, section: HistorySection | undefined, Icon: React.FC<any>) => {
@@ -317,15 +308,11 @@ const renderMessageContent = (text: string, onAction: (text: string, formId?: st
     });
 };
 
-// --- MEMOIZED MESSAGE COMPONENT ---
-// Separating this ensures that typing in the input field doesn't trigger a re-render
-// of the entire message history and heavy JSON parsing logic.
 const MessageBubble = React.memo(({ msg, onReply, onAction }: { msg: Message, onReply: (msg: Message) => void, onAction: (text: string, formId?: string, initialData?: any) => void }) => {
     return (
         <div className={`flex items-end gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`w-full max-w-lg p-3 rounded-2xl relative group ${msg.sender === 'user' ? `bg-emerald-100 text-emerald-900 rounded-br-none` : 'bg-white text-slate-800 rounded-bl-none shadow-sm'}`}>
             
-            {/* Reply Action Button (Visible on Hover) */}
             <button 
                 onClick={() => onReply(msg)}
                 className={`absolute top-2 ${msg.sender === 'user' ? '-left-8' : '-right-8'} p-1.5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity`}
@@ -334,7 +321,6 @@ const MessageBubble = React.memo(({ msg, onReply, onAction }: { msg: Message, on
                 <Reply className="w-3.5 h-3.5" />
             </button>
 
-            {/* Quoted Message Display */}
             {msg.replyTo && (
                 <div className={`mb-2 p-2 rounded text-xs border-l-4 ${msg.sender === 'user' ? 'bg-emerald-200/50 border-emerald-500 text-emerald-800' : 'bg-slate-100 border-slate-400 text-slate-600'}`}>
                     <div className="font-bold mb-0.5">{msg.replyTo.sender === 'ai' ? 'SIKILAT Assistant' : 'Anda'}</div>
@@ -353,8 +339,6 @@ const MessageBubble = React.memo(({ msg, onReply, onAction }: { msg: Message, on
     );
 });
 
-
-// --- MAIN COMPONENT ---
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataSaved, stats, isOpen, onToggle, externalMessage, onClearExternalMessage }) => {
   const [messages, setMessages] = useState<Message[]>([
@@ -392,7 +376,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     }
   }, [messages, isOpen]);
 
-  // Handle external triggers (e.g. from Charts)
   useEffect(() => {
     if (externalMessage && externalMessage.trim() !== '') {
         handleSend(externalMessage);
@@ -423,7 +406,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
       textareaRef.current?.focus();
   }, []);
 
-  // Update handleSend to handle complex action objects or strings
   const handleAction = useCallback((text: string, formId?: string, initialData?: any) => {
       if (formId) {
           const formTemplate = FORM_TEMPLATES[formId];
@@ -472,7 +454,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
     let promptToSend = text;
     if (currentReplyingTo) {
-        // Remove heavy JSON data from context to save tokens and avoid confusion
         const cleanReplyText = currentReplyingTo.text.replace(/:::DATA_JSON:::.*$/s, '').slice(0, 300); 
         promptToSend = `[CONTEXT: User is replying to this previous message: "${cleanReplyText}"].\n\nUser's Reply: ${text}`;
     }
@@ -541,7 +522,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     if (activeForm.id === 'cek_laporan') {
         formattedMessage = `Cek status untuk ID Laporan: ${formData['id_laporan']}`;
     } else if (activeForm.id === 'cek_antrian_form') {
-        // Specific format for the simulation to parse
         formattedMessage = `Cek status antrian untuk: ${formData['nama_aset']}`;
     } else {
         formattedMessage += activeForm.fields.map(field => `🔹 ${field.label}: ${formData[field.name]}`).join('\n');
@@ -556,71 +536,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
     if (activeForm.id === 'agenda_kegiatan') {
         const maintenancePresets = [
-            {
-                posisi: "Lab Komputer 1",
-                objek: "Siswa Kelas 9A",
-                uraian: "Maintenance Rutin: Pengecekan software, update antivirus, dan pembersihan file sampah di 30 unit PC.",
-                hasil: "28 PC Normal, 2 PC perlu install ulang Windows (dijadwalkan besok)."
-            },
-            {
-                posisi: "Ruang Guru",
-                objek: "Guru",
-                uraian: "Perbaikan Jaringan: Menangani laporan WiFi 'limited access' dan printer sharing tidak terdeteksi.",
-                hasil: "Access Point direstart, IP Conflict teratasi. Printer sharing sudah bisa diakses semua guru."
-            },
-            {
-                posisi: "Ruang Server",
-                objek: "Staff IT",
-                uraian: "Backup Data & Cek Suhu: Backup database mingguan SIKILAT dan pengecekan suhu ruang server.",
-                hasil: "Backup berhasil (Size: 4.5GB). Suhu ruang server stabil di 20°C."
-            },
-            {
-                posisi: "Lab Bahasa",
-                objek: "Siswa Kelas 8C",
-                uraian: "Pengecekan Headset: Memeriksa fungsi audio dan microphone pada headset lab bahasa sebelum ujian.",
-                hasil: "5 Headset kabel putus (diganti baru), sisanya berfungsi baik."
-            },
-            {
-                posisi: "Ruang Kelas 7B",
-                objek: "Siswa Kelas 7B",
-                uraian: "Perbaikan Mebel: Memperbaiki 3 meja siswa yang goyah dan 1 kursi yang sandarannya lepas.",
-                hasil: "Meja dan kursi telah diperkuat dengan paku tembak dan lem kayu. Aman digunakan."
-            },
-            {
-                posisi: "Perpustakaan",
-                objek: "Petugas Perpustakaan",
-                uraian: "Service AC: Cuci AC Split dan cek tekanan freon karena laporan AC tidak dingin.",
-                hasil: "Filter sangat kotor sudah dibersihkan. Tekanan freon normal. Suhu output sudah dingin (18°C)."
-            },
-            {
-                posisi: "Koridor Utama",
-                objek: "Staff Sarpras",
-                uraian: "Pergantian Lampu: Mengganti 4 titik lampu LED downlight yang mati di area koridor menuju kantin.",
-                hasil: "Lampu diganti dengan LED 12W baru. Area kembali terang."
-            },
-            {
-                posisi: "Toilet Siswa Lt.1",
-                objek: "Siswa",
-                uraian: "Perbaikan Sanitasi: Memperbaiki kran air wastafel yang bocor dan flush toilet yang macet.",
-                hasil: "Seal kran diganti, kebocoran berhenti. Mekanisme flush diperbaiki."
-            }
+            { posisi: "Lab Komputer 1", objek: "Siswa Kelas 9A", uraian: "Maintenance Rutin: Pengecekan software, update antivirus, dan pembersihan file sampah di 30 unit PC.", hasil: "28 PC Normal, 2 PC perlu install ulang Windows (dijadwalkan besok)." },
+            { posisi: "Ruang Guru", objek: "Guru", uraian: "Perbaikan Jaringan: Menangani laporan WiFi 'limited access' dan printer sharing tidak terdeteksi.", hasil: "Access Point direstart, IP Conflict teratasi. Printer sharing sudah bisa diakses semua guru." }
         ];
-
         const randomTask = maintenancePresets[Math.floor(Math.random() * maintenancePresets.length)];
-        
         const now = new Date();
-        const startStr = now.toISOString().slice(0, 16); 
-        const endTime = new Date(now.getTime() + 60 * 60 * 1000); 
-        const endStr = endTime.toISOString().slice(0, 16);
-
         setFormData({
-            waktu_mulai: startStr,
-            waktu_selesai: endStr,
+            waktu_mulai: now.toISOString().slice(0, 16),
+            waktu_selesai: new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16),
             posisi: randomTask.posisi,
             objek_pengguna: randomTask.objek,
             uraian_kegiatan: randomTask.uraian,
             hasil_kegiatan: randomTask.hasil,
         });
+        return;
+    }
+
+    // Fixed: Added presets for 'penilaian_aset'
+    if (activeForm.id === 'penilaian_aset') {
+        const evalPresets = [
+            { nama_barang: 'Lab Komputer 1', skor: '5', ulasan: 'Ruangan sangat nyaman, semua PC berfungsi dengan baik dan internetnya kencang. Sangat mendukung kegiatan belajar.' },
+            { nama_barang: 'Proyektor Ruang 10A', skor: '3', ulasan: 'Kondisi proyektor masih berfungsi, namun gambarnya agak redup dan bergetar. Mohon dicek kabel atau lensanya.' },
+            { nama_barang: 'Toilet Siswa Lt.1', skor: '4', ulasan: 'Sudah jauh lebih bersih dibanding sebelumnya. Kran air juga lancar. Terima kasih tim Sarpras!' },
+            { nama_barang: 'Perpustakaan', skor: '5', ulasan: 'Koleksi buku lengkap dan AC-nya dingin sekali. Tempat yang sangat kondusif untuk membaca.' }
+        ];
+        const randomEval = evalPresets[Math.floor(Math.random() * evalPresets.length)];
+        setFormData(randomEval);
         return;
     }
 
@@ -631,18 +572,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
         deskripsi: 'Tampilan proyektor bergaris dan warna pudar.',
         urgensi: 'Sedang',
       },
-      booking_ruangan: {
-        objek: 'Aula Utama',
-        tanggal: new Date().toISOString().slice(0, 10),
-        jam_mulai: '09:00',
-        jam_selesai: '12:00',
-        keperluan: 'Rapat persiapan acara Peringatan Hari Kemerdekaan oleh OSIS.',
-      },
       cek_laporan: {
         id_laporan: 'SKL-TAMU-240729-ABC'
-      },
-      cek_antrian_form: {
-        nama_aset: 'Lab Komputer 1'
       }
     };
     setFormData(autoFillData[activeForm.id] || {});
@@ -699,7 +630,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
              })}
           </div>
           
-          {/* Reply Preview Area */}
           {replyingTo && (
               <div className="px-4 pt-3 bg-slate-50 animate-slide-up">
                   <div className="bg-white border-l-4 border-blue-500 rounded-r-lg p-2 shadow-sm flex justify-between items-center">

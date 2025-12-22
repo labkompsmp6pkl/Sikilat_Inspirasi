@@ -5,7 +5,8 @@ import {
   MOCK_INVENTARIS,
   MOCK_LOKASI,
   MOCK_USERS,
-  MOCK_AGENDA_KEGIATAN
+  MOCK_AGENDA_KEGIATAN,
+  MOCK_PENILAIAN_ASET
 } from '../constants';
 import {
   PengaduanKerusakan,
@@ -14,7 +15,8 @@ import {
   Lokasi,
   Pengguna,
   TableName,
-  AgendaKegiatan
+  AgendaKegiatan,
+  PenilaianAset
 } from '../types';
 
 const DB_PREFIX = 'SIKILAT_DB_';
@@ -26,6 +28,7 @@ type TableMap = {
   lokasi: Lokasi;
   pengguna: Pengguna;
   agenda_kegiatan: AgendaKegiatan;
+  penilaian_aset: PenilaianAset;
 };
 
 const initialData = {
@@ -34,7 +37,8 @@ const initialData = {
   inventaris: MOCK_INVENTARIS,
   lokasi: MOCK_LOKASI,
   pengguna: Object.values(MOCK_USERS),
-  agenda_kegiatan: MOCK_AGENDA_KEGIATAN
+  agenda_kegiatan: MOCK_AGENDA_KEGIATAN,
+  penilaian_aset: MOCK_PENILAIAN_ASET
 };
 
 const db = {
@@ -83,7 +87,6 @@ const db = {
     db.saveTable(tableName, tableData as any);
   },
 
-  // FITUR: Export untuk Couchbase Capella
   exportForCouchbase: () => {
     const allData: Record<string, any[]> = {};
     (Object.keys(initialData) as TableName[]).forEach(table => {
@@ -94,17 +97,13 @@ const db = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `sikilat_couchbase_import_${new Date().getTime()}.json`;
+    link.download = `sikilat_export_${new Date().getTime()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   },
 
-  // SIMULASI KONEKSI LIVE KE CLUSTER
   connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
-      // Dalam aplikasi nyata, di sini akan memanggil SDK Couchbase
-      // atau REST API Capella menggunakan kredensial yang dibuat user.
-      console.log("Connecting to Couchbase Capella Cluster...", config.endpoint);
       localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(config));
       return true;
   },

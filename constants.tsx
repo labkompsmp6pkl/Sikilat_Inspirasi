@@ -18,169 +18,44 @@ import {
   Info,
   PenTool,
   FileSearch,
-  PieChart
+  PieChart,
+  Star,
+  ShieldCheck,
+  ClipboardList,
+  // Fix: Added missing Sparkles icon to resolve the error on line 139
+  Sparkles
 } from 'lucide-react';
-import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris, PeminjamanAntrian, AgendaKegiatan } from './types';
+import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris, PeminjamanAntrian, AgendaKegiatan, PenilaianAset } from './types';
 
 export const MOCK_USERS: Record<string, User> = {
-  guru: { 
-    id_pengguna: 'u1', 
-    nama_lengkap: 'Budi Santoso', 
-    email: 'budi@sikilat.sch.id', 
-    no_hp: '081234567890',
-    peran: 'guru', 
-    avatar: 'https://picsum.photos/seed/guru/100/100' 
-  },
-  pj: { 
-    id_pengguna: 'u2', 
-    nama_lengkap: 'Siti Aminah', 
-    email: 'siti@sikilat.sch.id',
-    no_hp: '081234567891',
-    peran: 'penanggung_jawab', 
-    avatar: 'https://picsum.photos/seed/pj/100/100' 
-  },
-  it: { 
-    id_pengguna: 'u3', 
-    nama_lengkap: 'Rudi Hartono', 
-    email: 'rudi@sikilat.sch.id',
-    no_hp: '081234567892',
-    peran: 'pengawas_it', 
-    avatar: 'https://picsum.photos/seed/it/100/100' 
-  },
-  sarpras: { 
-    id_pengguna: 'u4', 
-    nama_lengkap: 'Dewi Sartika', 
-    email: 'dewi@sikilat.sch.id',
-    no_hp: '081234567893',
-    peran: 'pengawas_sarpras', 
-    avatar: 'https://picsum.photos/seed/sarp/100/100' 
-  },
-  admin_p: { 
-    id_pengguna: 'u5', 
-    nama_lengkap: 'Ahmad Dahlan', 
-    email: 'ahmad@sikilat.sch.id',
-    no_hp: '081234567894',
-    peran: 'pengawas_admin', 
-    avatar: 'https://picsum.photos/seed/adm/100/100' 
-  },
-  admin: { 
-    id_pengguna: 'u6', 
-    nama_lengkap: 'Super Admin', 
-    email: 'admin@sikilat.sch.id',
-    no_hp: '081234567895',
-    peran: 'admin', 
-    avatar: 'https://picsum.photos/seed/super/100/100' 
-  },
-  tamu: { 
-    id_pengguna: 'u7', 
-    nama_lengkap: 'Pengunjung', 
-    email: 'tamu@gmail.com',
-    no_hp: '-',
-    peran: 'tamu', 
-    avatar: 'https://picsum.photos/seed/tamu/100/100' 
-  },
+  guru: { id_pengguna: 'u1', nama_lengkap: 'Budi Santoso', email: 'budi@sikilat.sch.id', no_hp: '081234567890', peran: 'guru', avatar: 'https://picsum.photos/seed/guru/100/100' },
+  pj: { id_pengguna: 'u2', nama_lengkap: 'Siti Aminah', email: 'siti@sikilat.sch.id', no_hp: '081234567891', peran: 'penanggung_jawab', avatar: 'https://picsum.photos/seed/pj/100/100' },
+  it: { id_pengguna: 'u3', nama_lengkap: 'Rudi Hartono', email: 'rudi@sikilat.sch.id', no_hp: '081234567892', peran: 'pengawas_it', avatar: 'https://picsum.photos/seed/it/100/100' },
+  sarpras: { id_pengguna: 'u4', nama_lengkap: 'Dewi Sartika', email: 'dewi@sikilat.sch.id', no_hp: '081234567893', peran: 'pengawas_sarpras', avatar: 'https://picsum.photos/seed/sarp/100/100' },
+  admin_p: { id_pengguna: 'u5', nama_lengkap: 'Ahmad Dahlan', email: 'ahmad@sikilat.sch.id', no_hp: '081234567894', peran: 'pengawas_admin', avatar: 'https://picsum.photos/seed/adm/100/100' },
+  admin: { id_pengguna: 'u6', nama_lengkap: 'Super Admin', email: 'admin@sikilat.sch.id', no_hp: '081234567895', peran: 'admin', avatar: 'https://picsum.photos/seed/super/100/100' },
+  tamu: { id_pengguna: 'u7', nama_lengkap: 'Pengunjung', email: 'tamu@gmail.com', no_hp: '-', peran: 'tamu', avatar: 'https://picsum.photos/seed/tamu/100/100' },
 };
 
-export const SCHEMA_INFO = {
-  tables: [
-    { name: 'agenda_kegiatan', label: 'Agenda Kegiatan', count: 124 },
-    { name: 'inventaris', label: 'Inventaris Aset', count: 5420 },
-    { name: 'pengguna', label: 'Data Pengguna', count: 350 },
-    { name: 'pengaduan_kerusakan', label: 'Pengaduan Kerusakan', count: 15 },
-    { name: 'peminjaman_antrian', label: 'Peminjaman & Antrian', count: 42 },
-    { name: 'lokasi', label: 'Lokasi Fisik', count: 28 },
-    { name: 'kelas', label: 'Data Kelas', count: 32 },
-  ]
-};
-
-// Mock Data for Damage Analysis Chart
 const today = new Date();
 const daysAgo = (days: number) => new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
 
+export const MOCK_PENILAIAN_ASET: PenilaianAset[] = [
+    { id: 'EV-001', id_barang: 'inv01', nama_barang: 'PC Desktop', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 4, ulasan: 'Komputer cepat tapi keyboard agak berdebu.', tanggal: daysAgo(1) },
+    { id: 'EV-002', id_barang: 'inv02', nama_barang: 'Proyektor Epson', id_pengguna: 'u1', nama_pengguna: 'Budi Santoso', skor: 2, ulasan: 'Warna sudah mulai pudar, perlu kalibrasi.', tanggal: daysAgo(3) },
+    { id: 'EV-003', id_barang: 'inv03', nama_barang: 'AC Panasonic', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 5, ulasan: 'Sangat dingin dan nyaman.', tanggal: daysAgo(5) }
+];
+
 export const MOCK_AGENDA_KEGIATAN: AgendaKegiatan[] = [
-    {
-        id: 'AGD-001',
-        nama_pj: 'Siti Aminah',
-        waktu_mulai: daysAgo(0).toISOString().replace(/T.*/, 'T08:00'),
-        waktu_selesai: daysAgo(0).toISOString().replace(/T.*/, 'T09:00'),
-        posisi: 'Lab Komputer 1',
-        objek_pengguna: 'Siswa Kelas 9A',
-        uraian_kegiatan: 'Maintenance PC sebelum ujian.',
-        hasil_kegiatan: '20 PC Siap. 1 PC perlu update.',
-        status: 'Pending'
-    },
-    {
-        id: 'AGD-002',
-        nama_pj: 'Siti Aminah',
-        waktu_mulai: daysAgo(0).toISOString().replace(/T.*/, 'T10:00'),
-        waktu_selesai: daysAgo(0).toISOString().replace(/T.*/, 'T11:00'),
-        posisi: 'Ruang Guru',
-        objek_pengguna: 'Guru Staff',
-        uraian_kegiatan: 'Pengecekan printer macet.',
-        hasil_kegiatan: 'Printer normal kembali.',
-        status: 'Pending'
-    },
-    {
-        id: 'AGD-003',
-        nama_pj: 'Rudi Hartono',
-        waktu_mulai: daysAgo(1).toISOString().replace(/T.*/, 'T13:00'),
-        waktu_selesai: daysAgo(1).toISOString().replace(/T.*/, 'T14:30'),
-        posisi: 'Server Room',
-        objek_pengguna: 'Sistem Sekolah',
-        uraian_kegiatan: 'Backup database mingguan.',
-        hasil_kegiatan: 'Backup sukses 100%.',
-        status: 'Disetujui'
-    }
+    { id: 'AGD-001', nama_pj: 'Siti Aminah', waktu_mulai: daysAgo(0).toISOString().replace(/T.*/, 'T08:00'), waktu_selesai: daysAgo(0).toISOString().replace(/T.*/, 'T09:00'), posisi: 'Lab Komputer 1', objek_pengguna: 'Siswa Kelas 9A', uraian_kegiatan: 'Maintenance PC sebelum ujian.', hasil_kegiatan: '20 PC Siap.', status: 'Pending' },
 ];
 
 export const MOCK_PENGADUAN_KERUSAKAN: PengaduanKerusakan[] = [
   { id: 'SKL-IT-241209-001', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(2), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
-  { 
-      id: 'SKL-SRP-241207-002', 
-      id_barang: 'inv02', 
-      id_pengadu: 'u1', 
-      tanggal_lapor: daysAgo(4), 
-      nama_barang: 'AC Ruang Kelas', 
-      deskripsi_masalah: 'Tidak dingin', 
-      status: 'Selesai', 
-      kategori_aset: 'Sarpras', 
-      nama_pengadu: 'Budi Santoso', 
-      lokasi_kerusakan: 'Ruang Kelas 10A',
-      diselesaikan_oleh: 'Siti Aminah (PJ)',
-      catatan_penyelesaian: 'Freon telah diisi ulang dan filter dibersihkan.'
-  },
-  { id: 'SKL-IT-241206-003', id_barang: 'inv03', id_pengadu: 'u3', tanggal_lapor: daysAgo(5), nama_barang: 'Proyektor', deskripsi_masalah: 'Gambar buram', status: 'Proses', kategori_aset: 'IT', nama_pengadu: 'Rudi Hartono', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'SKL-SRP-241204-004', id_barang: 'inv04', id_pengadu: 'u4', tanggal_lapor: daysAgo(7), nama_barang: 'Kursi Siswa', deskripsi_masalah: 'Kaki patah', status: 'Pending', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Kelas 10A' },
-  { 
-      id: 'SKL-IT-241203-005', 
-      id_barang: 'inv01', 
-      id_pengadu: 'u1', 
-      tanggal_lapor: daysAgo(8), 
-      nama_barang: 'Keyboard PC', 
-      deskripsi_masalah: 'Koneksi terputus-putus', 
-      status: 'Selesai', 
-      kategori_aset: 'IT', 
-      nama_pengadu: 'Budi Santoso', 
-      lokasi_kerusakan: 'Lab Komputer 1',
-      diselesaikan_oleh: 'Rudi Hartono (IT)',
-      catatan_penyelesaian: 'Kabel USB diganti baru.'
-  },
-  { id: 'SKL-IT-241201-006', id_barang: 'inv05', id_pengadu: 'u1', tanggal_lapor: daysAgo(10), nama_barang: 'Mouse PC', deskripsi_masalah: 'Scroll tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'SKL-SRP-241129-007', id_barang: 'inv02', id_pengadu: 'u4', tanggal_lapor: daysAgo(12), nama_barang: 'AC Ruang Guru', deskripsi_masalah: 'Bocor air', status: 'Proses', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'SKL-GEN-241126-008', id_barang: 'inv06', id_pengadu: 'u1', tanggal_lapor: daysAgo(15), nama_barang: 'Papan Tulis Digital', deskripsi_masalah: 'Layar tidak merespon', status: 'Pending', kategori_aset: 'General', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Perpustakaan' },
-  { id: 'SKL-IT-241121-009', id_barang: 'inv03', id_pengadu: 'u3', tanggal_lapor: daysAgo(20), nama_barang: 'Proyektor', deskripsi_masalah: 'Lampu mati', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Rudi Hartono', lokasi_kerusakan: 'Ruang Guru' },
-  { id: 'SKL-IT-241119-010', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(22), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol lepas', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
-  { id: 'SKL-IT-241116-011', id_barang: 'inv07', id_pengadu: 'u1', tanggal_lapor: daysAgo(25), nama_barang: 'Jaringan WiFi', deskripsi_masalah: 'Koneksi lambat', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Server' },
-  { id: 'SKL-SRP-241113-012', id_barang: 'inv02', id_pengadu: 'u4', tanggal_lapor: daysAgo(28), nama_barang: 'AC Perpustakaan', deskripsi_masalah: 'Tidak dingin', status: 'Pending', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Perpustakaan' },
-  { id: 'SKL-IT-241101-013', id_barang: 'inv40', id_pengadu: 'u1', tanggal_lapor: daysAgo(40), nama_barang: 'Printer', deskripsi_masalah: 'Kertas macet', status: 'Selesai', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Ruang Guru' }, 
-  { id: 'SKL-SRP-241022-014', id_barang: 'inv50', id_pengadu: 'u4', tanggal_lapor: daysAgo(50), nama_barang: 'Meja Guru', deskripsi_masalah: 'Laci rusak', status: 'Selesai', kategori_aset: 'Sarpras', nama_pengadu: 'Dewi Sartika', lokasi_kerusakan: 'Ruang Guru' }, 
 ];
 
 export const MOCK_PEMINJAMAN_ANTRIAN: PeminjamanAntrian[] = [
   { id_peminjaman: 'pm01', id_barang: 'inv02', nama_barang: 'Proyektor Epson', id_pengguna: 'u1', tanggal_peminjaman: daysAgo(1), jam_mulai: '13:00', jam_selesai: '15:00', keperluan: 'Presentasi kelas', tanggal_pengembalian_rencana: daysAgo(-1), status_peminjaman: 'Disetujui' },
-  { id_peminjaman: 'pm02', id_barang: 'L02', nama_barang: 'Lab Komputer 1', id_pengguna: 'u1', tanggal_peminjaman: daysAgo(3), jam_mulai: '08:00', jam_selesai: '10:00', keperluan: 'Ujian Praktik TIK', tanggal_pengembalian_rencana: daysAgo(-4), status_peminjaman: 'Menunggu' },
-  { id_peminjaman: 'pm03', id_barang: 'inv01', nama_barang: 'PC Desktop', id_pengguna: 'u3', tanggal_peminjaman: daysAgo(5), jam_mulai: '10:00', jam_selesai: '11:00', keperluan: 'Update software', tanggal_pengembalian_rencana: daysAgo(-6), status_peminjaman: 'Kembali' },
-  { id_peminjaman: 'pm04', id_barang: 'L03', nama_barang: 'Perpustakaan', id_pengguna: 'u1', tanggal_peminjaman: daysAgo(8), jam_mulai: '09:00', jam_selesai: '11:00', keperluan: 'Kegiatan literasi', tanggal_pengembalian_rencana: daysAgo(-9), status_peminjaman: 'Ditolak', alasan_penolakan: 'Ruangan sudah dibooking untuk kegiatan lain.' },
 ];
 
 export const MOCK_LOKASI: Lokasi[] = [
@@ -194,64 +69,17 @@ export const MOCK_INVENTARIS: Inventaris[] = [
     { id_barang: 'inv01', nama_barang: 'PC Desktop', kategori: 'IT', status_barang: 'Baik', id_lokasi: 'L02' },
     { id_barang: 'inv02', nama_barang: 'Proyektor Epson', kategori: 'IT', status_barang: 'Rusak Ringan', id_lokasi: 'L01' },
     { id_barang: 'inv03', nama_barang: 'AC Panasonic', kategori: 'Sarpras', status_barang: 'Baik', id_lokasi: 'L04' },
-    { id_barang: 'inv04', nama_barang: 'Meja Siswa', kategori: 'Sarpras', status_barang: 'Rusak Berat', id_lokasi: 'L01' },
-    { id_barang: 'inv05', nama_barang: 'Printer HP LaserJet', kategori: 'IT', status_barang: 'Perbaikan', id_lokasi: 'L04' },
-    { id_barang: 'inv06', nama_barang: 'Rak Buku', kategori: 'Sarpras', status_barang: 'Rusak Ringan', id_lokasi: 'L03' },
 ];
 
-// Helper to generate User Options
-const generateUserOptions = () => {
-    const staffOptions = [
-        'Staff IT', 
-        'Staff Sarpras', 
-        'Staff Admin', 
-        'Guru', 
-        'Kepala Sekolah', 
-        'Tamu / Eksternal',
-        'Petugas Perpustakaan'
-    ];
-    
-    const ekskulOptions = [
-        '[EKSKUL] Komputer',
-        '[EKSKUL] Pramuka',
-        '[EKSKUL] OSIS',
-        '[EKSKUL] PMR',
-        '[EKSKUL] Basket'
-    ];
-
-    const studentOptions: string[] = [];
-    const levels = ['7', '8', '9'];
-    const classes = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-    
-    levels.forEach(level => {
-        classes.forEach(cls => {
-            studentOptions.push(`Siswa Kelas ${level}${cls}`);
-        });
-    });
-
-    return [...staffOptions, ...ekskulOptions, ...studentOptions];
-};
-
-// Form Templates Definition
 export const FORM_TEMPLATES: Record<string, FormTemplate> = {
-  agenda_kegiatan: {
-    id: 'agenda_kegiatan',
-    title: 'Input Agenda Kegiatan',
-    submitLabel: 'Simpan Kegiatan',
+  penilaian_aset: {
+    id: 'penilaian_aset',
+    title: 'Beri Penilaian Aset',
+    submitLabel: 'Kirim Penilaian',
     fields: [
-      { name: 'waktu_mulai', label: 'Waktu Mulai', type: 'datetime-local', required: true },
-      { name: 'waktu_selesai', label: 'Waktu Selesai', type: 'datetime-local', required: true },
-      { name: 'posisi', label: 'Posisi / Lokasi', type: 'text', placeholder: 'Contoh: Lab Komputer 1', required: true },
-      { 
-          name: 'objek_pengguna', 
-          label: 'Objek Pengguna', 
-          type: 'creatable-select', 
-          placeholder: 'Pilih dari list atau ketik baru (Contoh: Siswa Kelas 9A)', 
-          required: true,
-          options: generateUserOptions()
-      },
-      { name: 'uraian_kegiatan', label: 'Uraian Kegiatan', type: 'textarea', placeholder: 'Jelaskan detail aktivitas yang dilakukan...', required: true },
-      { name: 'hasil_kegiatan', label: 'Hasil Kegiatan', type: 'textarea', placeholder: 'Hasil atau status akhir kegiatan...', required: true },
+      { name: 'nama_barang', label: 'Nama Aset / Ruangan', type: 'text', placeholder: 'Contoh: Lab Komputer 1', required: true },
+      { name: 'skor', label: 'Rating (1-5)', type: 'number', min: 1, max: 5, placeholder: '5', required: true },
+      { name: 'ulasan', label: 'Ulasan / Masukan', type: 'textarea', placeholder: 'Apa pendapat Anda mengenai kondisi aset ini?', required: true },
     ]
   },
   lapor_kerusakan: {
@@ -265,32 +93,12 @@ export const FORM_TEMPLATES: Record<string, FormTemplate> = {
       { name: 'urgensi', label: 'Tingkat Urgensi', type: 'select', options: ['Rendah', 'Sedang', 'Tinggi', 'Darurat'], required: true },
     ]
   },
-  booking_ruangan: {
-    id: 'booking_ruangan',
-    title: 'Booking Ruangan / Alat',
-    submitLabel: 'Ajukan Booking',
-    fields: [
-      { name: 'objek', label: 'Ruangan / Alat', type: 'text', placeholder: 'Contoh: Aula Utama', required: true },
-      { name: 'tanggal', label: 'Tanggal Peminjaman', type: 'date', required: true },
-      { name: 'jam_mulai', label: 'Jam Mulai', type: 'text', placeholder: '08:00', required: true },
-      { name: 'jam_selesai', label: 'Jam Selesai', type: 'text', placeholder: '10:00', required: true },
-      { name: 'keperluan', label: 'Keperluan', type: 'textarea', placeholder: 'Untuk kegiatan apa?', required: true },
-    ]
-  },
   cek_laporan: {
     id: 'cek_laporan',
     title: 'Cek Status Laporan Anda',
     submitLabel: 'Cek Status',
     fields: [
       { name: 'id_laporan', label: 'Masukkan ID Laporan Anda', type: 'text', placeholder: 'Contoh: SKL-TAMU-240729-ABC', required: true },
-    ]
-  },
-  cek_antrian_form: {
-    id: 'cek_antrian_form',
-    title: 'Cek Antrian & Ketersediaan',
-    submitLabel: 'Lihat Antrian',
-    fields: [
-      { name: 'nama_aset', label: 'Nama Ruangan / Alat', type: 'text', placeholder: 'Contoh: Lab Komputer, Aula, Proyektor...', required: true },
     ]
   }
 };
@@ -301,12 +109,11 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     label: 'Guru',
     icon: Users,
     color: 'blue',
-    description: 'Pelaporan & Peminjaman (pengaduan_kerusakan, peminjaman_antrian)',
-    transformativeValue: 'Efisiensi Waktu Signifikan: Melaporkan kerusakan atau meminjam alat tanpa birokrasi formulir manual.',
+    description: 'Pelaporan & Peminjaman',
+    transformativeValue: 'Efisiensi Waktu Signifikan.',
     actions: [
       { label: 'Lapor Kerusakan', prompt: 'Saya ingin melaporkan kerusakan aset.', icon: AlertCircle, formId: 'lapor_kerusakan' },
-      { label: 'Booking Ruangan', prompt: 'Saya ingin melakukan booking ruangan.', icon: Calendar, formId: 'booking_ruangan' },
-      { label: 'Cek Antrian', prompt: 'Saya ingin cek antrian.', icon: Clock, formId: 'cek_antrian_form' },
+      { label: 'Beri Penilaian', prompt: 'Saya ingin memberi penilaian aset.', icon: Star, formId: 'penilaian_aset' },
       { label: 'Tanya Inventaris', prompt: 'Cek status barang di tabel inventaris.', icon: Search },
     ]
   },
@@ -315,12 +122,11 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     label: 'Penanggung Jawab',
     icon: Wrench,
     color: 'emerald',
-    description: 'Kegiatan & Perbaikan (agenda_kegiatan, pengaduan_kerusakan)',
-    transformativeValue: 'Fokus Perbaikan Terarah: Akses instan ke riwayat aset dan manajemen tiket perbaikan.',
+    description: 'Kegiatan & Perbaikan',
+    transformativeValue: 'Fokus Perbaikan Terarah.',
     actions: [
-      { label: 'Buat Kesimpulan', prompt: 'Buatkan analisis dan kesimpulan manajerial mengenai kinerja penanganan laporan dan kondisi aset saat ini berdasarkan data real-time.', icon: PieChart },
-      { label: 'Input Kegiatan', prompt: 'Catat kegiatan penanganan hari ini.', icon: PenTool, formId: 'agenda_kegiatan' },
-      { label: 'Update Status', prompt: 'Saya ingin update status di tabel pengaduan_kerusakan.', icon: Clock },
+      { label: 'Buat Kesimpulan AI', prompt: 'Buatkan analisis dan kesimpulan manajerial mengenai kinerja penanganan laporan, kondisi aset, dan sentimen penilaian pengguna saat ini.', icon: PieChart },
+      { label: 'Input Kegiatan', prompt: 'Catat kegiatan penanganan hari ini.', icon: PenTool },
       { label: 'Tiket Pending', prompt: 'Query data status="Pending" dari tabel pengaduan_kerusakan.', icon: AlertCircle },
     ]
   },
@@ -329,13 +135,12 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     label: 'Pengawas IT',
     icon: Monitor,
     color: 'violet',
-    description: 'Monitoring Infrastruktur (inventaris, lokasi)',
-    transformativeValue: 'Stabilitas Infrastruktur: Monitoring server dan analisis downtime proaktif.',
+    description: 'Monitoring Aset Digital',
+    transformativeValue: 'Data Aset IT Real-time.',
     actions: [
-      { label: 'Status Server', prompt: 'Cek inventaris kategori "Server" & "Jaringan".', icon: Monitor },
-      { label: 'Analisis Downtime', prompt: 'Analisis log kerusakan kategori IT bulan ini.', icon: BarChart2 },
-      { label: 'Rekomendasi Upgrade', prompt: 'Query inventaris yang statusnya "Rusak Ringan".', icon: Database },
-      { label: 'Laporan Keamanan', prompt: 'Cek log akses sistem.', icon: ShieldAlert },
+      { label: 'Audit IT AI', prompt: 'Berikan analisis AI khusus untuk performa aset IT dan daftar perbaikan yang sedang berjalan.', icon: Sparkles },
+      { label: 'Cek Inventaris IT', prompt: 'Tampilkan semua data IT dari tabel inventaris.', icon: Database },
+      { label: 'Review Penilaian IT', prompt: 'Tampilkan ulasan pengguna khusus aset IT dari tabel penilaian_aset.', icon: Star },
     ]
   },
   pengawas_sarpras: {
@@ -343,28 +148,25 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     label: 'Pengawas Sarpras',
     icon: Building2,
     color: 'amber',
-    description: 'Manajemen Aset (inventaris, lokasi, kelas)',
-    transformativeValue: 'Keputusan Proaktif: Analisis kinerja aset untuk keputusan peremajaan sebelum rusak total.',
+    description: 'Monitoring Fasilitas',
+    transformativeValue: 'Fasilitas Terjaga Optimal.',
     actions: [
-      { label: 'Analisis & Kesimpulan', prompt: 'Buatkan analisis strategis dan kesimpulan mengenai data inventaris dan kerusakan saat ini untuk peremajaan aset.', icon: BarChart2 },
-      { label: 'Cek Aset Rusak', prompt: `Query inventaris kategori "Sarpras" yang statusnya "Rusak Ringan" atau "Rusak Berat".`, icon: Search },
-      { label: 'Rekomendasi Peremajaan', prompt: 'List barang status "Rusak Berat" di tabel inventaris.', icon: CheckCircle },
-      { label: 'Analisis Biaya', prompt: 'Estimasi biaya berdasarkan tabel pengaduan_kerusakan.', icon: PieChart },
-      { label: 'Aset Kritis', prompt: 'Tampilkan aset vital di lokasi utama.', icon: ShieldAlert },
+      { label: 'Analisis Fasilitas', prompt: 'Berikan rangkuman AI mengenai kondisi fasilitas fisik dan keluhan sarpras terbanyak.', icon: PieChart },
+      { label: 'Jadwal Agenda', prompt: 'Tampilkan semua data dari tabel agenda_kegiatan.', icon: Calendar },
+      { label: 'Audit Penilaian Umum', prompt: 'Tampilkan ulasan sarpras dan umum dari tabel penilaian_aset.', icon: Star },
     ]
   },
   pengawas_admin: {
     id: 'pengawas_admin',
     label: 'Pengawas Admin',
-    icon: FileText,
+    icon: ShieldCheck,
     color: 'indigo',
-    description: 'Administrasi (pengguna, agenda_kegiatan)',
-    transformativeValue: 'Transparansi Penuh: Audit trail lengkap dan laporan administrasi otomatis.',
+    description: 'Monitoring Manajemen',
+    transformativeValue: 'Transparansi Administrasi.',
     actions: [
-      { label: 'Laporan Harian', prompt: 'Rekap tabel agenda_kegiatan hari ini.', icon: FileText },
-      { label: 'Audit User', prompt: 'Cek aktivitas tabel pengguna baru.', icon: Search },
-      { label: 'Statistik Penggunaan', prompt: 'Hitung frekuensi peminjaman_antrian per kelas.', icon: BarChart2 },
-      { label: 'Cek Dokumen', prompt: 'Verifikasi kelengkapan data inventaris baru.', icon: CheckCircle },
+      { label: 'Kesimpulan Manajerial', prompt: 'Buatkan kesimpulan manajerial menyeluruh tentang produktivitas tim dan kepuasan pengguna.', icon: ClipboardList },
+      { label: 'Log Aktivitas', prompt: 'Tampilkan histori kegiatan terbaru dari tabel agenda_kegiatan.', icon: FileText },
+      { label: 'Data Pengguna', prompt: 'Tampilkan daftar semua pengguna dari tabel pengguna.', icon: Users },
     ]
   },
   admin: {
@@ -372,13 +174,12 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     label: 'Administrator',
     icon: Settings,
     color: 'rose',
-    description: 'Full Access (Semua Tabel)',
-    transformativeValue: 'Kontrol Sistem: Manajemen user, backup data, dan konfigurasi global.',
+    description: 'Full Access & Control',
+    transformativeValue: 'Kontrol Sistem Total.',
     actions: [
       { label: 'Manajemen User', prompt: 'Kelola data di tabel pengguna.', icon: Users },
-      { label: 'Backup DB', prompt: 'Backup semua tabel ke Canva Sheet Archive.', icon: Database },
-      { label: 'Konfigurasi', prompt: 'Atur ulang parameter sistem.', icon: Settings },
-      { label: 'Log Error', prompt: 'Tampilkan error log sistem.', icon: ShieldAlert },
+      { label: 'Audit Penilaian', prompt: 'Tampilkan semua data dari tabel penilaian_aset.', icon: Star },
+      { label: 'Backup DB', prompt: 'Backup semua tabel.', icon: Database },
     ]
   },
   tamu: {
@@ -386,13 +187,12 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     label: 'Tamu / Ortu',
     icon: UserCircle,
     color: 'cyan',
-    description: 'Informasi Publik (lokasi, fasilitas)',
-    transformativeValue: 'Layanan 24/7: Informasi cepat dan stabil meningkatkan citra sekolah yang responsif.',
+    description: 'Informasi Publik',
+    transformativeValue: 'Layanan 24/7.',
     actions: [
-      { label: 'Info Fasilitas', prompt: 'Info fasilitas dari tabel lokasi dan inventaris umum.', icon: Building2 },
-      { label: 'Jam Operasional', prompt: 'Kapan jam operasional layanan?', icon: Clock },
-      { label: 'Kontak Admin', prompt: 'Minta kontak dari tabel pengguna (role admin).', icon: UserCircle },
-      { label: 'Cek Status Laporan', prompt: 'Cek status laporan kerusakan yang sudah dibuat.', icon: FileSearch, formId: 'cek_laporan' },
+      { label: 'Beri Penilaian', prompt: 'Saya ingin memberi penilaian fasilitas sekolah.', icon: Star, formId: 'penilaian_aset' },
+      { label: 'Cek Status Laporan', prompt: 'Cek status laporan kerusakan.', icon: FileSearch, formId: 'cek_laporan' },
+      { label: 'Info Fasilitas', prompt: 'Info fasilitas dari tabel lokasi.', icon: Building2 },
     ]
   }
 };
