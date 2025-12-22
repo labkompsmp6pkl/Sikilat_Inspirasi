@@ -22,7 +22,6 @@ import {
   Star,
   ShieldCheck,
   ClipboardList,
-  // Fix: Added missing Sparkles icon to resolve the error on line 139
   Sparkles
 } from 'lucide-react';
 import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris, PeminjamanAntrian, AgendaKegiatan, PenilaianAset } from './types';
@@ -42,7 +41,7 @@ const daysAgo = (days: number) => new Date(today.getTime() - days * 24 * 60 * 60
 
 export const MOCK_PENILAIAN_ASET: PenilaianAset[] = [
     { id: 'EV-001', id_barang: 'inv01', nama_barang: 'PC Desktop', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 4, ulasan: 'Komputer cepat tapi keyboard agak berdebu.', tanggal: daysAgo(1) },
-    { id: 'EV-002', id_barang: 'inv02', nama_barang: 'Proyektor Epson', id_pengguna: 'u1', nama_pengguna: 'Budi Santoso', skor: 2, ulasan: 'Warna sudah mulai pudar, perlu kalibrasi.', tanggal: daysAgo(3) },
+    { id: 'EV-002', id_barang: 'inv02', nama_barang: 'Proyektor Epson', id_pengguna: 'u7', nama_pengguna: 'Tamu 1', skor: 2, ulasan: 'Warna sudah mulai pudar, perlu kalibrasi.', tanggal: daysAgo(3) },
     { id: 'EV-003', id_barang: 'inv03', nama_barang: 'AC Panasonic', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 5, ulasan: 'Sangat dingin dan nyaman.', tanggal: daysAgo(5) }
 ];
 
@@ -113,7 +112,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     transformativeValue: 'Efisiensi Waktu Signifikan.',
     actions: [
       { label: 'Lapor Kerusakan', prompt: 'Saya ingin melaporkan kerusakan aset.', icon: AlertCircle, formId: 'lapor_kerusakan' },
-      { label: 'Beri Penilaian', prompt: 'Saya ingin memberi penilaian aset.', icon: Star, formId: 'penilaian_aset' },
       { label: 'Tanya Inventaris', prompt: 'Cek status barang di tabel inventaris.', icon: Search },
     ]
   },
@@ -140,7 +138,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     actions: [
       { label: 'Audit IT AI', prompt: 'Berikan analisis AI khusus untuk performa aset IT dan daftar perbaikan yang sedang berjalan.', icon: Sparkles },
       { label: 'Cek Inventaris IT', prompt: 'Tampilkan semua data IT dari tabel inventaris.', icon: Database },
-      { label: 'Review Penilaian IT', prompt: 'Tampilkan ulasan pengguna khusus aset IT dari tabel penilaian_aset.', icon: Star },
     ]
   },
   pengawas_sarpras: {
@@ -153,7 +150,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     actions: [
       { label: 'Analisis Fasilitas', prompt: 'Berikan rangkuman AI mengenai kondisi fasilitas fisik dan keluhan sarpras terbanyak.', icon: PieChart },
       { label: 'Jadwal Agenda', prompt: 'Tampilkan semua data dari tabel agenda_kegiatan.', icon: Calendar },
-      { label: 'Audit Penilaian Umum', prompt: 'Tampilkan ulasan sarpras dan umum dari tabel penilaian_aset.', icon: Star },
     ]
   },
   pengawas_admin: {
@@ -167,6 +163,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: 'Kesimpulan Manajerial', prompt: 'Buatkan kesimpulan manajerial menyeluruh tentang produktivitas tim dan kepuasan pengguna.', icon: ClipboardList },
       { label: 'Log Aktivitas', prompt: 'Tampilkan histori kegiatan terbaru dari tabel agenda_kegiatan.', icon: FileText },
       { label: 'Data Pengguna', prompt: 'Tampilkan daftar semua pengguna dari tabel pengguna.', icon: Users },
+      { label: 'Audit Penilaian', prompt: 'Tampilkan semua data dari tabel penilaian_aset.', icon: Star },
     ]
   },
   admin: {
