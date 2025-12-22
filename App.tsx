@@ -6,6 +6,7 @@ import MyStatusDashboard from './components/MyStatusDashboard';
 import DamageReportChart from './components/DamageReportChart';
 import PendingTicketTable from './components/PendingTicketTable';
 import AgendaActivityTable from './components/AgendaActivityTable'; 
+import BookingTable from './components/BookingTable';
 import ConnectionModal from './components/ConnectionModal';
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
@@ -344,6 +345,19 @@ const App: React.FC = () => {
       }
   }, [currentUser]);
 
+  const handleUpdateBookingStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
+      const allBookings = db.getTable('peminjaman_antrian');
+      const target = allBookings.find(b => b.id_peminjaman === id);
+      if (target) {
+          target.status_peminjaman = status;
+          target.alasan_penolakan = reason;
+          db.addRecord('peminjaman_antrian', target);
+          setBookings(db.getTable('peminjaman_antrian'));
+          setShowSavedNotification(true);
+          setTimeout(() => setShowSavedNotification(false), 3000);
+      }
+  }, []);
+
   if (!currentUser) return <Login onLogin={handleLogin} onRegister={handleRegister} />;
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
@@ -357,6 +371,7 @@ const App: React.FC = () => {
   const canSeeAnalysis = isInternalStaff && !isGuru;
   const canSeeAgenda = isInternalStaff && !isGuru;
   const canSeePendingTickets = isInternalStaff && !isGuru;
+  const canManageBookings = isInternalStaff || isGuru;
   const isReadOnly = !['penanggung_jawab', 'admin'].includes(currentUser.peran);
 
   return (
@@ -372,7 +387,6 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-6">
-             {/* DATABASE CONNECT BUTTON - HANYA ADMINISTRATOR SAJA */}
              {isAdminOnly && (
                  <button 
                     onClick={() => setIsConnectionModalOpen(true)}
@@ -438,6 +452,10 @@ const App: React.FC = () => {
                     <div className="w-full">
                         <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} />
                     </div>
+                    {/* Booking Table for Guru to see overall schedule */}
+                    <div className="w-full">
+                        <BookingTable bookings={bookings} />
+                    </div>
                 </div>
             </div>
         ) : isTamu ? (
@@ -497,6 +515,13 @@ const App: React.FC = () => {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10">
                     <div className="lg:col-span-2 space-y-8 sm:space-y-10">
+                        {canManageBookings && (
+                            <BookingTable 
+                                bookings={bookings} 
+                                currentUserRole={currentUser.peran} 
+                                onUpdateStatus={handleUpdateBookingStatus}
+                            />
+                        )}
                         {canSeeAgenda && (
                             <AgendaActivityTable 
                                 activities={activities} 
@@ -524,10 +549,8 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* CONNECTION MODAL */}
       <ConnectionModal isOpen={isConnectionModalOpen} onClose={() => setIsConnectionModalOpen(false)} />
 
-      {/* FLOATING AI ASSISTANT */}
       <div className={`fixed bottom-0 right-0 z-50 p-6 transition-all duration-300 ${isChatOpen ? 'w-full max-w-lg' : 'w-auto'}`}>
           {isChatOpen ? (
               <div className="h-[650px] max-h-[85vh] shadow-2xl animate-slide-up">
@@ -554,7 +577,7 @@ const App: React.FC = () => {
         <div className="fixed bottom-28 right-8 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl animate-fade-in-up z-40 border border-slate-700">
             <p className="text-base font-black flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                Data Terkirim ke Cloud
+                Data Terupdate
             </p>
         </div>
       )}

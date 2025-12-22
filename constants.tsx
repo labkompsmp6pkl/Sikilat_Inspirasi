@@ -22,7 +22,8 @@ import {
   Star,
   ShieldCheck,
   ClipboardList,
-  Sparkles
+  Sparkles,
+  CalendarCheck
 } from 'lucide-react';
 import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris, PeminjamanAntrian, AgendaKegiatan, PenilaianAset } from './types';
 
@@ -81,6 +82,18 @@ export const FORM_TEMPLATES: Record<string, FormTemplate> = {
       { name: 'ulasan', label: 'Ulasan / Masukan', type: 'textarea', placeholder: 'Apa pendapat Anda mengenai kondisi aset ini?', required: true },
     ]
   },
+  booking_ruangan: {
+    id: 'booking_ruangan',
+    title: 'Formulir Booking Ruangan/Alat',
+    submitLabel: 'Ajukan Booking',
+    fields: [
+      { name: 'nama_barang', label: 'Nama Ruangan / Alat', type: 'text', placeholder: 'Contoh: Lab Komputer 1', required: true },
+      { name: 'tanggal', label: 'Tanggal Penggunaan', type: 'date', required: true },
+      { name: 'jam_mulai', label: 'Jam Mulai', type: 'text', placeholder: '08:00', required: true },
+      { name: 'jam_selesai', label: 'Jam Selesai', type: 'text', placeholder: '10:00', required: true },
+      { name: 'keperluan', label: 'Keperluan Penggunaan', type: 'textarea', placeholder: 'Contoh: Ujian Praktik TIK Kelas 9', required: true },
+    ]
+  },
   lapor_kerusakan: {
     id: 'lapor_kerusakan',
     title: 'Formulir Lapor Kerusakan',
@@ -111,6 +124,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     description: 'Pelaporan & Peminjaman',
     transformativeValue: 'Efisiensi Waktu Signifikan.',
     actions: [
+      { label: 'Booking Ruangan', prompt: 'Saya ingin melakukan booking ruangan atau alat.', icon: CalendarCheck, formId: 'booking_ruangan' },
       { label: 'Lapor Kerusakan', prompt: 'Saya ingin melaporkan kerusakan aset.', icon: AlertCircle, formId: 'lapor_kerusakan' },
       { label: 'Tanya Inventaris', prompt: 'Cek status barang di tabel inventaris.', icon: Search },
     ]
@@ -123,9 +137,9 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     description: 'Kegiatan & Perbaikan',
     transformativeValue: 'Fokus Perbaikan Terarah.',
     actions: [
+      { label: 'Cek Antrian Booking', prompt: 'Tampilkan semua data dari tabel peminjaman_antrian untuk direview.', icon: CalendarCheck },
       { label: 'Buat Kesimpulan AI', prompt: 'Buatkan analisis dan kesimpulan manajerial mengenai kinerja penanganan laporan, kondisi aset, dan sentimen penilaian pengguna saat ini.', icon: PieChart },
       { label: 'Input Kegiatan', prompt: 'Catat kegiatan penanganan hari ini.', icon: PenTool },
-      { label: 'Tiket Pending', prompt: 'Query data status="Pending" dari tabel pengaduan_kerusakan.', icon: AlertCircle },
     ]
   },
   pengawas_it: {
@@ -161,8 +175,8 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     transformativeValue: 'Transparansi Administrasi.',
     actions: [
       { label: 'Kesimpulan Manajerial', prompt: 'Buatkan kesimpulan manajerial menyeluruh tentang produktivitas tim dan kepuasan pengguna.', icon: ClipboardList },
+      { label: 'Audit Peminjaman', prompt: 'Tampilkan histori dari tabel peminjaman_antrian.', icon: CalendarCheck },
       { label: 'Log Aktivitas', prompt: 'Tampilkan histori kegiatan terbaru dari tabel agenda_kegiatan.', icon: FileText },
-      { label: 'Data Pengguna', prompt: 'Tampilkan daftar semua pengguna dari tabel pengguna.', icon: Users },
       { label: 'Audit Penilaian', prompt: 'Tampilkan semua data dari tabel penilaian_aset.', icon: Star },
     ]
   },
@@ -174,7 +188,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     description: 'Full Access & Control',
     transformativeValue: 'Kontrol Sistem Total.',
     actions: [
-      { label: 'Manajemen User', prompt: 'Kelola data di tabel pengguna.', icon: Users },
+      { label: 'Manajemen Booking', prompt: 'Tampilkan semua data dari tabel peminjaman_antrian.', icon: CalendarCheck },
       { label: 'Audit Penilaian', prompt: 'Tampilkan semua data dari tabel penilaian_aset.', icon: Star },
       { label: 'Backup DB', prompt: 'Backup semua tabel.', icon: Database },
     ]

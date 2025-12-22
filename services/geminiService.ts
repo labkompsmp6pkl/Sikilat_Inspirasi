@@ -1,13 +1,12 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, PenilaianAset } from "../types";
+import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, PenilaianAset, PeminjamanAntrian } from "../types";
 import db from './dbService';
 
 export const generateReplySuggestion = async (reviewText: string, user: User): Promise<string> => {
     if (!process.env.API_KEY) return "Terima kasih atas masukannya.";
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Tailor suggestion based on role
     const isAdmin = ['admin', 'pengawas_admin'].includes(user.peran);
     const systemInstruction = isAdmin 
         ? "Anda adalah Pengawas Admin sekolah yang bijak. Buatlah balasan singkat (maks 20 kata), profesional, dan solutif untuk ulasan fasilitas dari pengunjung/tamu berikut ini."
@@ -43,7 +42,21 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         };
     }
 
-    // 2. Handling Asset Evaluation Form Submission
+    // 2. Handling Booking Trigger
+    if (lowerMsg.includes('booking') || lowerMsg.includes('pinjam') || lowerMsg.includes('gunakan ruangan')) {
+        return {
+            text: `Baik Bapak/Ibu **${user.nama_lengkap}**, saya akan membantu proses peminjaman aset/ruangan. Silakan isi detail waktu dan keperluan Anda pada formulir di bawah ini:\n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "booking_ruangan", "label": "Buka Formulir Booking"}`
+        };
+    }
+
+    // 3. Handling Damage Report Trigger
+    if (lowerMsg.includes('lapor kerusakan') || lowerMsg.includes('melaporkan kerusakan')) {
+        return {
+            text: `Mohon maaf atas kendala yang terjadi. Mari kita buat laporan kerusakan agar tim teknis segera menindaklanjuti. Silakan isi formulir laporan di bawah:\n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "lapor_kerusakan", "label": "Buka Formulir Laporan"}`
+        };
+    }
+
+    // 4. Handling Asset Evaluation Form Submission
     if (cleanMessage.includes('📝 Input Formulir: Beri Penilaian Aset')) {
         try {
             const parse = (label: string) => {
@@ -78,7 +91,42 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         } catch (e) { console.error(e) }
     }
 
-    // 3. Audit Penilaian
+    // 5. Handling Booking Form Submission
+    if (cleanMessage.includes('📝 Input Formulir: Formulir Booking Ruangan/Alat')) {
+        try {
+            const parse = (label: string) => {
+                const regex = new RegExp(`🔹 ${label}:\\s*(.*)`);
+                const match = cleanMessage.match(regex);
+                return match ? match[1].trim() : '';
+            };
+
+            const barang = parse('Nama Ruangan / Alat');
+            const tgl = parse('Tanggal Penggunaan');
+            const mulai = parse('Jam Mulai');
+            const selesai = parse('Jam Selesai');
+            const keperluan = parse('Keperluan Penggunaan');
+
+            const newBooking: PeminjamanAntrian = {
+                id_peminjaman: `pm-${Date.now()}`,
+                id_barang: 'ASET-BOOKING',
+                nama_barang: barang,
+                id_pengguna: user.nama_lengkap,
+                tanggal_peminjaman: new Date(tgl),
+                jam_mulai: mulai,
+                jam_selesai: selesai,
+                keperluan: keperluan,
+                tanggal_pengembalian_rencana: new Date(tgl),
+                status_peminjaman: 'Menunggu'
+            };
+
+            return {
+                text: `✅ **Booking Berhasil Diajukan!**\n\nPengajuan Anda untuk **${barang}** pada tanggal **${tgl}** sedang menunggu persetujuan Penanggung Jawab. Anda dapat mengecek statusnya di dashboard.`,
+                dataToSave: { table: 'peminjaman_antrian', payload: newBooking }
+            };
+        } catch (e) { console.error(e) }
+    }
+
+    // 6. Audit Penilaian
     if (lowerMsg.includes('audit penilaian') || lowerMsg.includes('tampilkan semua data dari tabel penilaian_aset')) {
         if (!['admin', 'pengawas_admin'].includes(user.peran)) {
             return { text: "Akses Ditolak. Anda tidak memiliki otoritas untuk melihat data penilaian pengguna secara mendalam." };
