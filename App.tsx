@@ -373,8 +373,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-screen-2xl mx-auto px-4 h-16 flex items-center justify-between">
+      {/* HEADER FIXED POSITION - JAMINAN SCREENSHOT IDENTITAS */}
+      <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-[100] shadow-md flex items-center">
+        <div className="max-w-screen-2xl w-full mx-auto px-4 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-slate-200 flex-shrink-0"> S </div>
              <div className="hidden sm:block">
@@ -383,39 +384,40 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          {/* PERMANENT IDENTITY IN HEADER - FOR SCREENSHOTS */}
-          <div className="flex items-center gap-3">
-             <div className="flex flex-col items-end mr-1 sm:mr-3">
-                <p className="text-[11px] sm:text-xs font-black text-slate-800 tracking-tight truncate max-w-[120px] sm:max-w-none">
+          <div className="flex items-center gap-2 sm:gap-4 bg-slate-50/80 px-2 sm:px-4 py-1.5 rounded-2xl border border-slate-100 shadow-inner">
+             <div className="flex flex-col items-end">
+                <p className="text-[11px] sm:text-[13px] font-black text-slate-900 tracking-tight leading-none mb-1">
                     {currentUser.nama_lengkap}
                 </p>
-                <div className={`mt-0.5 px-2 py-0.5 rounded-full border text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1 bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border-${roleConfig.color}-100`}>
+                <div className={`px-2 py-0.5 rounded-full border text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1 bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border-${roleConfig.color}-100`}>
                     <span className={`w-1.5 h-1.5 rounded-full bg-${roleConfig.color}-500`}></span>
                     {roleConfig.label}
                 </div>
              </div>
              
-             <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-1 p-1 rounded-full hover:bg-slate-100 transition-colors border border-slate-200">
-                <img src={currentUser.avatar} alt="Profile" className="w-9 h-9 rounded-full ring-2 ring-slate-100"/>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
-             </button>
-             
-             {isProfileMenuOpen && (
-                <div className="absolute right-4 top-16 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden py-2 animate-fade-in-up">
-                   <div className="px-4 py-3 border-b mb-1 bg-slate-50/50">
-                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Email</p>
-                        <p className="text-xs font-bold text-slate-800 truncate">{currentUser.email}</p>
-                   </div>
-                   <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 font-bold transition-colors">
-                      <LogOut className="w-4 h-4"/> Keluar
-                   </button>
-                </div>
-             )}
+             <div className="relative group">
+                <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-1 p-0.5 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200">
+                    <img src={currentUser.avatar} alt="Profile" className="w-9 h-9 rounded-full"/>
+                </button>
+                
+                {isProfileMenuOpen && (
+                    <div className="absolute right-0 top-12 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[110] overflow-hidden py-2 animate-fade-in-up">
+                    <div className="px-4 py-2 border-b mb-1 bg-slate-50/50">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email Sesi</p>
+                            <p className="text-[10px] font-bold text-slate-600 truncate">{currentUser.email}</p>
+                    </div>
+                    <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-black transition-colors">
+                        <LogOut className="w-4 h-4"/> Keluar
+                    </button>
+                    </div>
+                )}
+             </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-32">
+      {/* MAIN AREA DENGAN PADDING TOP UNTUK FIXED HEADER */}
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pt-24 pb-32">
         {isGuru ? (
             <div className="animate-fade-in space-y-8 max-w-4xl mx-auto">
                 <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 rounded-[3rem] p-8 sm:p-10 shadow-2xl text-white relative overflow-hidden">
@@ -428,7 +430,7 @@ const App: React.FC = () => {
                         </div>
                         <h2 className="text-3xl sm:text-5xl font-black mb-4 leading-tight">Halo, Bapak/Ibu <br/>{currentUser.nama_lengkap.split(' ')[0]}</h2>
                         <p className="text-blue-100/80 text-sm sm:text-lg max-w-xl leading-relaxed font-medium">
-                            Pantau status laporan kerusakan dan peminjaman inventaris Anda secara real-time.
+                            Monitoring status laporan dan peminjaman inventaris Anda.
                         </p>
                     </div>
                 </div>
@@ -436,21 +438,6 @@ const App: React.FC = () => {
                 <div className="space-y-10">
                     <div className="w-full">
                         <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} />
-                    </div>
-                    
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                            <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                                <Monitor className="w-6 h-6 text-blue-600" />
-                                Akses Cepat Inventaris
-                            </h3>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total {inventaris.length} Aset</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-                            {inventaris.slice(0, 4).map(item => (
-                                <AvailableAssetCard key={item.id_barang} item={item} />
-                            ))}
-                        </div>
                     </div>
                 </div>
             </div>
@@ -462,7 +449,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="text-center md:text-left flex-1">
                         <h2 className="text-2xl sm:text-4xl font-black text-slate-900 mb-2 sm:mb-3 tracking-tight">Pusat Layanan Tamu</h2>
-                        <p className="text-slate-500 font-medium text-sm sm:text-lg leading-relaxed">Bantu kami meningkatkan kualitas fasilitas sekolah.</p>
+                        <p className="text-slate-500 font-medium text-sm sm:text-lg leading-relaxed">Berikan penilaian fasilitas sekolah secara instan.</p>
                     </div>
                     <button onClick={() => setIsChatOpen(true)} className="w-full sm:w-auto px-10 py-4 sm:py-5 bg-slate-900 text-white font-black rounded-3xl shadow-2xl hover:bg-blue-600 active:scale-95 transition-all text-lg flex items-center justify-center gap-3">
                         <MessageCircle className="w-6 h-6" /> Hubungi AI
@@ -494,16 +481,17 @@ const App: React.FC = () => {
         ) : (
             <div className="animate-fade-in space-y-6 sm:space-y-8">
                 {/* COMPACT CLUSTER HEADER */}
-                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex justify-between items-center">
-                    <div className="flex items-center gap-4 sm:gap-6">
+                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
+                    <div className="flex items-center gap-4 sm:gap-6 relative z-10">
                         <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border border-${roleConfig.color}-100 shadow-sm`}>
                             <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8" />
                         </div>
                         <div>
-                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Dashboard Cluster</h2>
+                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Cluster Operasional</h2>
                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Sistem Aktif
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                Dashboard Kontrol Aktif
                             </p>
                         </div>
                     </div>
