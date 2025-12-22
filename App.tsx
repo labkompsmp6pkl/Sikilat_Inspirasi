@@ -13,7 +13,7 @@ import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, Che
 
 const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventaris: Inventaris[], onReviewAsset?: (name: string) => void }> = ({ evaluations, inventaris, onReviewAsset }) => {
     const [filterCategory, setFilterCategory] = useState<'All' | 'IT' | 'Sarpras'>('All');
-    const [filterRating, setFilterRating] = useState<number>(0); // 0 means all ratings
+    const [filterRating, setFilterRating] = useState<number>(0); 
 
     const getCategory = (evalItem: PenilaianAset) => {
         const item = inventaris.find(inv => inv.id_barang === evalItem.id_barang || inv.nama_barang === evalItem.nama_barang);
@@ -54,7 +54,6 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                 </div>
             </div>
 
-            {/* Filter Bar */}
             <div className="space-y-4 mb-6">
                 <div className="flex flex-wrap gap-2">
                     {(['All', 'IT', 'Sarpras'] as const).map(cat => (
@@ -95,7 +94,6 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                 </div>
             </div>
             
-            {/* Review List */}
             <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
                 {filteredList.length > 0 ? filteredList.map(ev => {
                     const category = getCategory(ev);
@@ -131,7 +129,7 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                                         onClick={() => onReviewAsset(ev.nama_barang)}
                                         className="text-[10px] font-bold text-blue-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
-                                        Beri Feedback Serupa <ArrowRight className="w-3 h-3" />
+                                        Ikut Review <ArrowRight className="w-3 h-3" />
                                     </button>
                                 )}
                             </div>
@@ -240,6 +238,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleReviewAsset = useCallback((assetName: string) => {
+      // Prompt simplified for cleaner AI logic
       const prompt = `Saya ingin memberi penilaian untuk aset: ${assetName}`;
       setExternalMessage(prompt);
       setIsChatOpen(true);
@@ -374,7 +373,6 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* FIXED CHAT PANEL */}
       <div className={`fixed bottom-0 right-0 z-50 p-4 sm:p-6 transition-all duration-300 ${isChatOpen ? 'w-full max-w-lg' : 'w-auto'}`}>
           {isChatOpen ? (
               <div className="h-[600px] max-h-[85vh] shadow-2xl animate-slide-up">

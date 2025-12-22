@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Sparkles, X, CheckSquare, CheckCheck, MoreVertical, Paperclip, Wrench, AlertTriangle, ListChecks, Lightbulb, ThumbsUp, ThumbsDown, Share2, FileText, Users, ChevronDown, Reply, Zap, Clock, Calendar, CalendarCheck, MessageCircle, Minimize2 } from 'lucide-react';
+import { Send, Sparkles, X, CheckSquare, CheckCheck, MoreVertical, Paperclip, Wrench, AlertTriangle, ListChecks, Lightbulb, ThumbsUp, ThumbsDown, Share2, FileText, Users, ChevronDown, Reply, Zap, Clock, Calendar, CalendarCheck, MessageCircle, Minimize2, ClipboardEdit } from 'lucide-react';
 import { User, Message, RoleConfig, FormTemplate, QuickAction, DetailedItemReport, HistorySection, SavedData, TroubleshootingGuide, LaporanStatus, GeminiResponse, ChatInterfaceProps, QueueStatus } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
 import { FORM_TEMPLATES } from '../constants';
@@ -127,13 +127,26 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
            }
        }
 
-       if (endIndex === -1) {
-            throw new Error("Incomplete JSON");
-       }
+       if (endIndex === -1) throw new Error("Incomplete JSON");
 
        const finalJsonString = textToParse.substring(0, endIndex + 1);
        const data = JSON.parse(finalJsonString);
        
+       // Handle Form Trigger (Direct pop-up)
+       if (data.type === 'form_trigger') {
+           return (
+               <div className="my-4 animate-bounce-in">
+                   <button 
+                        onClick={() => onAction("Saya mengisi form", data.formId, { nama_barang: data.assetName })}
+                        className="w-full flex items-center justify-center gap-3 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all font-black"
+                   >
+                       <ClipboardEdit className="w-6 h-6" />
+                       {data.label || 'Buka Formulir'}
+                   </button>
+               </div>
+           );
+       }
+
        if (data.type === 'queue_status') {
            const queueData = data as QueueStatus;
            return (
@@ -193,9 +206,6 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
                                        </div>
                                    </div>
                                ))}
-                               {queueData.antrian_berikutnya.length > 3 && (
-                                   <p className="text-center text-xs text-slate-400 italic mt-1">+ {queueData.antrian_berikutnya.length - 3} antrian lainnya</p>
-                               )}
                            </div>
                        ) : (
                            <div className="text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200 mb-4">
@@ -428,9 +438,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
     if (!text.trim() && !imageFile) return;
 
     let imageBase64: string | null = null;
-    if (imageFile) {
-        imageBase64 = await fileToBase64(imageFile);
-    }
+    if (imageFile) imageBase64 = await fileToBase64(imageFile);
 
     const currentReplyingTo = replyingTo; 
 
@@ -504,9 +512,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
       const file = e.target.files[0];
       setImageFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
+      reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -532,8 +538,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, roleConfig, onDataS
 
     if (activeForm.id === 'penilaian_aset') {
         const evalPresets = [
-            { nama_barang: 'Lab Komputer 1', skor: '5', ulasan: 'Ruangan sangat nyaman, semua PC berfungsi dengan baik dan internetnya kencang. Sangat mendukung kegiatan belajar.' },
-            { nama_barang: 'Proyektor Ruang 10A', skor: '3', ulasan: 'Kondisi proyektor masih berfungsi, namun gambarnya agak redup dan bergetar. Mohon dicek kabel atau lensanya.' }
+            { nama_barang: formData.nama_barang || 'Lab Komputer 1', skor: '5', ulasan: 'Fasilitas sangat memadai, ruangan sejuk dan bersih.' },
+            { nama_barang: formData.nama_barang || 'Proyektor Epson', skor: '4', ulasan: 'Fungsi normal, hanya saja lensanya butuh dibersihkan sedikit.' }
         ];
         const randomEval = evalPresets[Math.floor(Math.random() * evalPresets.length)];
         setFormData(randomEval);
