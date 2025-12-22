@@ -12,6 +12,7 @@ import db from './services/dbService';
 import { generateReplySuggestion } from './services/geminiService';
 import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin } from 'lucide-react';
 
+// Rest of AssetEvaluationSummary remains the same ...
 const AssetEvaluationSummary: React.FC<{ 
     evaluations: PenilaianAset[], 
     inventaris: Inventaris[], 
@@ -53,7 +54,6 @@ const AssetEvaluationSummary: React.FC<{
     const handleAutoSuggest = async (ev: PenilaianAset) => {
         setIsGenerating(true);
         try {
-            // Context differs if it's admin replying or guest commenting
             const suggestion = await generateReplySuggestion(ev.ulasan, currentUser);
             setInteractionText(suggestion);
         } catch (e) {
@@ -137,7 +137,6 @@ const AssetEvaluationSummary: React.FC<{
                             </div>
                             <p className="text-[12px] text-slate-600 italic leading-relaxed mb-4 px-1 border-l-4 border-slate-200">"{ev.ulasan}"</p>
                             
-                            {/* THREAD BALASAN ADMIN */}
                             {(hasAdminReply && !isCurrentlyAdminReplying) && (
                                 <div className="ml-4 mb-4 p-4 bg-white/60 rounded-2xl border border-blue-100 shadow-sm relative animate-fade-in">
                                     <div className="flex justify-between items-center mb-2">
@@ -151,7 +150,6 @@ const AssetEvaluationSummary: React.FC<{
                                 </div>
                             )}
 
-                            {/* THREAD BALASAN TAMU (FOLLOW UP) */}
                             {(hasGuestFollowUp && !isCurrentlyGuestCommenting) && (
                                 <div className="ml-4 mb-4 p-4 bg-slate-100/50 rounded-2xl border border-slate-200 shadow-sm relative animate-fade-in">
                                     <div className="flex justify-between items-center mb-2">
@@ -164,7 +162,6 @@ const AssetEvaluationSummary: React.FC<{
                                 </div>
                             )}
 
-                            {/* INLINE ADMIN REPLY INPUT */}
                             {isCurrentlyAdminReplying && (
                                 <div className="ml-4 mb-4 space-y-3 animate-slide-up">
                                     <div className="relative group">
@@ -193,7 +190,6 @@ const AssetEvaluationSummary: React.FC<{
                                 </div>
                             )}
 
-                            {/* INLINE GUEST COMMENT INPUT */}
                             {isCurrentlyGuestCommenting && (
                                 <div className="ml-4 mb-4 space-y-3 animate-slide-up bg-white p-4 rounded-2xl border border-slate-200 shadow-inner">
                                     <div className="flex items-center justify-between mb-2">
@@ -239,7 +235,6 @@ const AssetEvaluationSummary: React.FC<{
                                  </div>
                                  
                                  <div className="flex gap-2">
-                                     {/* Admin Action */}
                                      {isManager && !isResolved && !isCurrentlyAdminReplying && (
                                         <button 
                                             onClick={() => handleStartAdminReply(ev)} 
@@ -249,7 +244,6 @@ const AssetEvaluationSummary: React.FC<{
                                         </button>
                                      )}
 
-                                     {/* Tamu Action */}
                                      {isTamu && isMyEvaluation && !isCurrentlyGuestCommenting && (
                                         <>
                                             {!isResolved ? (
@@ -278,7 +272,6 @@ const AssetEvaluationSummary: React.FC<{
                                         </>
                                      )}
                                      
-                                     {/* General Review trigger (if user wants new fresh review) */}
                                      {isTamu && isResolved && (
                                         <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-black text-blue-600 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm hover:bg-blue-50 transition-all active:scale-95">Beri Review Baru</button>
                                      )}
@@ -414,7 +407,7 @@ const App: React.FC = () => {
     const target = allEvals.find(e => e.id === evalId);
     if (target) {
         target.tanggapan_tamu = comment;
-        target.skor = rating; // Update rating based on follow up
+        target.skor = rating; 
         db.addRecord('penilaian_aset', target);
         setEvaluations(db.getTable('penilaian_aset'));
         setShowSavedNotification(true);
@@ -434,6 +427,20 @@ const App: React.FC = () => {
       }
   }, []);
 
+  const handleUpdateAgendaStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
+      const allAgendas = db.getTable('agenda_kegiatan');
+      const target = allAgendas.find(a => a.id === id);
+      if (target) {
+          target.status = status;
+          target.alasan_penolakan = reason;
+          target.direview_oleh = currentUser?.nama_lengkap;
+          db.addRecord('agenda_kegiatan', target);
+          setActivities(db.getTable('agenda_kegiatan'));
+          setShowSavedNotification(true);
+          setTimeout(() => setShowSavedNotification(false), 3000);
+      }
+  }, [currentUser]);
+
   if (!currentUser) return <Login onLogin={handleLogin} onRegister={handleRegister} />;
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
@@ -442,9 +449,7 @@ const App: React.FC = () => {
   const isGuru = currentUser.peran === 'guru';
   const isManager = ['admin', 'pengawas_admin'].includes(currentUser.peran);
 
-  // RESTRICT ACCESS TO REVIEWS: ONLY TAMU (FILL) & ADMINS (MONITOR)
   const canSeeEvaluations = isTamu || isManager;
-  
   const canSeeAnalysis = isInternalStaff && !isGuru;
   const canSeeAgenda = isInternalStaff && !isGuru;
   const canSeePendingTickets = isInternalStaff && !isGuru;
@@ -480,7 +485,6 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-32">
         {isGuru ? (
-            /* SPECIAL GURU LAYOUT - CENTERED & BALANCED */
             <div className="animate-fade-in space-y-8 max-w-4xl mx-auto">
                 <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 rounded-[3rem] p-10 shadow-2xl text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full -mr-32 -mt-32 blur-[100px]"></div>
@@ -498,12 +502,10 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="space-y-10">
-                    {/* Status Utama */}
                     <div className="w-full">
                         <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} />
                     </div>
                     
-                    {/* Inventaris Cepat */}
                     <div className="space-y-6">
                         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                             <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
@@ -521,7 +523,6 @@ const App: React.FC = () => {
                 </div>
             </div>
         ) : isTamu ? (
-            /* SPECIAL TAMU LAYOUT */
             <div className="animate-fade-in space-y-8 max-w-6xl mx-auto">
                  <div className="bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
                     <div className="w-28 h-28 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-inner">
@@ -559,7 +560,6 @@ const App: React.FC = () => {
                  </div>
             </div>
         ) : (
-            /* STAFF & ADMIN LAYOUT (Cluster Monitor) */
             <div className="animate-fade-in space-y-8">
                 <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 flex justify-between items-center">
                     <div className="flex items-center gap-6">
@@ -574,17 +574,17 @@ const App: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    <div className="hidden xl:flex gap-8">
-                         <div className="text-right">
-                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Status Sistem</p>
-                             <p className="text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 uppercase">Optimal</p>
-                         </div>
-                    </div>
                 </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                     <div className="lg:col-span-2 space-y-10">
-                        {canSeeAgenda && <AgendaActivityTable activities={activities} currentUserRole={currentUser.peran} />}
+                        {canSeeAgenda && (
+                            <AgendaActivityTable 
+                                activities={activities} 
+                                currentUserRole={currentUser.peran} 
+                                onUpdateStatus={handleUpdateAgendaStatus}
+                            />
+                        )}
                         {canSeeAnalysis && <DamageReportChart reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />}
                         {canSeePendingTickets && <PendingTicketTable reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />}
                     </div>
@@ -624,11 +624,6 @@ const App: React.FC = () => {
               <button onClick={() => setIsChatOpen(true)} className="group flex items-center gap-3 bg-slate-900 text-white p-5 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all relative border-4 border-white">
                   <MessageCircle className="w-7 h-7" />
                   <span className="font-black text-base hidden sm:inline pr-2 tracking-tight">SIKILAT AI</span>
-                  {reports.filter(r => r.status === 'Pending').length > 0 && isInternalStaff && !isGuru && (
-                    <span className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-[11px] font-black ring-4 ring-white shadow-lg text-white">
-                        {reports.filter(r => r.status === 'Pending').length}
-                    </span>
-                  )}
               </button>
           )}
       </div>

@@ -22,6 +22,8 @@ export interface AgendaKegiatan {
   hasil_kegiatan: string;
   objek_pengguna: string;
   status: 'Pending' | 'Disetujui' | 'Ditolak';
+  alasan_penolakan?: string; // New: Reason why supervisor rejected it
+  direview_oleh?: string;   // New: Who reviewed the agenda
 }
 
 export interface Inventaris {
