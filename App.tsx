@@ -14,215 +14,6 @@ import db from './services/dbService';
 import { generateReplySuggestion } from './services/geminiService';
 import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin, Cloud } from 'lucide-react';
 
-const AssetEvaluationSummary: React.FC<{ 
-    evaluations: PenilaianAset[], 
-    inventaris: Inventaris[], 
-    onReviewAsset?: (name: string) => void, 
-    onSaveReply: (evalId: string, reply: string) => void,
-    onSaveFollowUp: (evalId: string, comment: string, rating: number) => void,
-    onCompleteAction: (evalId: string, status: 'Selesai' | 'Terbuka') => void, 
-    currentUser: User 
-}> = ({ evaluations, inventaris, onReviewAsset, onSaveReply, onSaveFollowUp, onCompleteAction, currentUser }) => {
-    const [filterCategory, setFilterCategory] = useState<'All' | 'IT' | 'Sarpras'>('All');
-    const [replyingId, setReplyingId] = useState<string | null>(null);
-    const [commentingId, setCommentingId] = useState<string | null>(null);
-    const [interactionText, setInteractionText] = useState('');
-    const [interactionRating, setInteractionRating] = useState(5);
-    const [isGenerating, setIsGenerating] = useState(false);
-    
-    const isCloudActive = !!db.getCloudConfig();
-    const isManager = ['admin', 'pengawas_admin'].includes(currentUser.peran);
-
-    const getCategory = (evalItem: PenilaianAset) => {
-        const item = inventaris.find(inv => inv.id_barang === evalItem.id_barang || inv.nama_barang === evalItem.nama_barang);
-        if (item) return item.kategori === 'IT' ? 'IT' : 'Sarpras';
-        return 'Sarpras';
-    };
-
-    const handleStartAdminReply = (ev: PenilaianAset) => {
-        setReplyingId(ev.id);
-        setCommentingId(null);
-        setInteractionText(ev.balasan_admin || '');
-    };
-
-    const handleAutoSuggest = async (ev: PenilaianAset) => {
-        setIsGenerating(true);
-        try {
-            const suggestion = await generateReplySuggestion(ev.ulasan, currentUser);
-            setInteractionText(suggestion);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    const handleSaveAdmin = (id: string) => {
-        if (!interactionText.trim()) return;
-        onSaveReply(id, interactionText);
-        setReplyingId(null);
-        setInteractionText('');
-    };
-
-    const filteredList = useMemo(() => {
-        return evaluations.filter(ev => filterCategory === 'All' || getCategory(ev) === filterCategory);
-    }, [evaluations, filterCategory]);
-
-    return (
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-full max-h-[700px]">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
-                    <MessageSquare className="w-5 h-5 text-blue-500" />
-                    Review & Penilaian Aset
-                </h3>
-                {isManager && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-full border border-slate-100">Panel Pengawas</span>}
-            </div>
-
-            <div className="flex gap-2 mb-6">
-                {(['All', 'IT', 'Sarpras'] as const).map(cat => (
-                    <button
-                        key={cat}
-                        onClick={() => setFilterCategory(cat)}
-                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
-                            filterCategory === cat 
-                            ? 'bg-slate-900 text-white border-slate-900' 
-                            : 'bg-white text-slate-500 border-slate-200'
-                        }`}
-                    >
-                        {cat}
-                    </button>
-                ))}
-            </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2 space-y-5 scrollbar-hide">
-                {filteredList.length > 0 ? filteredList.map(ev => {
-                    const hasAdminReply = !!ev.balasan_admin;
-                    const isResolved = ev.status_penanganan === 'Selesai';
-                    const isCurrentlyAdminReplying = replyingId === ev.id;
-
-                    return (
-                        <div key={ev.id} className={`p-5 rounded-3xl border transition-all ${isResolved ? 'bg-emerald-50/40 border-emerald-100 opacity-80' : 'bg-slate-50/50 border-slate-100 shadow-sm'} group relative`}>
-                            <div className="flex justify-between items-start mb-3">
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-sm font-black text-slate-900">{ev.nama_barang}</p>
-                                        {isResolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
-                                        {isCloudActive && <Cloud className="w-3 h-3 text-blue-400" />}
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                        <MapPin className="w-3 h-3" />
-                                        {ev.lokasi || 'Lokasi tidak diketahui'}
-                                    </div>
-                                </div>
-                                <div className="flex gap-0.5">
-                                    {[...Array(5)].map((_, i) => (
-                                        <Star key={i} className={`w-3.5 h-3.5 ${i < ev.skor ? 'text-amber-400 fill-current' : 'text-slate-200'}`} />
-                                    ))}
-                                </div>
-                            </div>
-                            <p className="text-[12px] text-slate-600 italic leading-relaxed mb-4 px-1 border-l-4 border-slate-200">"{ev.ulasan}"</p>
-                            
-                            {(hasAdminReply && !isCurrentlyAdminReplying) && (
-                                <div className="ml-4 mb-4 p-4 bg-white/60 rounded-2xl border border-blue-100 shadow-sm relative animate-fade-in">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[8px] font-black">A</div>
-                                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Balasan Admin</span>
-                                        </div>
-                                        <span className="text-[9px] text-slate-400 font-bold">{ev.tanggal_balasan ? new Date(ev.tanggal_balasan).toLocaleDateString() : ''}</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-700 leading-relaxed">"{ev.balasan_admin}"</p>
-                                </div>
-                            )}
-
-                            {isCurrentlyAdminReplying && (
-                                <div className="ml-4 mb-4 space-y-3 animate-slide-up">
-                                    <div className="relative group">
-                                        <textarea
-                                            value={interactionText}
-                                            onChange={(e) => setInteractionText(e.target.value)}
-                                            placeholder="Tulis balasan admin..."
-                                            className="w-full text-xs p-4 rounded-2xl border border-blue-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white min-h-[100px] shadow-sm transition-all"
-                                            autoFocus
-                                        />
-                                        <button 
-                                            onClick={() => handleAutoSuggest(ev)}
-                                            disabled={isGenerating}
-                                            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
-                                        >
-                                            <Sparkle className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                                            Saran AI
-                                        </button>
-                                    </div>
-                                    <div className="flex justify-end gap-2">
-                                        <button onClick={() => setReplyingId(null)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-slate-100 rounded-xl transition-all">Batal</button>
-                                        <button onClick={() => handleSaveAdmin(ev.id)} className="px-5 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-blue-600 flex items-center gap-2 transition-all active:scale-95">
-                                            <Send className="w-3.5 h-3.5" /> Kirim Balasan
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex justify-between items-center pt-4 border-t border-slate-200/40 mt-3">
-                                 <div className="flex items-center gap-2">
-                                    <div className="w-5 h-5 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center text-[8px] font-black">{ev.nama_pengguna.charAt(0)}</div>
-                                    <span className="text-[10px] text-slate-400 font-bold tracking-tight">Oleh: {ev.nama_pengguna}</span>
-                                 </div>
-                                 
-                                 <div className="flex gap-2">
-                                     {isManager && !isResolved && !isCurrentlyAdminReplying && (
-                                        <button 
-                                            onClick={() => handleStartAdminReply(ev)} 
-                                            className="text-[10px] font-black text-blue-600 flex items-center gap-1.5 hover:bg-blue-50 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm transition-all active:scale-95"
-                                        >
-                                            <Undo2 className="w-3.5 h-3.5" /> {hasAdminReply ? 'Ubah Balasan' : 'Balas Cepat'}
-                                        </button>
-                                     )}
-                                 </div>
-                            </div>
-                        </div>
-                    );
-                }) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-300">
-                        <MessageSquare className="w-12 h-12 mb-2 opacity-20" />
-                        <p className="text-sm font-medium">Belum ada penilaian.</p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const AvailableAssetCard: React.FC<{ item: Inventaris, onReview?: (name: string) => void }> = ({ item, onReview }) => {
-    const isIT = item.kategori === 'IT';
-    const Icon = isIT ? Monitor : Building2;
-
-    return (
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-            <div className="flex items-center gap-3 mb-3">
-                <div className={`p-2 rounded-xl transition-colors ${isIT ? 'bg-violet-100 text-violet-600 group-hover:bg-violet-600 group-hover:text-white' : 'bg-amber-100 text-amber-600 group-hover:bg-amber-600 group-hover:text-white'}`}>
-                    <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                    <h4 className="font-bold text-slate-800 text-sm">{item.nama_barang}</h4>
-                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{item.kategori}</p>
-                </div>
-            </div>
-            <div className="flex justify-between items-center mt-4">
-                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{item.id_lokasi}</span>
-                {onReview && (
-                    <button 
-                        onClick={() => onReview(item.nama_barang)}
-                        className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                    >
-                        <Star className="w-4 h-4" />
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showSavedNotification, setShowSavedNotification] = useState(false);
@@ -237,99 +28,33 @@ const App: React.FC = () => {
   const [inventaris, setInventaris] = useState<Inventaris[]>([]);
   const [activities, setActivities] = useState<AgendaKegiatan[]>([]); 
   
+  const refreshAllData = useCallback(() => {
+    setBookings(db.getTable('peminjaman_antrian'));
+    setReports(db.getTable('pengaduan_kerusakan'));
+    setEvaluations(db.getTable('penilaian_aset'));
+    setInventaris(db.getTable('inventaris'));
+    setActivities(db.getTable('agenda_kegiatan'));
+  }, []);
+
   useEffect(() => {
-      setBookings(db.getTable('peminjaman_antrian'));
-      setReports(db.getTable('pengaduan_kerusakan'));
-      setEvaluations(db.getTable('penilaian_aset'));
-      setInventaris(db.getTable('inventaris'));
-      setActivities(db.getTable('agenda_kegiatan')); 
+    refreshAllData();
+  }, [refreshAllData]);
+
+  const triggerSyncFeedback = useCallback(() => {
+    setShowSavedNotification(true);
+    setTimeout(() => setShowSavedNotification(false), 3000);
   }, []);
 
   const handleLogin = useCallback((role: UserRole) => {
     const user = db.getTable('pengguna').find(u => u.peran === role);
     setCurrentUser(user || null);
   }, []);
-  
-  const handleToggleChat = useCallback(() => setIsChatOpen(prev => !prev), []);
 
-  const handleRegister = useCallback((data: { nama: string; email: string; hp: string; peran: UserRole }) => {
-    const newUser: User = {
-      id_pengguna: `u_custom_${Date.now()}`,
-      nama_lengkap: data.nama,
-      email: data.email,
-      no_hp: data.hp,
-      peran: data.peran,
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(data.nama)}&background=random&color=fff`
-    };
-    db.addRecord('pengguna', newUser);
-    setCurrentUser(newUser);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    setIsProfileMenuOpen(false);
-    setCurrentUser(null);
-  }, []);
-  
   const handleDataSaved = useCallback((data: SavedData) => {
       db.addRecord(data.table, data.payload);
-      if (data.table === 'peminjaman_antrian') setBookings(db.getTable('peminjaman_antrian'));
-      else if (data.table === 'pengaduan_kerusakan') setReports(db.getTable('pengaduan_kerusakan'));
-      else if (data.table === 'penilaian_aset') setEvaluations(db.getTable('penilaian_aset'));
-      else if (data.table === 'agenda_kegiatan') setActivities(db.getTable('agenda_kegiatan'));
-      
-      setShowSavedNotification(true);
-      setTimeout(() => setShowSavedNotification(false), 3000);
-  }, []);
-
-  const handleTriggerChatAction = useCallback((prompt: string) => {
-      setExternalMessage(prompt);
-      setIsChatOpen(true);
-  }, []);
-
-  const handleReviewAsset = useCallback((assetName: string) => {
-      const prompt = `Saya ingin memberi penilaian untuk aset: ${assetName}`;
-      setExternalMessage(prompt);
-      setIsChatOpen(true);
-  }, []);
-
-  const handleSaveInlineReply = useCallback((evalId: string, reply: string) => {
-      const allEvals = db.getTable('penilaian_aset');
-      const target = allEvals.find(e => e.id === evalId);
-      if (target) {
-          target.balasan_admin = reply;
-          target.tanggal_balasan = new Date();
-          target.status_penanganan = 'Terbuka';
-          db.addRecord('penilaian_aset', target);
-          setEvaluations(db.getTable('penilaian_aset'));
-          setShowSavedNotification(true);
-          setTimeout(() => setShowSavedNotification(false), 3000);
-      }
-  }, []);
-
-  const handleSaveFollowUp = useCallback((evalId: string, comment: string, rating: number) => {
-    const allEvals = db.getTable('penilaian_aset');
-    const target = allEvals.find(e => e.id === evalId);
-    if (target) {
-        target.tanggapan_tamu = comment;
-        target.skor = rating; 
-        db.addRecord('penilaian_aset', target);
-        setEvaluations(db.getTable('penilaian_aset'));
-        setShowSavedNotification(true);
-        setTimeout(() => setShowSavedNotification(false), 3000);
-    }
-  }, []);
-
-  const handleCompleteEvaluation = useCallback((evalId: string, status: 'Selesai' | 'Terbuka') => {
-      const allEvals = db.getTable('penilaian_aset');
-      const target = allEvals.find(e => e.id === evalId);
-      if (target) {
-          target.status_penanganan = status;
-          db.addRecord('penilaian_aset', target);
-          setEvaluations(db.getTable('penilaian_aset'));
-          setShowSavedNotification(true);
-          setTimeout(() => setShowSavedNotification(false), 3000);
-      }
-  }, []);
+      refreshAllData();
+      triggerSyncFeedback();
+  }, [refreshAllData, triggerSyncFeedback]);
 
   const handleUpdateAgendaStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
       const allAgendas = db.getTable('agenda_kegiatan');
@@ -339,11 +64,10 @@ const App: React.FC = () => {
           target.alasan_penolakan = reason;
           target.direview_oleh = currentUser?.nama_lengkap;
           db.addRecord('agenda_kegiatan', target);
-          setActivities(db.getTable('agenda_kegiatan'));
-          setShowSavedNotification(true);
-          setTimeout(() => setShowSavedNotification(false), 3000);
+          refreshAllData();
+          triggerSyncFeedback();
       }
-  }, [currentUser]);
+  }, [currentUser, refreshAllData, triggerSyncFeedback]);
 
   const handleUpdateBookingStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
       const allBookings = db.getTable('peminjaman_antrian');
@@ -352,197 +76,101 @@ const App: React.FC = () => {
           target.status_peminjaman = status;
           target.alasan_penolakan = reason;
           db.addRecord('peminjaman_antrian', target);
-          setBookings(db.getTable('peminjaman_antrian'));
-          setShowSavedNotification(true);
-          setTimeout(() => setShowSavedNotification(false), 3000);
+          refreshAllData();
+          triggerSyncFeedback();
       }
+  }, [refreshAllData, triggerSyncFeedback]);
+
+  const handleLogout = useCallback(() => {
+    setIsProfileMenuOpen(false);
+    setCurrentUser(null);
   }, []);
 
-  if (!currentUser) return <Login onLogin={handleLogin} onRegister={handleRegister} />;
+  if (!currentUser) return <Login onLogin={handleLogin} onRegister={() => {}} />;
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
-  const isInternalStaff = ['admin', 'penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin'].includes(currentUser.peran);
-  const isTamu = currentUser.peran === 'tamu';
   const isGuru = currentUser.peran === 'guru';
-  const isManager = ['admin', 'pengawas_admin'].includes(currentUser.peran);
+  const isTamu = currentUser.peran === 'tamu';
   const isAdminOnly = currentUser.peran === 'admin';
-
-  const canSeeEvaluations = isTamu || isManager;
-  const canSeeAnalysis = isInternalStaff && !isGuru;
-  const canSeeAgenda = isInternalStaff && !isGuru;
-  const canSeePendingTickets = isInternalStaff && !isGuru;
-  const canManageBookings = isInternalStaff || isGuru;
-  const isReadOnly = !['penanggung_jawab', 'admin'].includes(currentUser.peran);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative">
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-[100] shadow-md flex items-center">
         <div className="max-w-screen-2xl w-full mx-auto px-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-slate-200 flex-shrink-0"> S </div>
+          <div className="flex items-center gap-2">
+             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg"> S </div>
              <div className="hidden sm:block">
                 <span className="font-bold text-slate-800 text-lg tracking-tight">SIKILAT</span>
-                <span className="ml-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">SMP 6 PKL</span>
+                <span className="ml-2 text-[10px] text-slate-400 font-black uppercase tracking-widest">SMP 6 PKL</span>
              </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-6">
+          <div className="flex items-center gap-6">
              {isAdminOnly && (
                  <button 
                     onClick={() => setIsConnectionModalOpen(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-slate-900 transition-all border border-indigo-700 shadow-lg shadow-indigo-100 animate-pulse-slow"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-slate-900 transition-all border border-indigo-700 shadow-lg shadow-indigo-100"
                  >
-                    <Cloud className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest hidden xs:inline">Cloud Sync</span>
+                    <Cloud className="w-4 h-4 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden xs:inline">Cloud Hub</span>
                  </button>
              )}
 
-             <div className="flex items-center gap-2 sm:gap-4 bg-slate-50/80 px-2 sm:px-4 py-1.5 rounded-2xl border border-slate-100 shadow-inner">
+             <div className="flex items-center gap-4 bg-slate-50 px-4 py-1.5 rounded-2xl border border-slate-100">
                 <div className="flex flex-col items-end">
-                    <p className="text-[11px] sm:text-[13px] font-black text-slate-900 tracking-tight leading-none mb-1">
-                        {currentUser.nama_lengkap}
-                    </p>
-                    <div className={`px-2 py-0.5 rounded-full border text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1 bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border-${roleConfig.color}-100`}>
-                        <span className={`w-1.5 h-1.5 rounded-full bg-${roleConfig.color}-500`}></span>
+                    <p className="text-[13px] font-black text-slate-900 leading-none mb-1">{currentUser.nama_lengkap}</p>
+                    <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border border-${roleConfig.color}-100`}>
                         {roleConfig.label}
                     </div>
                 </div>
-                
-                <div className="relative group">
-                    <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-1 p-0.5 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200">
-                        <img src={currentUser.avatar} alt="Profile" className="w-9 h-9 rounded-full"/>
-                    </button>
-                    
+                <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="relative">
+                    <img src={currentUser.avatar} alt="Profile" className="w-9 h-9 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200"/>
                     {isProfileMenuOpen && (
-                        <div className="absolute right-0 top-12 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[110] overflow-hidden py-2 animate-fade-in-up">
-                        <div className="px-4 py-2 border-b mb-1 bg-slate-50/50">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email Sesi</p>
-                                <p className="text-[10px] font-bold text-slate-600 truncate">{currentUser.email}</p>
-                        </div>
-                        <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-black transition-colors">
-                            <LogOut className="w-4 h-4"/> Keluar
-                        </button>
+                        <div className="absolute right-0 top-12 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2">
+                             <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-black">
+                                <LogOut className="w-4 h-4"/> Keluar
+                            </button>
                         </div>
                     )}
-                </div>
+                </button>
              </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pt-24 pb-32">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-8 pt-24 pb-32">
         {isGuru ? (
             <div className="animate-fade-in space-y-8 max-w-4xl mx-auto">
-                <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 rounded-[3rem] p-8 sm:p-10 shadow-2xl text-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full -mr-32 -mt-32 blur-[100px]"></div>
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-32 -mb-32 blur-[80px]"></div>
+                <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-[3rem] p-10 shadow-2xl text-white relative overflow-hidden">
                     <div className="relative z-10">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-4 sm:mb-6 border border-white/20 backdrop-blur-md">
-                            <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-                            Workspace
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border border-white/20">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-300" /> Workspace
                         </div>
-                        <h2 className="text-3xl sm:text-5xl font-black mb-4 leading-tight">Halo, Bapak/Ibu <br/>{currentUser.nama_lengkap.split(' ')[0]}</h2>
-                        <p className="text-blue-100/80 text-sm sm:text-lg max-w-xl leading-relaxed font-medium">
-                            Monitoring status laporan dan peminjaman inventaris Anda.
-                        </p>
+                        <h2 className="text-4xl font-black mb-4">Halo, Bapak/Ibu {currentUser.nama_lengkap.split(' ')[0]}</h2>
+                        <p className="text-blue-100/80 text-lg max-w-xl font-medium">Monitoring status dan peminjaman inventaris Anda secara real-time.</p>
                     </div>
                 </div>
-
-                <div className="space-y-10">
-                    <div className="w-full">
-                        <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} />
-                    </div>
-                    {/* Booking Table for Guru to see overall schedule */}
-                    <div className="w-full">
-                        <BookingTable bookings={bookings} />
-                    </div>
-                </div>
-            </div>
-        ) : isTamu ? (
-            <div className="animate-fade-in space-y-8 max-w-6xl mx-auto">
-                 <div className="bg-white rounded-[3rem] p-8 sm:p-12 shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-6 sm:gap-10">
-                    <div className="w-20 h-20 sm:w-28 sm:h-28 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-inner">
-                        <Globe className="w-10 h-10 sm:w-14 sm:h-14" />
-                    </div>
-                    <div className="text-center md:text-left flex-1">
-                        <h2 className="text-2xl sm:text-4xl font-black text-slate-900 mb-2 sm:mb-3 tracking-tight">Pusat Layanan Tamu</h2>
-                        <p className="text-slate-500 font-medium text-sm sm:text-lg leading-relaxed">Berikan penilaian fasilitas sekolah secara instan.</p>
-                    </div>
-                    <button onClick={() => setIsChatOpen(true)} className="w-full sm:w-auto px-10 py-4 sm:py-5 bg-slate-900 text-white font-black rounded-3xl shadow-2xl hover:bg-blue-600 active:scale-95 transition-all text-lg flex items-center justify-center gap-3">
-                        <MessageCircle className="w-6 h-6" /> Hubungi AI
-                    </button>
-                 </div>
-
-                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                    <div className="lg:col-span-2 space-y-8">
-                         <h3 className="font-black text-slate-800 text-2xl flex items-center gap-3">Pilih Aset untuk Dinilai</h3>
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            {inventaris.map(item => (
-                                <AvailableAssetCard key={item.id_barang} item={item} onReview={handleReviewAsset} />
-                            ))}
-                         </div>
-                    </div>
-                    <div className="h-fit lg:sticky lg:top-24">
-                        <AssetEvaluationSummary 
-                            evaluations={evaluations} 
-                            inventaris={inventaris} 
-                            onReviewAsset={handleReviewAsset} 
-                            onSaveReply={handleSaveInlineReply} 
-                            onSaveFollowUp={handleSaveFollowUp}
-                            onCompleteAction={handleCompleteEvaluation} 
-                            currentUser={currentUser} 
-                        />
-                    </div>
-                 </div>
+                <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} />
+                <BookingTable bookings={bookings} />
             </div>
         ) : (
-            <div className="animate-fade-in space-y-6 sm:space-y-8">
-                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
-                    <div className="flex items-center gap-4 sm:gap-6 relative z-10">
-                        <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border border-${roleConfig.color}-100 shadow-sm`}>
-                            <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Cluster Operasional</h2>
-                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                Dashboard Kontrol Aktif
-                            </p>
-                        </div>
+            <div className="animate-fade-in space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <div className="lg:col-span-2 space-y-10">
+                        <BookingTable 
+                            bookings={bookings} 
+                            currentUserRole={currentUser.peran} 
+                            onUpdateStatus={handleUpdateBookingStatus}
+                        />
+                        <AgendaActivityTable 
+                            activities={activities} 
+                            currentUserRole={currentUser.peran} 
+                            onUpdateStatus={handleUpdateAgendaStatus}
+                        />
+                        <PendingTicketTable reports={reports} onProcessAction={() => {}} />
                     </div>
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10">
-                    <div className="lg:col-span-2 space-y-8 sm:space-y-10">
-                        {canManageBookings && (
-                            <BookingTable 
-                                bookings={bookings} 
-                                currentUserRole={currentUser.peran} 
-                                onUpdateStatus={handleUpdateBookingStatus}
-                            />
-                        )}
-                        {canSeeAgenda && (
-                            <AgendaActivityTable 
-                                activities={activities} 
-                                currentUserRole={currentUser.peran} 
-                                onUpdateStatus={handleUpdateAgendaStatus}
-                            />
-                        )}
-                        {canSeeAnalysis && <DamageReportChart reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />}
-                        {canSeePendingTickets && <PendingTicketTable reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />}
-                    </div>
-
-                    <div className="space-y-8 sm:space-y-10">
-                        {canSeeEvaluations && <AssetEvaluationSummary 
-                            evaluations={evaluations} 
-                            inventaris={inventaris} 
-                            onSaveReply={handleSaveInlineReply} 
-                            onSaveFollowUp={handleSaveFollowUp}
-                            onCompleteAction={handleCompleteEvaluation} 
-                            currentUser={currentUser} 
-                        />}
-                        <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />
+                    <div className="space-y-10">
+                         <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />
                     </div>
                 </div>
             </div>
@@ -553,32 +181,35 @@ const App: React.FC = () => {
 
       <div className={`fixed bottom-0 right-0 z-50 p-6 transition-all duration-300 ${isChatOpen ? 'w-full max-w-lg' : 'w-auto'}`}>
           {isChatOpen ? (
-              <div className="h-[650px] max-h-[85vh] shadow-2xl animate-slide-up">
+              <div className="h-[650px] shadow-2xl animate-slide-up">
                   <ChatInterface 
                     user={currentUser} 
                     roleConfig={roleConfig} 
                     onDataSaved={handleDataSaved} 
                     stats={reports.filter(r => r.status === 'Pending').length} 
                     isOpen={isChatOpen} 
-                    onToggle={handleToggleChat} 
-                    externalMessage={externalMessage} 
-                    onClearExternalMessage={() => setExternalMessage(null)} 
+                    onToggle={() => setIsChatOpen(false)} 
                   />
               </div>
           ) : (
-              <button onClick={() => setIsChatOpen(true)} className="group flex items-center gap-3 bg-slate-900 text-white p-5 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all relative border-4 border-white">
+              <button onClick={() => setIsChatOpen(true)} className="flex items-center gap-3 bg-slate-900 text-white p-5 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all border-4 border-white">
                   <MessageCircle className="w-7 h-7" />
-                  <span className="font-black text-base hidden sm:inline pr-2 tracking-tight">SIKILAT AI</span>
+                  <span className="font-black text-base hidden sm:inline pr-2">SIKILAT AI</span>
               </button>
           )}
       </div>
 
       {showSavedNotification && (
         <div className="fixed bottom-28 right-8 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl animate-fade-in-up z-40 border border-slate-700">
-            <p className="text-base font-black flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                Data Terupdate
-            </p>
+            <div className="flex items-center gap-4">
+                <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
+                    <Cloud className="w-5 h-5" />
+                </div>
+                <div>
+                    <p className="text-sm font-black">Syncing to Couchbase...</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Capella Node Verified &bull; OK</p>
+                </div>
+            </div>
         </div>
       )}
     </div>

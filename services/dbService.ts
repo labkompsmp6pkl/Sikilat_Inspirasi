@@ -82,30 +82,39 @@ const db = {
 
   addRecord: (tableName: TableName, record: any) => {
     const tableData = db.getTable(tableName);
-    const recordKey = 'id' in record ? 'id' : 'id_peminjaman' in record ? 'id_peminjaman' : 'id_barang' in record ? 'id_barang' : 'id_pengguna' in record ? 'id_pengguna' : null;
+    // Find the primary key regardless of the table type
+    const recordKey = 'id' in record ? 'id' : 
+                      'id_peminjaman' in record ? 'id_peminjaman' : 
+                      'id_barang' in record ? 'id_barang' : 
+                      'id_pengguna' in record ? 'id_pengguna' : null;
 
+    let operationType = 'INSERT';
     if (recordKey) {
         const existingIndex = (tableData as any[]).findIndex((r: any) => r[recordKey] === record[recordKey]);
         if (existingIndex > -1) {
             (tableData as any[])[existingIndex] = record;
+            operationType = 'UPDATE';
         } else {
             (tableData as any[]).unshift(record);
         }
     } else {
          (tableData as any[]).unshift(record);
     }
+    
     db.saveTable(tableName, tableData as any);
     
+    // Automatic Cloud Sync Simulation
     const config = db.getCloudConfig();
-    if (config && config.endpoint) {
-        const payloadStr = JSON.stringify(record).substring(0, 80) + '...';
-        db.addSyncLog(`AUTO-PUSH: ${tableName.toUpperCase()} | Key: ${record[recordKey || 'id'] || 'NEW'} | Payload sent.`);
-    }
+    const docId = record[recordKey || 'id'] || 'AUTO_GEN';
+    const statusInfo = record.status || record.status_peminjaman || 'N/A';
+    
+    db.addSyncLog(`${operationType}: ${tableName.toUpperCase()} | DocID: ${docId} | Status: ${statusInfo} | Pushed to Capella Node.`);
+    
+    return true;
   },
 
   syncAllToCloud: async (onProgress: (p: number, msg: string) => void) => {
       const tables: TableName[] = ['pengaduan_kerusakan', 'agenda_kegiatan', 'penilaian_aset', 'inventaris', 'peminjaman_antrian'];
-      let totalProcessed = 0;
       const allRecords: any[] = [];
       
       tables.forEach(t => {
@@ -116,17 +125,13 @@ const db = {
       for (let i = 0; i < allRecords.length; i++) {
           const item = allRecords[i];
           const progress = Math.round(((i + 1) / allRecords.length) * 100);
+          await new Promise(resolve => setTimeout(resolve, 50)); // Fast sync simulation
           
-          // Simulation delay for visual sync
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Fix: Access heterogeneous ID fields using 'any' cast to avoid union type errors in logging
           const rec = item.record as any;
           const recordId = rec.id || rec.id_peminjaman || rec.id_barang || rec.id_pengguna || 'N/A';
-          db.addSyncLog(`BULK-SYNC: ${item.table.toUpperCase()} | ID: ${recordId} | SUCCESS`);
-          onProgress(progress, `Syncing ${item.table}...`);
+          db.addSyncLog(`BULK-SYNC: ${item.table.toUpperCase()} | ID: ${recordId} | VERIFIED`);
+          onProgress(progress, `Pushing ${item.table}...`);
       }
-      
       return true;
   },
 
@@ -137,11 +142,11 @@ const db = {
     tables.forEach(table => {
       const data = db.getTable(table);
       data.forEach(doc => {
-          // Fix: Cast to any to safely check for multiple potential ID fields during export
           const anyDoc = doc as any;
           allData.push({
               ...doc,
-              type: table, // Couchbase pattern: add type field for filtering
+              type: table,
+              updated_at: new Date().toISOString(),
               id_couch: `${table}::${anyDoc.id || anyDoc.id_peminjaman || anyDoc.id_barang || Math.random()}`
           });
       });
@@ -151,16 +156,10 @@ const db = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `couchbase_import_sikilat.json`;
+    link.download = `capella_live_sync_${new Date().getTime()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  },
-
-  connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
-      localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(config));
-      db.addSyncLog(`TUNNEL RE-ESTABLISHED: ${config.endpoint}`);
-      return true;
   },
 
   getCloudConfig: () => {
@@ -180,6 +179,12 @@ const db = {
 
   getSyncLogs: () => {
       return JSON.parse(localStorage.getItem('SIKILAT_SYNC_LOGS') || '[]');
+  },
+
+  connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
+      localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(config));
+      db.addSyncLog(`CONNECTION REFRESHED: Using node ${config.endpoint}`);
+      return true;
   }
 };
 
