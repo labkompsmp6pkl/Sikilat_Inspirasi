@@ -10,7 +10,7 @@ import AgendaActivityTable from './components/AgendaActivityTable';
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan } from './types';
 import db from './services/dbService'; 
-import { LogOut, ShieldCheck, Database, User as UserIcon, Lock, ChevronDown, FileSpreadsheet, CloudLightning, Share2, Info, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity } from 'lucide-react';
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -22,7 +22,6 @@ const App: React.FC = () => {
   const [externalMessage, setExternalMessage] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Cloud State
   const [cloudConfig, setCloudConfig] = useState<{endpoint: string, user: string} | null>(db.getCloudConfig());
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -129,12 +128,10 @@ const App: React.FC = () => {
   if (!currentUser) return <Login onLogin={handleLogin} onRegister={handleRegister} />;
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
-  
-  // Logic Hak Akses Operasional
   const isTechnicalStaff = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
-  const canSeePendingTickets = isTechnicalStaff; // Admin tidak melihat antrian tiket pending
+  const canSeePendingTickets = isTechnicalStaff;
   const canSeeAgenda = ['admin', 'penanggung_jawab', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
-  const isReadOnly = !isTechnicalStaff; // Admin bersifat Read-Only untuk dashboard operasional
+  const isReadOnly = !isTechnicalStaff;
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -169,12 +166,12 @@ const App: React.FC = () => {
                 <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
              </button>
              {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-36 w-56 bg-white rounded-xl shadow-lg border border-slate-100 z-50 overflow-hidden">
+                <div className="absolute right-0 mt-12 w-56 bg-white rounded-xl shadow-lg border border-slate-100 z-50 overflow-hidden">
                    <div className="p-3 border-b border-slate-50 bg-slate-50/50">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Akun</p>
                         <p className="text-sm font-semibold text-slate-700 truncate">{currentUser.nama_lengkap}</p>
                    </div>
-                   <div className="p-2 border-t border-slate-100">
+                   <div className="p-2">
                       <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50 rounded-md transition-colors"><LogOut className="w-4 h-4"/> Keluar</button>
                    </div>
                 </div>
@@ -238,7 +235,6 @@ const App: React.FC = () => {
         <ChatInterface user={currentUser} roleConfig={roleConfig} onDataSaved={handleDataSaved} stats={reports.filter(r => r.status === 'Pending').length} isOpen={isChatOpen} onToggle={handleToggleChat} externalMessage={externalMessage} onClearExternalMessage={() => setExternalMessage(null)} />
       </main>
 
-      {/* MODAL CLOUD CONFIG */}
       {showCloudConfig && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowCloudConfig(false)} />
@@ -274,7 +270,6 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* MIGRATION GUIDE MODAL */}
       {showMigrationGuide && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowMigrationGuide(false)} />
@@ -283,7 +278,7 @@ const App: React.FC = () => {
                       <div className="flex items-center gap-3">
                           <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><Globe className="w-6 h-6" /></div>
                           <div>
-                             <h3 className="text-xl font-bold text-slate-800">Cloud Sync Success Kit</h3>
+                             <h3 className="text-xl font-bold text-slate-800">Cloud Sync Kit</h3>
                              <p className="text-sm text-slate-500">Panduan Import Data ke Bucket `sikilat`</p>
                           </div>
                       </div>
@@ -304,7 +299,7 @@ const App: React.FC = () => {
                           </div>
                           <div className="p-4 border border-slate-200 rounded-xl bg-white group hover:border-blue-500 transition-colors">
                               <div className="flex items-center gap-2 mb-2"><Key className="w-4 h-4 text-blue-500" /><h4 className="font-bold text-sm">Langkah 2: Database Access</h4></div>
-                              <p className="text-xs text-slate-500">Buat user di **Settings -> Database Access**. Ini adalah "Kunci" aplikasi Anda.</p>
+                              <p className="text-xs text-slate-500">Buat user di **Settings -> Database Access**.</p>
                           </div>
                       </div>
                       <button 
