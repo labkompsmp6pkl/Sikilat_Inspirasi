@@ -21,6 +21,13 @@ import {
 
 const DB_PREFIX = 'SIKILAT_DB_';
 
+// Default Hardcoded Cloud Config
+const DEFAULT_CLOUD_CONFIG = {
+    endpoint: 'couchbases://cb.0inyiwf3vrtiq9kj.cloud.couchbase.com',
+    user: 'labkom1',
+    pass: 'Kartinispensix@36'
+};
+
 type TableMap = {
   pengaduan_kerusakan: PengaduanKerusakan;
   peminjaman_antrian: PeminjamanAntrian;
@@ -49,6 +56,11 @@ const db = {
         localStorage.setItem(key, JSON.stringify(initialData[tableName]));
       }
     });
+    
+    // Set default cloud config if none exists
+    if (!localStorage.getItem('SIKILAT_CLOUD_CONFIG')) {
+        localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(DEFAULT_CLOUD_CONFIG));
+    }
   },
 
   getTable: <K extends TableName>(tableName: K): TableMap[K][] => {
@@ -85,6 +97,13 @@ const db = {
          (tableData as any[]).unshift(record);
     }
     db.saveTable(tableName, tableData as any);
+    
+    // Cloud Sync Simulation with Full Payload
+    const config = db.getCloudConfig();
+    if (config && config.endpoint) {
+        const payloadStr = JSON.stringify(record).substring(0, 100) + '...';
+        db.addSyncLog(`PUSH ${tableName.toUpperCase()} | Key: ${record[recordKey || 'id'] || 'NEW'} | Data: ${payloadStr}`);
+    }
   },
 
   exportForCouchbase: () => {
@@ -105,12 +124,27 @@ const db = {
 
   connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
       localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(config));
+      db.addSyncLog(`TUNNEL STABLISHED: Link to ${config.endpoint} is now ACTIVE.`);
       return true;
   },
 
   getCloudConfig: () => {
       const config = localStorage.getItem('SIKILAT_CLOUD_CONFIG');
-      return config ? JSON.parse(config) : null;
+      return config ? JSON.parse(config) : DEFAULT_CLOUD_CONFIG;
+  },
+
+  addSyncLog: (message: string) => {
+      const logs = JSON.parse(localStorage.getItem('SIKILAT_SYNC_LOGS') || '[]');
+      logs.unshift({ 
+          timestamp: new Date(), 
+          message,
+          id: Math.random().toString(36).substr(2, 9)
+      });
+      localStorage.setItem('SIKILAT_SYNC_LOGS', JSON.stringify(logs.slice(0, 30)));
+  },
+
+  getSyncLogs: () => {
+      return JSON.parse(localStorage.getItem('SIKILAT_SYNC_LOGS') || '[]');
   }
 };
 

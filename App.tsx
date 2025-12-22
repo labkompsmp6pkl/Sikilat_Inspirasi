@@ -28,9 +28,9 @@ const AssetEvaluationSummary: React.FC<{
     const [interactionText, setInteractionText] = useState('');
     const [interactionRating, setInteractionRating] = useState(5);
     const [isGenerating, setIsGenerating] = useState(false);
-
+    
+    const isCloudActive = !!db.getCloudConfig();
     const isManager = ['admin', 'pengawas_admin'].includes(currentUser.peran);
-    const isTamu = currentUser.peran === 'tamu';
 
     const getCategory = (evalItem: PenilaianAset) => {
         const item = inventaris.find(inv => inv.id_barang === evalItem.id_barang || inv.nama_barang === evalItem.nama_barang);
@@ -42,13 +42,6 @@ const AssetEvaluationSummary: React.FC<{
         setReplyingId(ev.id);
         setCommentingId(null);
         setInteractionText(ev.balasan_admin || '');
-    };
-
-    const handleStartGuestComment = (ev: PenilaianAset) => {
-        setCommentingId(ev.id);
-        setReplyingId(null);
-        setInteractionText('');
-        setInteractionRating(ev.skor);
     };
 
     const handleAutoSuggest = async (ev: PenilaianAset) => {
@@ -67,13 +60,6 @@ const AssetEvaluationSummary: React.FC<{
         if (!interactionText.trim()) return;
         onSaveReply(id, interactionText);
         setReplyingId(null);
-        setInteractionText('');
-    };
-
-    const handleSaveGuest = (id: string) => {
-        if (!interactionText.trim()) return;
-        onSaveFollowUp(id, interactionText, interactionRating);
-        setCommentingId(null);
         setInteractionText('');
     };
 
@@ -110,10 +96,8 @@ const AssetEvaluationSummary: React.FC<{
             <div className="flex-1 overflow-y-auto pr-2 space-y-5 scrollbar-hide">
                 {filteredList.length > 0 ? filteredList.map(ev => {
                     const hasAdminReply = !!ev.balasan_admin;
-                    const hasGuestFollowUp = !!ev.tanggapan_tamu;
                     const isResolved = ev.status_penanganan === 'Selesai';
                     const isCurrentlyAdminReplying = replyingId === ev.id;
-                    const isCurrentlyGuestCommenting = commentingId === ev.id;
 
                     return (
                         <div key={ev.id} className={`p-5 rounded-3xl border transition-all ${isResolved ? 'bg-emerald-50/40 border-emerald-100 opacity-80' : 'bg-slate-50/50 border-slate-100 shadow-sm'} group relative`}>
@@ -122,6 +106,7 @@ const AssetEvaluationSummary: React.FC<{
                                     <div className="flex items-center gap-2">
                                         <p className="text-sm font-black text-slate-900">{ev.nama_barang}</p>
                                         {isResolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                                        {isCloudActive && <Cloud className="w-3 h-3 text-blue-400" />}
                                     </div>
                                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                         <MapPin className="w-3 h-3" />
@@ -366,6 +351,7 @@ const App: React.FC = () => {
   const isTamu = currentUser.peran === 'tamu';
   const isGuru = currentUser.peran === 'guru';
   const isManager = ['admin', 'pengawas_admin'].includes(currentUser.peran);
+  const isAdminOnly = currentUser.peran === 'admin';
 
   const canSeeEvaluations = isTamu || isManager;
   const canSeeAnalysis = isInternalStaff && !isGuru;
@@ -386,14 +372,16 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-6">
-             {/* DATABASE CONNECT BUTTON - SELALU TERLIHAT DI HP & DESKTOP */}
-             <button 
-                onClick={() => setIsConnectionModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-slate-900 transition-all border border-indigo-700 shadow-lg shadow-indigo-100 animate-pulse-slow"
-             >
-                <Cloud className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest hidden xs:inline">Koneksi</span>
-             </button>
+             {/* DATABASE CONNECT BUTTON - HANYA ADMINISTRATOR SAJA */}
+             {isAdminOnly && (
+                 <button 
+                    onClick={() => setIsConnectionModalOpen(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-slate-900 transition-all border border-indigo-700 shadow-lg shadow-indigo-100 animate-pulse-slow"
+                 >
+                    <Cloud className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden xs:inline">Cloud Sync</span>
+                 </button>
+             )}
 
              <div className="flex items-center gap-2 sm:gap-4 bg-slate-50/80 px-2 sm:px-4 py-1.5 rounded-2xl border border-slate-100 shadow-inner">
                 <div className="flex flex-col items-end">
@@ -566,7 +554,7 @@ const App: React.FC = () => {
         <div className="fixed bottom-28 right-8 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl animate-fade-in-up z-40 border border-slate-700">
             <p className="text-base font-black flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                Data Berhasil Diproses
+                Data Terkirim ke Cloud
             </p>
         </div>
       )}

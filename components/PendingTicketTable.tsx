@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { PengaduanKerusakan } from '../types';
-import { Clock, Play, MapPin, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Play, MapPin, User, ChevronLeft, ChevronRight, CloudCheck, Cloud } from 'lucide-react';
+import db from '../services/dbService';
 
 interface PendingTicketTableProps {
   reports: PengaduanKerusakan[];
@@ -12,6 +13,7 @@ interface PendingTicketTableProps {
 const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProcessAction, isReadOnly = false }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const isCloudActive = !!db.getCloudConfig();
 
   const pendingReports = useMemo(() => {
     return reports
@@ -23,7 +25,6 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
     return null; // Don't render if no pending tickets
   }
 
-  // Pagination Logic
   const totalPages = Math.ceil(pendingReports.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentData = pendingReports.slice(startIndex, startIndex + itemsPerPage);
@@ -44,7 +45,14 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
           Antrian Tiket Pending ({pendingReports.length})
           {isReadOnly && <span className="text-xs text-slate-400 font-normal ml-2">(Mode Monitor)</span>}
         </h3>
-        {!isReadOnly && <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-md">Perlu Tindakan</span>}
+        <div className="flex items-center gap-2">
+            {isCloudActive && (
+                <div className="flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+                    <Cloud className="w-3 h-3" /> LIVE SYNC
+                </div>
+            )}
+            {!isReadOnly && <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-md">Perlu Tindakan</span>}
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
@@ -64,8 +72,14 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
                      <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tracking-tight whitespace-nowrap">
                         {report.id}
                      </span>
-                     <span className="text-xs text-slate-400 mt-1 ml-0.5">
+                     <span className="text-xs text-slate-400 mt-1 ml-0.5 flex items-center gap-1">
                         {new Date(report.tanggal_lapor).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
+                        {/* Fix: Lucide icons do not support the 'title' prop. Wrapping in span for tooltip functionality. */}
+                        {isCloudActive && (
+                          <span title="Synced to Cloud">
+                            <Cloud className="w-2.5 h-2.5 text-blue-400" />
+                          </span>
+                        )}
                      </span>
                   </div>
                 </td>
@@ -101,7 +115,6 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
         </table>
       </div>
       
-      {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="px-4 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
             <button 

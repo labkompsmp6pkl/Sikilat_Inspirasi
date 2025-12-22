@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Server, Key, Globe, Database, ArrowRight, CheckCircle2, Copy, ExternalLink, ShieldCheck, Download } from 'lucide-react';
+import { X, Server, Key, Globe, Database, ArrowRight, CheckCircle2, Copy, ExternalLink, ShieldCheck, Download, Activity, Clock } from 'lucide-react';
 import db from '../services/dbService';
 
 interface ConnectionModalProps {
@@ -11,17 +11,19 @@ interface ConnectionModalProps {
 const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
   const [config, setConfig] = useState({
-    endpoint: '',
-    user: '',
-    pass: ''
+    endpoint: 'couchbases://cb.0inyiwf3vrtiq9kj.cloud.couchbase.com',
+    user: 'labkom1',
+    pass: 'Kartinispensix@36'
   });
   const [isSaved, setIsSaved] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
     const saved = db.getCloudConfig();
     if (saved) {
       setConfig(saved);
       setIsSaved(true);
+      setLogs(db.getSyncLogs());
     }
   }, [isOpen]);
 
@@ -29,6 +31,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
     db.connectToCloud(config);
     setIsSaved(true);
     setStep(4);
+    setLogs(db.getSyncLogs());
   };
 
   const handleExport = () => {
@@ -51,12 +54,23 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Cloud Sync & Database Config</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-            <X className="w-6 h-6 text-slate-400" />
-          </button>
+          <div className="flex gap-2">
+            {isSaved && (
+                 <button 
+                    onClick={() => setStep(5)}
+                    className={`p-2 rounded-xl transition-all ${step === 5 ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                    title="Lihat Log Aktivitas"
+                 >
+                    <Activity className="w-5 h-5" />
+                 </button>
+            )}
+            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="w-6 h-6 text-slate-400" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row h-[450px]">
+        <div className="flex flex-col md:flex-row h-[480px]">
           {/* Sidebar Steps */}
           <div className="w-full md:w-1/3 bg-slate-50 border-r border-slate-100 p-6 space-y-4">
             {[
@@ -64,6 +78,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
               { id: 2, label: 'Credentials', icon: Key },
               { id: 3, label: 'Endpoint', icon: Server },
               { id: 4, label: 'Sync Status', icon: ShieldCheck },
+              { id: 5, label: 'Live Logs', icon: Activity },
             ].map((s) => (
               <button
                 key={s.id}
@@ -190,6 +205,34 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                       Cloud Tunnel Active
                    </div>
                 </div>
+              </div>
+            )}
+
+            {step === 5 && (
+              <div className="space-y-6 animate-fade-in h-full flex flex-col">
+                <div className="space-y-1">
+                  <h4 className="text-lg font-black text-slate-800">Cloud Sync Activity</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Memantau Record Data Terupdate</p>
+                </div>
+                
+                <div className="flex-1 bg-slate-900 rounded-3xl p-4 overflow-y-auto font-mono text-[10px] border border-slate-800 space-y-3">
+                    {logs.length > 0 ? logs.map((log, idx) => (
+                        <div key={idx} className="border-l-2 border-indigo-500 pl-3 py-1 animate-fade-in">
+                            <div className="flex items-center gap-2 text-indigo-400 font-bold mb-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(log.timestamp).toLocaleTimeString()}
+                            </div>
+                            <p className="text-slate-300 leading-relaxed break-all">
+                                <span className="text-emerald-400">SUCCESS:</span> {log.message}
+                            </p>
+                        </div>
+                    )) : (
+                        <div className="h-full flex items-center justify-center text-slate-500 italic">
+                            Belum ada aktivitas record terdeteksi.
+                        </div>
+                    )}
+                </div>
+                <p className="text-[9px] text-slate-400 text-center italic">Sinkronisasi berjalan secara background setiap kali Anda menyimpan data.</p>
               </div>
             )}
           </div>
