@@ -12,7 +12,7 @@ import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
 import { generateReplySuggestion } from './services/geminiService';
-import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin, Cloud, RefreshCcw } from 'lucide-react';
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin, Cloud, RefreshCcw, DatabaseZap } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false); 
   const [externalMessage, setExternalMessage] = useState<string | null>(null);
+  const [cloudDocCount, setCloudDocCount] = useState(18);
 
   const [bookings, setBookings] = useState<PeminjamanAntrian[]>([]);
   const [reports, setReports] = useState<PengaduanKerusakan[]>([]);
@@ -35,16 +36,24 @@ const App: React.FC = () => {
     setEvaluations(db.getTable('penilaian_aset'));
     setInventaris(db.getTable('inventaris'));
     setActivities(db.getTable('agenda_kegiatan'));
+    
+    const config = db.getCloudConfig();
+    setCloudDocCount(config.lastSyncCount || 18);
   }, []);
 
   useEffect(() => {
     refreshAllData();
+    
+    // Listen for background sync completion
+    const handleSyncComplete = () => {
+        refreshAllData();
+        setShowSavedNotification(true);
+        setTimeout(() => setShowSavedNotification(false), 3000);
+    };
+    
+    window.addEventListener('SIKILAT_SYNC_COMPLETE', handleSyncComplete);
+    return () => window.removeEventListener('SIKILAT_SYNC_COMPLETE', handleSyncComplete);
   }, [refreshAllData]);
-
-  const triggerSyncFeedback = useCallback(() => {
-    setShowSavedNotification(true);
-    setTimeout(() => setShowSavedNotification(false), 3000);
-  }, []);
 
   const handleLogin = useCallback((role: UserRole) => {
     const user = db.getTable('pengguna').find(u => u.peran === role);
@@ -56,8 +65,7 @@ const App: React.FC = () => {
       await db.addRecord(data.table, data.payload);
       refreshAllData();
       setIsSyncingGlobal(false);
-      triggerSyncFeedback();
-  }, [refreshAllData, triggerSyncFeedback]);
+  }, [refreshAllData]);
 
   const handleUpdateAgendaStatus = useCallback(async (id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
       const allAgendas = db.getTable('agenda_kegiatan');
@@ -70,9 +78,8 @@ const App: React.FC = () => {
           await db.addRecord('agenda_kegiatan', target);
           refreshAllData();
           setIsSyncingGlobal(false);
-          triggerSyncFeedback();
       }
-  }, [currentUser, refreshAllData, triggerSyncFeedback]);
+  }, [currentUser, refreshAllData]);
 
   const handleUpdateBookingStatus = useCallback(async (id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
       const allBookings = db.getTable('peminjaman_antrian');
@@ -84,9 +91,8 @@ const App: React.FC = () => {
           await db.addRecord('peminjaman_antrian', target);
           refreshAllData();
           setIsSyncingGlobal(false);
-          triggerSyncFeedback();
       }
-  }, [refreshAllData, triggerSyncFeedback]);
+  }, [refreshAllData]);
 
   const handleLogout = useCallback(() => {
     setIsProfileMenuOpen(false);
@@ -113,10 +119,17 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
+             {/* New Document Count Indicator */}
+             <div className="hidden md:flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-100 rounded-2xl">
+                 <DatabaseZap className="w-3.5 h-3.5 text-indigo-500" />
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Capella Docs:</span>
+                 <span className="text-xs font-black text-slate-900">{cloudDocCount}</span>
+             </div>
+
              {isSyncingGlobal && (
                  <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 animate-pulse">
                     <RefreshCcw className="w-3 h-3 animate-spin" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Syncing Cloud...</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest">Live Transmitting...</span>
                  </div>
              )}
 
@@ -217,14 +230,14 @@ const App: React.FC = () => {
       </div>
 
       {showSavedNotification && (
-        <div className="fixed bottom-28 right-8 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl animate-fade-in-up z-40 border border-slate-700">
+        <div className="fixed bottom-28 right-8 bg-emerald-600 text-white px-8 py-5 rounded-[2rem] shadow-2xl animate-fade-in-up z-[200] border-4 border-white">
             <div className="flex items-center gap-4">
-                <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
-                    <Cloud className="w-5 h-5" />
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white">
+                    <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                    <p className="text-sm font-black">Cloud Synced Successfully</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Couchbase Node: cb.0inyiwf3... &bull; OK</p>
+                    <p className="text-sm font-black italic">Cloud Update Success!</p>
+                    <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">ID: SIKILAT-AUTO-SYNC-OK &bull; Node: Capella</p>
                 </div>
             </div>
         </div>

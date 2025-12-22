@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { PeminjamanAntrian, UserRole } from '../types';
-import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, ShieldAlert, X, Cloud } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, ShieldAlert, X, Cloud, RefreshCw } from 'lucide-react';
 
 interface BookingTableProps {
   bookings: PeminjamanAntrian[];
@@ -71,9 +71,17 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
                 <td className="px-8 py-6 text-right">
                     <div className="flex flex-col items-end gap-3">
                         <div className="flex items-center gap-2">
-                             <div className="flex items-center gap-1 text-[8px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 uppercase tracking-tighter">
-                                <Cloud className="w-2.5 h-2.5" /> SYNCED
-                             </div>
+                             {/* Auto-Sync Badge */}
+                             {(booking as any).cloud_synced ? (
+                                <div className="flex items-center gap-1 text-[8px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 uppercase tracking-tighter">
+                                    <Cloud className="w-2.5 h-2.5" /> SYNCED
+                                </div>
+                             ) : (
+                                <div className="flex items-center gap-1 text-[8px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100 uppercase tracking-tighter animate-pulse">
+                                    <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Pushing...
+                                </div>
+                             )}
+
                              {booking.status_peminjaman === 'Disetujui' ? (
                                 <span className="px-3 py-1 bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg">Disetujui</span>
                              ) : booking.status_peminjaman === 'Ditolak' ? (
