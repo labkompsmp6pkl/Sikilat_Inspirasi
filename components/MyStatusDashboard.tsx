@@ -7,19 +7,16 @@ interface MyStatusDashboardProps {
   currentUser: User;
   reports: PengaduanKerusakan[];
   bookings: PeminjamanAntrian[];
-  activities?: AgendaKegiatan[]; // Make optional for backward compatibility
+  activities?: AgendaKegiatan[];
 }
 
 const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, reports, bookings, activities = [] }) => {
   
-  // --- ROLE BASED LOGIC ---
-  const isManagerRole = currentUser.peran === 'penanggung_jawab' || currentUser.peran === 'admin';
+  const isManagerRole = currentUser.peran === 'penanggung_jawab' || currentUser.peran === 'admin' || currentUser.peran === 'pengawas_admin';
 
-  // --- LOGIC FOR MANAGER (PJ/ADMIN) ---
   const managerStats = useMemo(() => {
       if (!isManagerRole) return null;
 
-      // 1. Calculate Resolved Tickets per Person
       const ticketStats: Record<string, number> = {};
       const resolvedReports = reports.filter(r => r.status === 'Selesai');
       
@@ -28,14 +25,12 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
           ticketStats[handler] = (ticketStats[handler] || 0) + 1;
       });
 
-      // 2. Calculate Activities per Person
       const activityStats: Record<string, number> = {};
       activities.forEach(a => {
            const pjName = a.nama_pj || 'Tidak Diketahui';
            activityStats[pjName] = (activityStats[pjName] || 0) + 1;
       });
 
-      // 3. Merge into a Team List
       const allNames = Array.from(new Set([...Object.keys(ticketStats), ...Object.keys(activityStats)]));
       const teamPerformance = allNames.map(name => ({
           name,
@@ -44,13 +39,12 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
           totalContrib: (ticketStats[name] || 0) + (activityStats[name] || 0)
       })).sort((a, b) => b.totalContrib - a.totalContrib);
 
-      // 4. Recent Completions Feed (Combined)
       const recentTickets = resolvedReports.map(r => ({
           id: r.id,
           type: 'ticket',
           title: `Memperbaiki ${r.nama_barang}`,
           handler: r.diselesaikan_oleh || 'Tim Teknis',
-          date: new Date(r.tanggal_lapor), // Using report date as proxy if resolution date not avail
+          date: new Date(r.tanggal_lapor),
           detail: r.catatan_penyelesaian || 'Selesai'
       }));
 
@@ -75,8 +69,6 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
       };
   }, [reports, activities, isManagerRole]);
 
-
-  // --- LOGIC FOR STANDARD USER (GURU/SISWA) ---
   const myReports = reports
     .filter(r => r.id_pengadu === currentUser.id_pengguna)
     .sort((a, b) => b.tanggal_lapor.getTime() - a.tanggal_lapor.getTime())
@@ -91,104 +83,108 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
     'Pending': { text: 'Menunggu', color: 'bg-amber-500', Icon: Clock },
     'Proses': { text: 'Diproses', color: 'bg-blue-500', Icon: Wrench },
     'Selesai': { text: 'Selesai', color: 'bg-emerald-500', Icon: CheckCircle },
-    'Menunggu': { text: 'Menunggu Persetujuan', color: 'bg-amber-500', Icon: Clock },
+    'Menunggu': { text: 'Menunggu', color: 'bg-amber-500', Icon: Clock },
     'Disetujui': { text: 'Disetujui', color: 'bg-emerald-500', Icon: CheckCircle },
     'Ditolak': { text: 'Ditolak', color: 'bg-rose-500', Icon: XCircle },
     'Kembali': { text: 'Selesai', color: 'bg-slate-500', Icon: CheckCircle },
   };
 
-  // --- RENDER FOR MANAGER (PJ) ---
   if (isManagerRole && managerStats) {
       return (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-indigo-600" />
-                    Monitoring Kinerja Tim & Penyelesaian
-                </h3>
-                <div className="flex gap-4 text-xs font-semibold">
-                    <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Total Selesai: {managerStats.totalResolved}
-                    </span>
-                    <span className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full border border-amber-100">
-                        <Clock className="w-3.5 h-3.5" />
-                        Pending: {managerStats.totalPending}
-                    </span>
+        <div className="bg-white p-5 sm:p-7 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-50 pb-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                        <Briefcase className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight">Monitoring Kinerja</h3>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Aktivitas Tim Terpusat</p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl border border-emerald-100 shadow-sm">
+                        <CheckCircle className="w-4 h-4" />
+                        <div className="flex flex-col">
+                            <span className="text-[10px] uppercase font-black leading-none opacity-60">Selesai</span>
+                            <span className="text-sm font-black leading-none mt-1">{managerStats.totalResolved}</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-amber-50 text-amber-700 px-4 py-2 rounded-2xl border border-amber-100 shadow-sm">
+                        <Clock className="w-4 h-4" />
+                        <div className="flex flex-col">
+                            <span className="text-[10px] uppercase font-black leading-none opacity-60">Pending</span>
+                            <span className="text-sm font-black leading-none mt-1">{managerStats.totalPending}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Kolom 1: Tabel Kinerja Tim */}
-                <div>
-                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2 text-slate-600">
-                        <Users className="w-4 h-4 text-indigo-500" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* Distributions Table */}
+                <div className="lg:col-span-7 space-y-4">
+                    <h4 className="font-black text-sm text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Users className="w-4 h-4" />
                         Distribusi Tugas Tim
                     </h4>
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
-                        <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-50 text-slate-500 uppercase font-semibold">
+                    <div className="overflow-x-auto rounded-3xl border border-slate-100 shadow-sm">
+                        <table className="w-full text-xs text-left min-w-[400px]">
+                            <thead className="bg-slate-50 text-slate-400 uppercase font-black tracking-widest border-b border-slate-100">
                                 <tr>
-                                    <th className="px-4 py-3">Nama Petugas</th>
-                                    <th className="px-4 py-3 text-center">Tiket Selesai</th>
-                                    <th className="px-4 py-3 text-center">Agenda</th>
-                                    <th className="px-4 py-3 text-right">Kontribusi</th>
+                                    <th className="px-5 py-4">Petugas</th>
+                                    <th className="px-5 py-4 text-center">Tiket</th>
+                                    <th className="px-5 py-4 text-center">Agenda</th>
+                                    <th className="px-5 py-4 text-right">Kontribusi</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white">
+                            <tbody className="divide-y divide-slate-50 bg-white">
                                 {managerStats.teamPerformance.map((member, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-4 py-3 font-medium text-slate-700 flex items-center gap-2">
-                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white font-bold ${idx === 0 ? 'bg-amber-400' : 'bg-slate-400'}`}>
+                                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                                        <td className="px-5 py-4 font-bold text-slate-700 flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs text-white font-black shadow-sm ${idx === 0 ? 'bg-amber-400 shadow-amber-100' : 'bg-slate-400'}`}>
                                                 {member.name.charAt(0)}
                                             </div>
                                             {member.name}
                                         </td>
-                                        <td className="px-4 py-3 text-center text-slate-600 font-mono">{member.ticketsResolved}</td>
-                                        <td className="px-4 py-3 text-center text-slate-600 font-mono">{member.activitiesCount}</td>
-                                        <td className="px-4 py-3 text-right font-bold text-indigo-600">{member.totalContrib}</td>
+                                        <td className="px-5 py-4 text-center text-slate-600 font-bold">{member.ticketsResolved}</td>
+                                        <td className="px-5 py-4 text-center text-slate-600 font-bold">{member.activitiesCount}</td>
+                                        <td className="px-5 py-4 text-right">
+                                            <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg font-black">{member.totalContrib}</span>
+                                        </td>
                                     </tr>
                                 ))}
-                                {managerStats.teamPerformance.length === 0 && (
-                                    <tr><td colSpan={4} className="p-4 text-center text-slate-400 italic">Belum ada data kinerja.</td></tr>
-                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                {/* Kolom 2: Feed Aktivitas Terakhir */}
-                <div>
-                     <h4 className="font-semibold text-sm mb-3 flex items-center gap-2 text-slate-600">
-                        <Activity className="w-4 h-4 text-emerald-500" />
-                        Riwayat Penyelesaian Terakhir
+                {/* Recent Feed */}
+                <div className="lg:col-span-5 space-y-4">
+                     <h4 className="font-black text-sm text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Activity className="w-4 h-4" />
+                        Penyelesaian Terbaru
                     </h4>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {managerStats.recentFeed.map((item, idx) => (
-                            <div key={idx} className="flex gap-3 p-3 bg-slate-50/80 rounded-lg border border-slate-100">
-                                <div className={`flex-shrink-0 mt-0.5 p-1.5 rounded-full ${item.type === 'ticket' ? 'bg-blue-100 text-blue-600' : 'bg-violet-100 text-violet-600'}`}>
-                                    {item.type === 'ticket' ? <Wrench className="w-3.5 h-3.5" /> : <ClipboardList className="w-3.5 h-3.5" />}
+                            <div key={idx} className="flex gap-4 p-4 bg-white rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition-all group">
+                                <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${item.type === 'ticket' ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                    {item.type === 'ticket' ? <Wrench className="w-5 h-5" /> : <ClipboardList className="w-5 h-5" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-start">
-                                        <p className="text-xs font-bold text-slate-700 truncate pr-2">{item.title}</p>
-                                        <span className="text-[10px] text-slate-400 whitespace-nowrap">{item.date.toLocaleDateString()}</span>
+                                    <div className="flex justify-between items-start mb-1">
+                                        <p className="text-sm font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{item.title}</p>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">"{item.detail}"</p>
-                                    <div className="flex items-center gap-1.5 mt-1.5">
-                                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-600 flex items-center gap-1">
-                                            <UserIcon className="w-2.5 h-2.5" />
+                                    <p className="text-xs text-slate-500 font-medium italic line-clamp-1 mb-2">"{item.detail}"</p>
+                                    <div className="flex items-center justify-between mt-auto">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                            <UserIcon className="w-3 h-3" />
                                             {item.handler}
                                         </span>
+                                        <span className="text-[10px] font-bold text-slate-300">{item.date.toLocaleDateString()}</span>
                                     </div>
                                 </div>
                             </div>
                         ))}
-                         {managerStats.recentFeed.length === 0 && (
-                            <div className="p-4 bg-slate-50 rounded-lg text-center text-xs text-slate-400 italic">
-                                Belum ada aktivitas penyelesaian.
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -196,91 +192,63 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
       );
   }
 
-  // --- RENDER FOR STANDARD USER ---
   const Section = ({ title, data, type }: { title: string; data: any[]; type: 'report' | 'booking' }) => (
-    <div>
-      <h4 className="font-semibold text-sm mb-3 flex items-center gap-2 text-slate-600">
+    <div className="space-y-4">
+      <h4 className="font-black text-sm text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
         {type === 'report' ? <AlertTriangle className="w-4 h-4 text-rose-500" /> : <CalendarCheck className="w-4 h-4 text-blue-500" />}
         {title}
       </h4>
       {data.length > 0 ? (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {data.map(item => {
             const statusInfo = statusMap[item.status || item.status_peminjaman] || { text: item.status || item.status_peminjaman, color: 'bg-slate-500', Icon: AlertTriangle };
             const Icon = statusInfo.Icon;
             return (
-              <li key={item.id || item.id_peminjaman} className="flex items-start gap-4 p-3 bg-slate-50/70 hover:bg-slate-100 transition-colors rounded-xl border border-transparent hover:border-slate-200">
-                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white ${statusInfo.color}`}>
-                  <Icon className="w-5 h-5" />
+              <li key={item.id || item.id_peminjaman} className="flex items-center gap-4 p-4 bg-white rounded-3xl border border-slate-100 hover:shadow-md transition-all group">
+                <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${statusInfo.color} shadow-${statusInfo.color.split('-')[1]}-100`}>
+                  <Icon className="w-6 h-6" />
                 </div>
-                <div className="flex-grow">
+                <div className="flex-grow min-w-0">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">{item.nama_barang}</p>
-                      <p className="text-xs text-slate-500">
-                        Diajukan: {new Date(item.tanggal_lapor || item.tanggal_peminjaman).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-800 text-sm truncate">{item.nama_barang}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {new Date(item.tanggal_lapor || item.tanggal_peminjaman).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                       </p>
                     </div>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${statusInfo.color.replace('bg-','bg-').replace('-500','-100')} ${statusInfo.color.replace('bg-','text-').replace('-500','-700')}`}>{statusInfo.text}</span>
+                    <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${statusInfo.color.replace('bg-','text-').replace('-500','-600')} ${statusInfo.color.replace('bg-','bg-').replace('-500','-50')} ${statusInfo.color.replace('bg-','border-').replace('-500','-100')}`}>
+                        {statusInfo.text}
+                    </span>
                   </div>
-                  
-                  <div className="mt-2 text-xs text-slate-600 border-l-2 border-slate-200 pl-2 space-y-1">
-                    {type === 'booking' && item.jam_mulai && (
-                      <>
-                        <p><span className="font-semibold text-slate-500">Waktu:</span> {item.jam_mulai} - {item.jam_selesai}</p>
-                        <p><span className="font-semibold text-slate-500">Keperluan:</span> {item.keperluan}</p>
-                      </>
-                    )}
-                    {type === 'report' && (
-                      <p><span className="font-semibold text-slate-500">Masalah:</span> {item.deskripsi_masalah}</p>
-                    )}
-                  </div>
-
-                  {/* INFO PENYELESAIAN OLEH PENANGGUNG JAWAB */}
-                  {type === 'report' && item.status === 'Selesai' && item.diselesaikan_oleh && (
-                     <div className="mt-2 text-xs bg-emerald-50 text-emerald-800 p-2 rounded border border-emerald-100 flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5 font-semibold text-emerald-700">
-                           <UserCheck className="w-3.5 h-3.5" />
-                           Diselesaikan oleh: {item.diselesaikan_oleh}
-                        </div>
-                        {item.catatan_penyelesaian && (
-                           <div className="pl-5 text-emerald-600 opacity-90">
-                              "{item.catatan_penyelesaian}"
-                           </div>
-                        )}
-                     </div>
-                  )}
-
-                  {/* INFO PENOLAKAN BOOKING */}
-                  {item.status_peminjaman === 'Ditolak' && item.alasan_penolakan && (
-                    <div className="mt-2 text-xs text-rose-700 bg-rose-50 p-2 rounded-md flex items-start gap-2 border border-rose-100">
-                        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <div>
-                            <span className="font-semibold">Alasan Penolakan:</span> {item.alasan_penolakan}
-                        </div>
-                    </div>
-                  )}
                 </div>
               </li>
             )
           })}
         </ul>
       ) : (
-        <p className="text-center text-sm text-slate-500 py-4 bg-slate-50 rounded-lg">Tidak ada data terbaru.</p>
+        <div className="p-10 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-300">
+            <ClipboardList className="w-8 h-8 mb-2 opacity-30" />
+            <p className="text-[11px] font-black uppercase tracking-widest">Kosong</p>
+        </div>
       )}
     </div>
   );
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-blue-600" />
-            Status Laporan & Pemesanan Saya
-        </h3>
+    <div className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-8">
+        <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                <ClipboardList className="w-6 h-6" />
+            </div>
+            <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Status Saya</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Log Histori Pribadi</p>
+            </div>
+        </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Section title="Laporan Kerusakan Terbaru" data={myReports} type="report" />
-            <Section title="Peminjaman & Booking Terbaru" data={myBookings} type="booking" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <Section title="Tiket Laporan" data={myReports} type="report" />
+            <Section title="Booking Aset" data={myBookings} type="booking" />
         </div>
     </div>
   );
