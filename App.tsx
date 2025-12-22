@@ -128,10 +128,12 @@ const App: React.FC = () => {
   if (!currentUser) return <Login onLogin={handleLogin} onRegister={handleRegister} />;
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
+  
+  // LOGIKA HAK AKSES OPERASIONAL (ADMIN VS TEKNISI)
   const isTechnicalStaff = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
-  const canSeePendingTickets = isTechnicalStaff;
+  const canSeePendingTickets = isTechnicalStaff; // Admin TIDAK melihat tiket pending
   const canSeeAgenda = ['admin', 'penanggung_jawab', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
-  const isReadOnly = !isTechnicalStaff;
+  const isReadOnly = !isTechnicalStaff; // Admin hanya monitoring detail
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -155,7 +157,7 @@ const App: React.FC = () => {
                         className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100 hover:bg-amber-100 transition-colors"
                     >
                         <CloudLightning className="w-3 h-3 animate-pulse" />
-                        <span className="text-[10px] font-bold uppercase">Bucket `sikilat` Not Linked</span>
+                        <span className="text-[10px] font-bold uppercase">Bucket Not Linked</span>
                     </button>
                 )}
              </div>
@@ -189,7 +191,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-slate-800">Operational Cluster</h2>
-                        <p className="text-slate-600 text-sm">Cluster `labkom2_1` status: <span className="text-emerald-600 font-bold uppercase text-xs">Healthy</span></p>
+                        <p className="text-slate-600 text-sm">Cluster Status: <span className="text-emerald-600 font-bold uppercase text-xs">Healthy</span></p>
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -207,7 +209,7 @@ const App: React.FC = () => {
                                 className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-bold rounded-lg hover:bg-slate-900 transition-colors shadow-sm"
                             >
                                 <Database className="w-4 h-4 text-emerald-400" />
-                                Ekspor JSON Bucket
+                                Ekspor JSON
                             </button>
                         </>
                     )}
@@ -244,7 +246,7 @@ const App: React.FC = () => {
                           <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Server className="w-6 h-6" /></div>
                           <div>
                              <h3 className="text-xl font-bold text-slate-800">Link to Capella</h3>
-                             <p className="text-xs text-slate-500">Hubungkan bucket `sikilat` ke labkom2_1</p>
+                             <p className="text-xs text-slate-500">Hubungkan bucket ke labkom2_1</p>
                           </div>
                       </div>
                       <button onClick={() => setShowCloudConfig(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
@@ -264,7 +266,7 @@ const App: React.FC = () => {
                               <input name="pass" type="password" required className="w-full px-4 py-3 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                           </div>
                       </div>
-                      <button type="submit" className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">Simpan & Hubungkan Live</button>
+                      <button type="submit" className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">Simpan & Hubungkan</button>
                   </form>
               </div>
           </div>
@@ -279,27 +281,27 @@ const App: React.FC = () => {
                           <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><Globe className="w-6 h-6" /></div>
                           <div>
                              <h3 className="text-xl font-bold text-slate-800">Cloud Sync Kit</h3>
-                             <p className="text-sm text-slate-500">Panduan Import Data ke Bucket `sikilat`</p>
+                             <p className="text-sm text-slate-500">Panduan Import Data</p>
                           </div>
                       </div>
                       <button onClick={() => setShowMigrationGuide(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
                   </div>
                   <div className="space-y-6">
                       <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-4">
-                          <div className="p-2 bg-emerald-200 rounded-lg text-emerald-700 font-bold text-xs whitespace-nowrap">STATUS: SELESAI</div>
+                          <div className="p-2 bg-emerald-200 rounded-lg text-emerald-700 font-bold text-xs whitespace-nowrap">STATUS: SIAP</div>
                           <div>
-                              <h4 className="font-bold text-slate-800">Bucket `sikilat` Berhasil Dibuat!</h4>
-                              <p className="text-sm text-slate-600">Bucket Anda sudah aktif dan siap menerima data operasional sekolah.</p>
+                              <h4 className="font-bold text-slate-800">Bucket Berhasil Dibuat!</h4>
+                              <p className="text-sm text-slate-600">Bucket Anda sudah aktif dan siap menerima data operasional.</p>
                           </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="p-4 border border-slate-200 rounded-xl bg-white group hover:border-blue-500 transition-colors">
                               <div className="flex items-center gap-2 mb-2"><Share2 className="w-4 h-4 text-blue-500" /><h4 className="font-bold text-sm">Langkah 1: Import</h4></div>
-                              <p className="text-xs text-slate-500">Klik menu **Data Tools** -> **Import** di Capella. Upload file JSON dari SIKILAT.</p>
+                              <p className="text-xs text-slate-500">Klik menu Data Tools &rarr; Import di Capella. Upload file JSON dari SIKILAT.</p>
                           </div>
                           <div className="p-4 border border-slate-200 rounded-xl bg-white group hover:border-blue-500 transition-colors">
-                              <div className="flex items-center gap-2 mb-2"><Key className="w-4 h-4 text-blue-500" /><h4 className="font-bold text-sm">Langkah 2: Database Access</h4></div>
-                              <p className="text-xs text-slate-500">Buat user di **Settings -> Database Access**.</p>
+                              <div className="flex items-center gap-2 mb-2"><Key className="w-4 h-4 text-blue-500" /><h4 className="font-bold text-sm">Langkah 2: Akses</h4></div>
+                              <p className="text-xs text-slate-500">Buat user di Settings &rarr; Database Access untuk sinkronisasi.</p>
                           </div>
                       </div>
                       <button 
@@ -318,7 +320,7 @@ const App: React.FC = () => {
         <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-lg shadow-2xl animate-fade-in-up z-50">
             <p className="text-sm font-bold flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                Data Saved & Synced to Labkom2_1
+                Data Saved & Synced
             </p>
         </div>
       )}
