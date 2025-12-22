@@ -12,11 +12,12 @@ import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
 import { generateReplySuggestion } from './services/geminiService';
-import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin, Cloud } from 'lucide-react';
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin, Cloud, RefreshCcw } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showSavedNotification, setShowSavedNotification] = useState(false);
+  const [isSyncingGlobal, setIsSyncingGlobal] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false); 
@@ -50,33 +51,39 @@ const App: React.FC = () => {
     setCurrentUser(user || null);
   }, []);
 
-  const handleDataSaved = useCallback((data: SavedData) => {
-      db.addRecord(data.table, data.payload);
+  const handleDataSaved = useCallback(async (data: SavedData) => {
+      setIsSyncingGlobal(true);
+      await db.addRecord(data.table, data.payload);
       refreshAllData();
+      setIsSyncingGlobal(false);
       triggerSyncFeedback();
   }, [refreshAllData, triggerSyncFeedback]);
 
-  const handleUpdateAgendaStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
+  const handleUpdateAgendaStatus = useCallback(async (id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
       const allAgendas = db.getTable('agenda_kegiatan');
       const target = allAgendas.find(a => a.id === id);
       if (target) {
+          setIsSyncingGlobal(true);
           target.status = status;
           target.alasan_penolakan = reason;
           target.direview_oleh = currentUser?.nama_lengkap;
-          db.addRecord('agenda_kegiatan', target);
+          await db.addRecord('agenda_kegiatan', target);
           refreshAllData();
+          setIsSyncingGlobal(false);
           triggerSyncFeedback();
       }
   }, [currentUser, refreshAllData, triggerSyncFeedback]);
 
-  const handleUpdateBookingStatus = useCallback((id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
+  const handleUpdateBookingStatus = useCallback(async (id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => {
       const allBookings = db.getTable('peminjaman_antrian');
       const target = allBookings.find(b => b.id_peminjaman === id);
       if (target) {
+          setIsSyncingGlobal(true);
           target.status_peminjaman = status;
           target.alasan_penolakan = reason;
-          db.addRecord('peminjaman_antrian', target);
+          await db.addRecord('peminjaman_antrian', target);
           refreshAllData();
+          setIsSyncingGlobal(false);
           triggerSyncFeedback();
       }
   }, [refreshAllData, triggerSyncFeedback]);
@@ -105,13 +112,20 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+             {isSyncingGlobal && (
+                 <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 animate-pulse">
+                    <RefreshCcw className="w-3 h-3 animate-spin" />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Syncing Cloud...</span>
+                 </div>
+             )}
+
              {isAdminOnly && (
                  <button 
                     onClick={() => setIsConnectionModalOpen(true)}
                     className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-slate-900 transition-all border border-indigo-700 shadow-lg shadow-indigo-100"
                  >
-                    <Cloud className="w-4 h-4 animate-pulse" />
+                    <Cloud className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest hidden xs:inline">Cloud Hub</span>
                  </button>
              )}
@@ -156,7 +170,6 @@ const App: React.FC = () => {
             </div>
         ) : (
             <div className="animate-fade-in space-y-8">
-                {/* Dashboard Grid Updated for spacing */}
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                     <div className="xl:col-span-3 space-y-8">
                         <BookingTable 

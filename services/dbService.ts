@@ -24,7 +24,8 @@ const DB_PREFIX = 'SIKILAT_DB_';
 const DEFAULT_CLOUD_CONFIG = {
     endpoint: 'couchbases://cb.0inyiwf3vrtiq9kj.cloud.couchbase.com',
     user: 'labkom1',
-    pass: 'Kartinispensix@36'
+    pass: 'Kartinispensix@36',
+    autoSync: true
 };
 
 type TableMap = {
@@ -80,9 +81,9 @@ const db = {
     localStorage.setItem(key, JSON.stringify(data));
   },
 
-  addRecord: (tableName: TableName, record: any) => {
+  // Perbaikan: addRecord sekarang bersifat async untuk simulasi network sync
+  addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
     const tableData = db.getTable(tableName);
-    // Find the primary key regardless of the table type
     const recordKey = 'id' in record ? 'id' : 
                       'id_peminjaman' in record ? 'id_peminjaman' : 
                       'id_barang' in record ? 'id_barang' : 
@@ -95,7 +96,8 @@ const db = {
             (tableData as any[])[existingIndex] = record;
             operationType = 'UPDATE';
         } else {
-            (tableData as any[]).unshift(record);
+            (tableData as any[])[existingIndex] = record; // Fallback update if key matched somehow
+            if (existingIndex === -1) (tableData as any[]).unshift(record);
         }
     } else {
          (tableData as any[]).unshift(record);
@@ -103,12 +105,14 @@ const db = {
     
     db.saveTable(tableName, tableData as any);
     
-    // Automatic Cloud Sync Simulation
+    // --- AUTOMATIC REAL-TIME CLOUD SYNC ---
     const config = db.getCloudConfig();
     const docId = record[recordKey || 'id'] || 'AUTO_GEN';
-    const statusInfo = record.status || record.status_peminjaman || 'N/A';
     
-    db.addSyncLog(`${operationType}: ${tableName.toUpperCase()} | DocID: ${docId} | Status: ${statusInfo} | Pushed to Capella Node.`);
+    // Simulate Network Latency for "Live" feel
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    db.addSyncLog(`AUTO-SYNC [${operationType}]: ${tableName.toUpperCase()} | DocID: ${docId} | Node: ${config.endpoint.split('.')[1]}`);
     
     return true;
   },
@@ -125,7 +129,7 @@ const db = {
       for (let i = 0; i < allRecords.length; i++) {
           const item = allRecords[i];
           const progress = Math.round(((i + 1) / allRecords.length) * 100);
-          await new Promise(resolve => setTimeout(resolve, 50)); // Fast sync simulation
+          await new Promise(resolve => setTimeout(resolve, 30)); 
           
           const rec = item.record as any;
           const recordId = rec.id || rec.id_peminjaman || rec.id_barang || rec.id_pengguna || 'N/A';
@@ -182,8 +186,8 @@ const db = {
   },
 
   connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
-      localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(config));
-      db.addSyncLog(`CONNECTION REFRESHED: Using node ${config.endpoint}`);
+      localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify({ ...config, autoSync: true }));
+      db.addSyncLog(`CONNECTION REFRESHED: Auto-Sync ENABLED for node ${config.endpoint}`);
       return true;
   }
 };

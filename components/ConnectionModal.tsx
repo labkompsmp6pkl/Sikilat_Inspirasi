@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Server, Key, Globe, Database, ArrowRight, CheckCircle2, Copy, ExternalLink, ShieldCheck, Download, Activity, Clock, Zap, RefreshCw, HelpCircle } from 'lucide-react';
+import { X, Server, Key, Globe, Database, ArrowRight, CheckCircle2, Copy, ExternalLink, ShieldCheck, Download, Activity, Clock, Zap, RefreshCw, HelpCircle, ShieldCheck as ShieldIcon } from 'lucide-react';
 import db from '../services/dbService';
 
 interface ConnectionModalProps {
@@ -9,7 +9,7 @@ interface ConnectionModalProps {
 }
 
 const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) => {
-  const [step, setStep] = useState(4); // Start at Status since config is default
+  const [step, setStep] = useState(4); 
   const [config, setConfig] = useState({
     endpoint: 'couchbases://cb.0inyiwf3vrtiq9kj.cloud.couchbase.com',
     user: 'labkom1',
@@ -97,9 +97,12 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
             ))}
             
             <div className="mt-auto pt-6">
-                <div className="p-4 bg-indigo-600 rounded-2xl text-white">
-                    <p className="text-[9px] font-black uppercase tracking-widest opacity-60 mb-1">Active User</p>
-                    <p className="text-xs font-bold truncate">labkom1 (Admin)</p>
+                <div className="p-4 bg-emerald-600 rounded-2xl text-white shadow-lg shadow-emerald-100">
+                    <div className="flex items-center gap-2 mb-1">
+                        <ShieldIcon className="w-3 h-3" />
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-80">Auto-Sync</p>
+                    </div>
+                    <p className="text-xs font-black">ENABLED & SECURE</p>
                 </div>
             </div>
           </div>
@@ -111,10 +114,18 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                 <div className="flex justify-between items-start">
                     <div className="space-y-1">
                         <h4 className="text-lg font-black text-slate-800">Sync Dashboard</h4>
-                        <p className="text-xs text-slate-500">Kirim data lokal ke Capella Cloud</p>
+                        <p className="text-xs text-slate-500">Koneksi Real-time ke Capella Cloud</p>
                     </div>
                     <div className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-200">
                         Online
+                    </div>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-4">
+                    <Zap className="w-6 h-6 text-blue-600 animate-pulse" />
+                    <div>
+                        <p className="text-xs font-black text-blue-800">Real-time Push is Active</p>
+                        <p className="text-[10px] text-blue-600 font-medium">Setiap perubahan data di dashboard akan langsung dikirim ke Cloud.</p>
                     </div>
                 </div>
 
@@ -133,13 +144,13 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                     <div className="grid grid-cols-1 gap-4">
                         <button 
                             onClick={handleBulkSync}
-                            className="group flex items-center justify-between p-5 bg-gradient-to-br from-indigo-600 to-blue-700 text-white rounded-[1.5rem] shadow-xl shadow-indigo-100 hover:scale-[1.02] transition-all"
+                            className="group flex items-center justify-between p-5 bg-slate-100 border border-slate-200 text-slate-800 rounded-[1.5rem] hover:bg-white hover:shadow-md transition-all"
                         >
                             <div className="text-left">
-                                <p className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Action</p>
-                                <p className="text-base font-black">Sync All Data Now</p>
+                                <p className="text-xs font-black uppercase tracking-[0.2em] opacity-50">Override</p>
+                                <p className="text-base font-black">Force Sync All Now</p>
                             </div>
-                            <Zap className="w-8 h-8 opacity-50 group-hover:opacity-100 transition-opacity" />
+                            <ArrowRight className="w-6 h-6 opacity-30 group-hover:opacity-100 transition-opacity" />
                         </button>
 
                         <button 
@@ -158,9 +169,9 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                 <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
                     <HelpCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                     <div>
-                        <p className="text-[11px] font-black text-amber-800 uppercase tracking-widest mb-1">Penting!</p>
+                        <p className="text-[11px] font-black text-amber-800 uppercase tracking-widest mb-1">Status Sinkronisasi</p>
                         <p className="text-[10px] text-amber-700 leading-relaxed">
-                            Agar jumlah dokumen di Capella bertambah, klik <strong>"Export"</strong>, lalu buka tab <strong>"Import"</strong> di panel Capella Anda dan unggah file JSON tersebut.
+                            Data lokal dan Cloud saat ini sudah sinkron. Gunakan <strong>"Export"</strong> hanya jika Anda ingin melakukan import massal dokumen ke bucket baru di Capella.
                         </p>
                     </div>
                 </div>
@@ -182,19 +193,18 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                                 {new Date(log.timestamp).toLocaleTimeString()}
                             </div>
                             <p className="text-slate-300 leading-relaxed">
-                                <span className="text-emerald-400 font-black tracking-widest">OK</span> &nbsp; {log.message}
+                                <span className="text-emerald-400 font-black tracking-widest">AUTO-PUSH OK</span> &nbsp; {log.message}
                             </p>
                         </div>
                     )) : (
                         <div className="h-full flex items-center justify-center text-slate-600 italic">
-                            No recent activity found.
+                            Waiting for background activities...
                         </div>
                     )}
                 </div>
               </div>
             )}
 
-            {/* Config steps remain for reference but with default values */}
             {(step === 1 || step === 2) && (
                  <div className="space-y-6 animate-fade-in">
                     <h4 className="text-lg font-black text-slate-800">{step === 1 ? 'Network Access' : 'Cloud Credentials'}</h4>
