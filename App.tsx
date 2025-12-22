@@ -9,10 +9,21 @@ import AgendaActivityTable from './components/AgendaActivityTable';
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
-import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check } from 'lucide-react';
+import { generateReplySuggestion } from './services/geminiService';
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle } from 'lucide-react';
 
-const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventaris: Inventaris[], onReviewAsset?: (name: string) => void, onReplyAction?: (evalId: string, assetName: string) => void, onCompleteAction?: (evalId: string, status: 'Selesai' | 'Terbuka') => void, currentUser: User }> = ({ evaluations, inventaris, onReviewAsset, onReplyAction, onCompleteAction, currentUser }) => {
+const AssetEvaluationSummary: React.FC<{ 
+    evaluations: PenilaianAset[], 
+    inventaris: Inventaris[], 
+    onReviewAsset?: (name: string) => void, 
+    onSaveReply: (evalId: string, reply: string) => void,
+    onCompleteAction: (evalId: string, status: 'Selesai' | 'Terbuka') => void, 
+    currentUser: User 
+}> = ({ evaluations, inventaris, onReviewAsset, onSaveReply, onCompleteAction, currentUser }) => {
     const [filterCategory, setFilterCategory] = useState<'All' | 'IT' | 'Sarpras'>('All');
+    const [replyingId, setReplyingId] = useState<string | null>(null);
+    const [replyText, setReplyText] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const isManager = ['admin', 'pengawas_admin'].includes(currentUser.peran);
     const isTamu = currentUser.peran === 'tamu';
@@ -21,6 +32,30 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
         const item = inventaris.find(inv => inv.id_barang === evalItem.id_barang || inv.nama_barang === evalItem.nama_barang);
         if (item) return item.kategori === 'IT' ? 'IT' : 'Sarpras';
         return 'Sarpras';
+    };
+
+    const handleStartReply = (ev: PenilaianAset) => {
+        setReplyingId(ev.id);
+        setReplyText(ev.balasan_admin || '');
+    };
+
+    const handleAutoSuggest = async (ev: PenilaianAset) => {
+        setIsGenerating(true);
+        try {
+            const suggestion = await generateReplySuggestion(ev.ulasan, currentUser);
+            setReplyText(suggestion);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleSave = (id: string) => {
+        if (!replyText.trim()) return;
+        onSaveReply(id, replyText);
+        setReplyingId(null);
+        setReplyText('');
     };
 
     const filteredList = useMemo(() => {
@@ -58,9 +93,10 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                     const isMyEvaluation = ev.id_pengguna === currentUser.id_pengguna;
                     const hasAdminReply = !!ev.balasan_admin;
                     const isResolved = ev.status_penanganan === 'Selesai';
+                    const isCurrentlyReplying = replyingId === ev.id;
 
                     return (
-                        <div key={ev.id} className={`p-4 rounded-2xl border transition-all group ${isResolved ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50/50 border-slate-100'} hover:shadow-md`}>
+                        <div key={ev.id} className={`p-4 rounded-2xl border transition-all ${isResolved ? 'bg-emerald-50/50 border-emerald-100 opacity-80' : 'bg-slate-50/50 border-slate-100 shadow-sm'} group`}>
                             <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">
                                     <p className="text-xs font-bold text-slate-800">{ev.nama_barang}</p>
@@ -72,60 +108,94 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                                     ))}
                                 </div>
                             </div>
-                            <p className="text-[11px] text-slate-600 italic leading-relaxed mb-3">"{ev.ulasan}"</p>
+                            <p className="text-[11px] text-slate-600 italic leading-relaxed mb-4">"{ev.ulasan}"</p>
                             
-                            {/* BALASAN ADMIN */}
-                            {hasAdminReply && (
-                                <div className="mb-3 p-3 bg-blue-50 rounded-xl border border-blue-100 relative">
-                                    <div className="absolute -top-2 left-4 px-2 bg-blue-100 text-[8px] font-black text-blue-600 uppercase tracking-widest rounded border border-blue-200">Balasan Admin</div>
-                                    <p className="text-[10px] text-blue-800 leading-relaxed">"{ev.balasan_admin}"</p>
-                                    <p className="text-[8px] text-blue-400 mt-1 font-bold">{ev.tanggal_balasan ? new Date(ev.tanggal_balasan).toLocaleDateString() : ''}</p>
+                            {/* THREAD BALASAN */}
+                            {(hasAdminReply && !isCurrentlyReplying) && (
+                                <div className="ml-4 mb-4 p-3 bg-blue-50 rounded-xl border-l-4 border-blue-400">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Balasan Admin</span>
+                                        <span className="text-[8px] text-blue-400 font-bold">{ev.tanggal_balasan ? new Date(ev.tanggal_balasan).toLocaleDateString() : ''}</span>
+                                    </div>
+                                    <p className="text-[10px] text-blue-800 leading-relaxed font-medium">"{ev.balasan_admin}"</p>
                                 </div>
                             )}
 
-                            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                                 <span className="text-[10px] text-slate-400 font-medium truncate max-w-[120px]">Oleh: {ev.nama_pengguna}</span>
+                            {/* INLINE REPLY INPUT (MANAGER ONLY) */}
+                            {isCurrentlyReplying && (
+                                <div className="ml-4 mb-4 space-y-2 animate-fade-in">
+                                    <div className="relative">
+                                        <textarea
+                                            value={replyText}
+                                            onChange={(e) => setReplyText(e.target.value)}
+                                            placeholder="Tulis balasan Anda..."
+                                            className="w-full text-xs p-3 rounded-xl border border-blue-200 focus:ring-2 focus:ring-blue-500 bg-white min-h-[80px] pr-10 shadow-inner"
+                                            autoFocus
+                                        />
+                                        <button 
+                                            onClick={() => handleAutoSuggest(ev)}
+                                            disabled={isGenerating}
+                                            className="absolute top-2 right-2 p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                                            title="Saran Balasan AI"
+                                        >
+                                            <Sparkle className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                                        </button>
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => setReplyingId(null)} className="px-3 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
+                                        <button 
+                                            onClick={() => handleSave(ev.id)} 
+                                            className="px-4 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg shadow-md hover:bg-blue-700 flex items-center gap-1.5"
+                                        >
+                                            <Send className="w-3 h-3" /> Simpan Balasan
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between items-center pt-3 border-t border-slate-200/50 mt-2">
+                                 <span className="text-[10px] text-slate-400 font-medium">Oleh: {ev.nama_pengguna}</span>
                                  
                                  <div className="flex gap-2">
-                                     {/* Admin Action: Reply */}
-                                     {isManager && !isResolved && (
+                                     {/* Admin Action */}
+                                     {isManager && !isResolved && !isCurrentlyReplying && (
                                         <button 
-                                            onClick={() => onReplyAction?.(ev.id, ev.nama_barang)} 
-                                            className="text-[10px] font-bold text-blue-600 flex items-center gap-1 hover:underline"
+                                            onClick={() => handleStartReply(ev)} 
+                                            className="text-[10px] font-bold text-blue-600 flex items-center gap-1 hover:underline bg-white px-2 py-1 rounded-lg border border-blue-50 shadow-sm"
                                         >
-                                            <Undo2 className="w-3 h-3" /> Balas
+                                            <Undo2 className="w-3 h-3" /> {hasAdminReply ? 'Ubah Balasan' : 'Balas Review'}
                                         </button>
                                      )}
 
-                                     {/* Tamu Action: Complete or Re-open */}
+                                     {/* Tamu Action */}
                                      {isTamu && isMyEvaluation && hasAdminReply && (
                                         <>
                                             {!isResolved ? (
                                                 <div className="flex gap-2">
                                                     <button 
-                                                        onClick={() => onCompleteAction?.(ev.id, 'Selesai')} 
-                                                        className="px-2 py-0.5 bg-emerald-600 text-white text-[9px] font-black rounded uppercase hover:bg-emerald-700 transition-colors flex items-center gap-1"
+                                                        onClick={() => onCompleteAction(ev.id, 'Selesai')} 
+                                                        className="px-2 py-1 bg-emerald-600 text-white text-[9px] font-black rounded uppercase hover:bg-emerald-700 transition-colors flex items-center gap-1 shadow-sm"
                                                     >
                                                         <Check className="w-2.5 h-2.5" /> Selesai
                                                     </button>
                                                     <button 
                                                         onClick={() => onReviewAsset?.(ev.nama_barang)} 
-                                                        className="text-[9px] font-bold text-slate-500 hover:text-blue-600"
+                                                        className="text-[9px] font-bold text-slate-500 hover:text-blue-600 border border-slate-200 px-2 py-1 rounded bg-white shadow-sm"
                                                     >
                                                         Lanjut Tanya
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <span className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1">
+                                                <span className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200">
                                                     <CheckCircle2 className="w-2.5 h-2.5" /> Ditutup
                                                 </span>
                                             )}
                                         </>
                                      )}
                                      
-                                     {/* Tamu Action: Create New Review */}
-                                     {isTamu && !hasAdminReply && (
-                                        <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-bold text-blue-600">Beri Review</button>
+                                     {/* Tamu - Feedback button if not replied */}
+                                     {isTamu && !hasAdminReply && !isResolved && (
+                                        <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-bold text-blue-600 bg-white px-2 py-1 rounded-lg border border-blue-50 shadow-sm">Kirim Komentar</button>
                                      )}
                                  </div>
                             </div>
@@ -240,10 +310,18 @@ const App: React.FC = () => {
       setIsChatOpen(true);
   }, []);
 
-  const handleReplyToEvaluation = useCallback((evalId: string, assetName: string) => {
-      const prompt = `Saya ingin membalas penilaian aset (ID: ${evalId}) untuk: ${assetName}`;
-      setExternalMessage(prompt);
-      setIsChatOpen(true);
+  const handleSaveInlineReply = useCallback((evalId: string, reply: string) => {
+      const allEvals = db.getTable('penilaian_aset');
+      const target = allEvals.find(e => e.id === evalId);
+      if (target) {
+          target.balasan_admin = reply;
+          target.tanggal_balasan = new Date();
+          target.status_penanganan = 'Terbuka';
+          db.addRecord('penilaian_aset', target);
+          setEvaluations(db.getTable('penilaian_aset'));
+          setShowSavedNotification(true);
+          setTimeout(() => setShowSavedNotification(false), 3000);
+      }
   }, []);
 
   const handleCompleteEvaluation = useCallback((evalId: string, status: 'Selesai' | 'Terbuka') => {
@@ -370,7 +448,7 @@ const App: React.FC = () => {
                          </div>
                     </div>
                     <div className="h-fit lg:sticky lg:top-24">
-                        <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} onReviewAsset={handleReviewAsset} onReplyAction={handleReplyToEvaluation} onCompleteAction={handleCompleteEvaluation} currentUser={currentUser} />
+                        <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} onReviewAsset={handleReviewAsset} onSaveReply={handleSaveInlineReply} onCompleteAction={handleCompleteEvaluation} currentUser={currentUser} />
                     </div>
                  </div>
             </div>
@@ -406,7 +484,7 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="space-y-10">
-                        {canSeeEvaluations && <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} onReplyAction={handleReplyToEvaluation} onCompleteAction={handleCompleteEvaluation} currentUser={currentUser} />}
+                        {canSeeEvaluations && <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} onSaveReply={handleSaveInlineReply} onCompleteAction={handleCompleteEvaluation} currentUser={currentUser} />}
                         <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />
                     </div>
                 </div>

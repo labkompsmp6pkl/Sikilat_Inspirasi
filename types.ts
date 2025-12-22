@@ -156,12 +156,10 @@ export interface ChatInterfaceProps {
   onClearExternalMessage?: () => void;
 }
 
-// Fixed: Added HistorySection interface
 export interface HistorySection {
   items: any[];
 }
 
-// Fixed: Updated DetailedItemReport to use the new HistorySection interface
 export interface DetailedItemReport {
   type: 'detailed_item_report';
   id_inventaris: string;
@@ -172,7 +170,6 @@ export interface DetailedItemReport {
   riwayat_peminjaman?: HistorySection;
 }
 
-// Fixed: Added TroubleshootingGuide interface
 export interface TroubleshootingGuide {
   type: 'troubleshooting_guide';
   id_tiket: string;
@@ -192,7 +189,6 @@ export interface TroubleshootingGuide {
   };
 }
 
-// Fixed: Added LaporanStatus interface
 export interface LaporanStatus {
   type: 'laporan_status';
   id_laporan: string;

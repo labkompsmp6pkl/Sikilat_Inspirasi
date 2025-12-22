@@ -3,6 +3,24 @@ import { GoogleGenAI } from "@google/genai";
 import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, PenilaianAset } from "../types";
 import db from './dbService';
 
+export const generateReplySuggestion = async (reviewText: string, user: User): Promise<string> => {
+    if (!process.env.API_KEY) return "Terima kasih atas masukannya, akan segera kami tindak lanjuti.";
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            config: {
+                systemInstruction: "Anda adalah Pengawas Admin sekolah yang bijak. Buatlah balasan singkat (maks 20 kata), profesional, dan solutif untuk ulasan fasilitas dari pengunjung/tamu berikut ini."
+            },
+            contents: [{ parts: [{ text: `Ulasan pengunjung: "${reviewText}"` }] }],
+        });
+        return response.text || "Terima kasih, tim kami akan segera mengecek kondisi tersebut.";
+    } catch (e) {
+        return "Terima kasih atas laporannya, kami akan segera melakukan pengecekan.";
+    }
+};
+
 const runSimulation = (message: string, user: User): GeminiResponse | null => {
     const cleanMessage = message.replace(/\[CONTEXT:[\s\S]*?\]\.\n\nUser's Reply:\s*/, "").trim();
     const lowerMsg = cleanMessage.toLowerCase();
@@ -21,46 +39,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         };
     }
 
-    // 2. Handling Admin Reply to Evaluation
-    if (lowerMsg.includes('saya ingin membalas penilaian aset (id:')) {
-        if (!['admin', 'pengawas_admin'].includes(user.peran)) {
-            return { text: "Anda tidak memiliki otoritas untuk membalas penilaian tamu." };
-        }
-        
-        const evalIdMatch = cleanMessage.match(/\(ID:\s*([^)]+)\)/);
-        const evalId = evalIdMatch ? evalIdMatch[1].trim() : null;
-
-        if (!evalId) return { text: "ID Penilaian tidak ditemukan." };
-
-        return {
-            text: `Membuka panel balasan untuk Penilaian **#${evalId}**... \n\nSilakan ketik balasan Anda di bawah ini secara langsung:`,
-            // This is a simulation trick: we ask the user to just type the reply next
-        };
-    }
-
-    // 3. Simulating the actual admin response saving
-    if (user.peran === 'pengawas_admin' && !lowerMsg.includes('saya ingin membalas') && !lowerMsg.includes('audit')) {
-        // Look for recent eval that user might be replying to
-        const lastEvals = db.getTable('penilaian_aset');
-        // Simple heuristic: if user typed something and we were in "reply mode" 
-        // We'll just check if it looks like a reply
-        if (cleanMessage.length > 5) {
-             // In a real app we'd track state, here we assume any short message after a "Reply" prompt is the reply
-             // Let's look for evaluations that don't have replies yet
-             const target = lastEvals.find(e => !e.balasan_admin);
-             if (target) {
-                 target.balasan_admin = cleanMessage;
-                 target.tanggal_balasan = new Date();
-                 target.status_penanganan = 'Terbuka';
-                 return {
-                     text: `✅ **Balasan Terkirim!**\n\nPenilaian dari **${target.nama_pengguna}** telah dibalas. Tamu akan melihat tanggapan Anda di panel mereka.`,
-                     dataToSave: { table: 'penilaian_aset', payload: target }
-                 };
-             }
-        }
-    }
-
-    // 4. Handling Asset Evaluation Form Submission
+    // 2. Handling Asset Evaluation Form Submission
     if (cleanMessage.includes('📝 Input Formulir: Beri Penilaian Aset')) {
         try {
             const parse = (label: string) => {
@@ -95,7 +74,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
         } catch (e) { console.error(e) }
     }
 
-    // 5. Audit Penilaian
+    // 3. Audit Penilaian
     if (lowerMsg.includes('audit penilaian') || lowerMsg.includes('tampilkan semua data dari tabel penilaian_aset')) {
         if (!['admin', 'pengawas_admin'].includes(user.peran)) {
             return { text: "Akses Ditolak. Anda tidak memiliki otoritas untuk melihat data penilaian pengguna secara mendalam." };
@@ -128,9 +107,9 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
   let systemInstruction = `Anda adalah SIKILAT AI Assistant.
   PANDUAN INTERAKSI:
-  1. GURU/PJ/IT: Fokus teknis operasional.
-  2. TAMU: Fokus penilaian & komplain. Jika Tamu membalas 'Selesai' pada tanggapan admin, ucapkan terima kasih.
-  3. PENGAWAS ADMIN: Fokus membalas (reply) penilaian tamu. Gunakan nada bijak dan solutif.
+  1. GURU/PJ/IT: Fokus teknis operasional perbaikan dan peminjaman.
+  2. TAMU: Fokus penilaian & komplain. Bantu mereka mengisi formulir penilaian aset.
+  3. PENGAWAS ADMIN: Fokus audit manajemen. Berikan analisis strategis jika diminta.
   
   User saat ini: ${user.nama_lengkap} (Role: ${user.peran}).`;
 
