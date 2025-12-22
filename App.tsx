@@ -6,11 +6,12 @@ import MyStatusDashboard from './components/MyStatusDashboard';
 import DamageReportChart from './components/DamageReportChart';
 import PendingTicketTable from './components/PendingTicketTable';
 import AgendaActivityTable from './components/AgendaActivityTable'; 
+import ConnectionModal from './components/ConnectionModal';
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
 import { generateReplySuggestion } from './services/geminiService';
-import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin } from 'lucide-react';
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin, Cloud } from 'lucide-react';
 
 const AssetEvaluationSummary: React.FC<{ 
     evaluations: PenilaianAset[], 
@@ -240,6 +241,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showSavedNotification, setShowSavedNotification] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false); 
   const [externalMessage, setExternalMessage] = useState<string | null>(null);
 
@@ -373,7 +375,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative">
-      {/* HEADER FIXED POSITION - JAMINAN SCREENSHOT IDENTITAS */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-[100] shadow-md flex items-center">
         <div className="max-w-screen-2xl w-full mx-auto px-4 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -384,39 +385,49 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 bg-slate-50/80 px-2 sm:px-4 py-1.5 rounded-2xl border border-slate-100 shadow-inner">
-             <div className="flex flex-col items-end">
-                <p className="text-[11px] sm:text-[13px] font-black text-slate-900 tracking-tight leading-none mb-1">
-                    {currentUser.nama_lengkap}
-                </p>
-                <div className={`px-2 py-0.5 rounded-full border text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1 bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border-${roleConfig.color}-100`}>
-                    <span className={`w-1.5 h-1.5 rounded-full bg-${roleConfig.color}-500`}></span>
-                    {roleConfig.label}
+          <div className="flex items-center gap-2 sm:gap-6">
+             {/* DATABASE CONNECT BUTTON - SELALU TERLIHAT DI HP & DESKTOP */}
+             <button 
+                onClick={() => setIsConnectionModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-slate-900 transition-all border border-indigo-700 shadow-lg shadow-indigo-100 animate-pulse-slow"
+             >
+                <Cloud className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest hidden xs:inline">Koneksi</span>
+             </button>
+
+             <div className="flex items-center gap-2 sm:gap-4 bg-slate-50/80 px-2 sm:px-4 py-1.5 rounded-2xl border border-slate-100 shadow-inner">
+                <div className="flex flex-col items-end">
+                    <p className="text-[11px] sm:text-[13px] font-black text-slate-900 tracking-tight leading-none mb-1">
+                        {currentUser.nama_lengkap}
+                    </p>
+                    <div className={`px-2 py-0.5 rounded-full border text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1 bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border-${roleConfig.color}-100`}>
+                        <span className={`w-1.5 h-1.5 rounded-full bg-${roleConfig.color}-500`}></span>
+                        {roleConfig.label}
+                    </div>
                 </div>
-             </div>
-             
-             <div className="relative group">
-                <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-1 p-0.5 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200">
-                    <img src={currentUser.avatar} alt="Profile" className="w-9 h-9 rounded-full"/>
-                </button>
                 
-                {isProfileMenuOpen && (
-                    <div className="absolute right-0 top-12 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[110] overflow-hidden py-2 animate-fade-in-up">
-                    <div className="px-4 py-2 border-b mb-1 bg-slate-50/50">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email Sesi</p>
-                            <p className="text-[10px] font-bold text-slate-600 truncate">{currentUser.email}</p>
-                    </div>
-                    <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-black transition-colors">
-                        <LogOut className="w-4 h-4"/> Keluar
+                <div className="relative group">
+                    <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-1 p-0.5 rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200">
+                        <img src={currentUser.avatar} alt="Profile" className="w-9 h-9 rounded-full"/>
                     </button>
-                    </div>
-                )}
+                    
+                    {isProfileMenuOpen && (
+                        <div className="absolute right-0 top-12 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[110] overflow-hidden py-2 animate-fade-in-up">
+                        <div className="px-4 py-2 border-b mb-1 bg-slate-50/50">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email Sesi</p>
+                                <p className="text-[10px] font-bold text-slate-600 truncate">{currentUser.email}</p>
+                        </div>
+                        <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-black transition-colors">
+                            <LogOut className="w-4 h-4"/> Keluar
+                        </button>
+                        </div>
+                    )}
+                </div>
              </div>
           </div>
         </div>
       </header>
 
-      {/* MAIN AREA DENGAN PADDING TOP UNTUK FIXED HEADER */}
       <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pt-24 pb-32">
         {isGuru ? (
             <div className="animate-fade-in space-y-8 max-w-4xl mx-auto">
@@ -480,7 +491,6 @@ const App: React.FC = () => {
             </div>
         ) : (
             <div className="animate-fade-in space-y-6 sm:space-y-8">
-                {/* COMPACT CLUSTER HEADER */}
                 <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex justify-between items-center relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
                     <div className="flex items-center gap-4 sm:gap-6 relative z-10">
@@ -525,6 +535,9 @@ const App: React.FC = () => {
             </div>
         )}
       </main>
+
+      {/* CONNECTION MODAL */}
+      <ConnectionModal isOpen={isConnectionModalOpen} onClose={() => setIsConnectionModalOpen(false)} />
 
       {/* FLOATING AI ASSISTANT */}
       <div className={`fixed bottom-0 right-0 z-50 p-6 transition-all duration-300 ${isChatOpen ? 'w-full max-w-lg' : 'w-auto'}`}>
