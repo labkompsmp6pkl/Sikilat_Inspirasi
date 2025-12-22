@@ -39,7 +39,9 @@ const AgendaActivityTable: React.FC<AgendaActivityTableProps> = ({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentData = filteredActivities.slice(startIndex, startIndex + itemsPerPage);
 
-  const canApprove = ['admin', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras'].includes(currentUserRole);
+  // Perubahan Logika: Hanya Pengawas IT, Sarpras, dan PJ yang bisa melakukan persetujuan
+  // Admin hanya melihat detail info
+  const canApprove = ['penanggung_jawab', 'pengawas_it', 'pengawas_sarpras'].includes(currentUserRole);
 
   const pendingTodayCount = activities.filter(a => {
       const isToday = new Date(a.waktu_mulai).toDateString() === new Date().toDateString();
