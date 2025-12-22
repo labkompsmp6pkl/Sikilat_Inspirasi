@@ -81,38 +81,31 @@ const db = {
     localStorage.setItem(key, JSON.stringify(data));
   },
 
-  // Perbaikan: addRecord sekarang bersifat async untuk simulasi network sync
   addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
     const tableData = db.getTable(tableName);
     const recordKey = 'id' in record ? 'id' : 
                       'id_peminjaman' in record ? 'id_peminjaman' : 
                       'id_barang' in record ? 'id_barang' : 
-                      'id_pengguna' in record ? 'id_pengguna' : null;
+                      'id_pengguna' in record ? 'id_pengguna' : 'id';
 
     let operationType = 'INSERT';
-    if (recordKey) {
-        const existingIndex = (tableData as any[]).findIndex((r: any) => r[recordKey] === record[recordKey]);
-        if (existingIndex > -1) {
-            (tableData as any[])[existingIndex] = record;
-            operationType = 'UPDATE';
-        } else {
-            (tableData as any[])[existingIndex] = record; // Fallback update if key matched somehow
-            if (existingIndex === -1) (tableData as any[]).unshift(record);
-        }
+    const existingIndex = (tableData as any[]).findIndex((r: any) => r[recordKey] === record[recordKey]);
+    
+    if (existingIndex > -1) {
+        (tableData as any[])[existingIndex] = { ...record };
+        operationType = 'UPDATE';
     } else {
-         (tableData as any[]).unshift(record);
+        (tableData as any[]).unshift({ ...record });
+        operationType = 'INSERT';
     }
     
     db.saveTable(tableName, tableData as any);
     
-    // --- AUTOMATIC REAL-TIME CLOUD SYNC ---
     const config = db.getCloudConfig();
-    const docId = record[recordKey || 'id'] || 'AUTO_GEN';
+    const docId = record[recordKey] || `AUTO_${Date.now()}`;
     
-    // Simulate Network Latency for "Live" feel
     await new Promise(resolve => setTimeout(resolve, 800));
-    
-    db.addSyncLog(`AUTO-SYNC [${operationType}]: ${tableName.toUpperCase()} | DocID: ${docId} | Node: ${config.endpoint.split('.')[1]}`);
+    db.addSyncLog(`AUTO-SYNC [${operationType}]: ${tableName.toUpperCase()} | DocID: ${docId}`);
     
     return true;
   },
@@ -142,16 +135,23 @@ const db = {
   exportForCouchbase: () => {
     const allData: any[] = [];
     const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'inventaris', 'agenda_kegiatan', 'penilaian_aset'];
+    const exportTimestamp = new Date().getTime();
     
     tables.forEach(table => {
       const data = db.getTable(table);
-      data.forEach(doc => {
+      data.forEach((doc, index) => {
           const anyDoc = doc as any;
+          // Membuat kunci yang benar-benar unik dan deskriptif
+          const internalId = anyDoc.id || anyDoc.id_peminjaman || anyDoc.id_barang || `gen_${index}`;
+          const idCouch = `${table}::${internalId}`.replace(/\s+/g, '_');
+
           allData.push({
               ...doc,
-              type: table,
-              updated_at: new Date().toISOString(),
-              id_couch: `${table}::${anyDoc.id || anyDoc.id_peminjaman || anyDoc.id_barang || Math.random()}`
+              doc_type: table,
+              exported_at: new Date().toISOString(),
+              // Menggunakan field 'id' sebagai prioritas utama karena Couchbase Import sering mencari field ini
+              id: idCouch, 
+              id_couch: idCouch
           });
       });
     });
@@ -160,7 +160,7 @@ const db = {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `capella_live_sync_${new Date().getTime()}.json`;
+    link.download = `SIKILAT_CAPELLA_EXPORT_${exportTimestamp}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
