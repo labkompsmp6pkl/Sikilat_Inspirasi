@@ -12,7 +12,6 @@ import db from './services/dbService';
 import { generateReplySuggestion } from './services/geminiService';
 import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin } from 'lucide-react';
 
-// Rest of AssetEvaluationSummary remains the same ...
 const AssetEvaluationSummary: React.FC<{ 
     evaluations: PenilaianAset[], 
     inventaris: Inventaris[], 
@@ -109,7 +108,6 @@ const AssetEvaluationSummary: React.FC<{
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-5 scrollbar-hide">
                 {filteredList.length > 0 ? filteredList.map(ev => {
-                    const isMyEvaluation = ev.id_pengguna === currentUser.id_pengguna;
                     const hasAdminReply = !!ev.balasan_admin;
                     const hasGuestFollowUp = !!ev.tanggapan_tamu;
                     const isResolved = ev.status_penanganan === 'Selesai';
@@ -150,18 +148,6 @@ const AssetEvaluationSummary: React.FC<{
                                 </div>
                             )}
 
-                            {(hasGuestFollowUp && !isCurrentlyGuestCommenting) && (
-                                <div className="ml-4 mb-4 p-4 bg-slate-100/50 rounded-2xl border border-slate-200 shadow-sm relative animate-fade-in">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[8px] font-black">T</div>
-                                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">Komentar Lagi</span>
-                                        </div>
-                                    </div>
-                                    <p className="text-[11px] text-slate-700 leading-relaxed">"{ev.tanggapan_tamu}"</p>
-                                </div>
-                            )}
-
                             {isCurrentlyAdminReplying && (
                                 <div className="ml-4 mb-4 space-y-3 animate-slide-up">
                                     <div className="relative group">
@@ -190,44 +176,6 @@ const AssetEvaluationSummary: React.FC<{
                                 </div>
                             )}
 
-                            {isCurrentlyGuestCommenting && (
-                                <div className="ml-4 mb-4 space-y-3 animate-slide-up bg-white p-4 rounded-2xl border border-slate-200 shadow-inner">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-[10px] font-black text-slate-500 uppercase">Review Bintang Selanjutnya</span>
-                                        <div className="flex gap-1">
-                                            {[1, 2, 3, 4, 5].map(star => (
-                                                <button key={star} onClick={() => setInteractionRating(star)}>
-                                                    <Star className={`w-4 h-4 ${star <= interactionRating ? 'text-amber-400 fill-current' : 'text-slate-200'}`} />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="relative group">
-                                        <textarea
-                                            value={interactionText}
-                                            onChange={(e) => setInteractionText(e.target.value)}
-                                            placeholder="Tulis ulasan tambahan Anda..."
-                                            className="w-full text-xs p-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white min-h-[100px] shadow-sm transition-all"
-                                            autoFocus
-                                        />
-                                        <button 
-                                            onClick={() => handleAutoSuggest(ev)}
-                                            disabled={isGenerating}
-                                            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
-                                        >
-                                            <Sparkle className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                                            Bantu AI
-                                        </button>
-                                    </div>
-                                    <div className="flex justify-end gap-2">
-                                        <button onClick={() => setCommentingId(null)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:bg-slate-100 rounded-xl transition-all">Batal</button>
-                                        <button onClick={() => handleSaveGuest(ev.id)} className="px-5 py-2 bg-blue-600 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-blue-700 flex items-center gap-2 transition-all active:scale-95">
-                                            <Send className="w-3.5 h-3.5" /> Kirim Komentar
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
                             <div className="flex justify-between items-center pt-4 border-t border-slate-200/40 mt-3">
                                  <div className="flex items-center gap-2">
                                     <div className="w-5 h-5 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center text-[8px] font-black">{ev.nama_pengguna.charAt(0)}</div>
@@ -242,38 +190,6 @@ const AssetEvaluationSummary: React.FC<{
                                         >
                                             <Undo2 className="w-3.5 h-3.5" /> {hasAdminReply ? 'Ubah Balasan' : 'Balas Cepat'}
                                         </button>
-                                     )}
-
-                                     {isTamu && isMyEvaluation && !isCurrentlyGuestCommenting && (
-                                        <>
-                                            {!isResolved ? (
-                                                <div className="flex gap-2">
-                                                    {hasAdminReply && (
-                                                        <button 
-                                                            onClick={() => onCompleteAction(ev.id, 'Selesai')} 
-                                                            className="px-4 py-1.5 bg-emerald-600 text-white text-[10px] font-black rounded-xl uppercase hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
-                                                        >
-                                                            <Check className="w-3 h-3" /> Selesaikan
-                                                        </button>
-                                                    )}
-                                                    <button 
-                                                        onClick={() => handleStartGuestComment(ev)} 
-                                                        className="text-[10px] font-black text-slate-500 hover:text-blue-600 border border-slate-200 px-3 py-1.5 rounded-xl bg-white shadow-sm transition-all"
-                                                    >
-                                                        Komentari Lagi
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-1.5 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
-                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                                    <span className="text-[10px] font-black text-emerald-600 uppercase">DITUTUP</span>
-                                                </div>
-                                            )}
-                                        </>
-                                     )}
-                                     
-                                     {isTamu && isResolved && (
-                                        <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-black text-blue-600 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm hover:bg-blue-50 transition-all active:scale-95">Beri Review Baru</button>
                                      )}
                                  </div>
                             </div>
@@ -458,21 +374,37 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-slate-200"> S </div>
-             <span className="font-bold text-slate-800 text-lg tracking-tight">SIKILAT SMP 6 Pekalongan</span>
+        <div className="max-w-screen-2xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-slate-200 flex-shrink-0"> S </div>
+             <div className="hidden sm:block">
+                <span className="font-bold text-slate-800 text-lg tracking-tight">SIKILAT</span>
+                <span className="ml-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">SMP 6 PKL</span>
+             </div>
           </div>
-          <div className="flex items-center gap-2">
-             <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200">
+
+          {/* PERMANENT IDENTITY IN HEADER - FOR SCREENSHOTS */}
+          <div className="flex items-center gap-3">
+             <div className="flex flex-col items-end mr-1 sm:mr-3">
+                <p className="text-[11px] sm:text-xs font-black text-slate-800 tracking-tight truncate max-w-[120px] sm:max-w-none">
+                    {currentUser.nama_lengkap}
+                </p>
+                <div className={`mt-0.5 px-2 py-0.5 rounded-full border text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1 bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border-${roleConfig.color}-100`}>
+                    <span className={`w-1.5 h-1.5 rounded-full bg-${roleConfig.color}-500`}></span>
+                    {roleConfig.label}
+                </div>
+             </div>
+             
+             <button onClick={() => setIsProfileMenuOpen(prev => !prev)} className="flex items-center gap-1 p-1 rounded-full hover:bg-slate-100 transition-colors border border-slate-200">
                 <img src={currentUser.avatar} alt="Profile" className="w-9 h-9 rounded-full ring-2 ring-slate-100"/>
-                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
              </button>
+             
              {isProfileMenuOpen && (
-                <div className="absolute right-8 top-16 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden py-2 animate-fade-in-up">
+                <div className="absolute right-4 top-16 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden py-2 animate-fade-in-up">
                    <div className="px-4 py-3 border-b mb-1 bg-slate-50/50">
-                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">{roleConfig.label}</p>
-                        <p className="text-sm font-bold text-slate-800 truncate">{currentUser.nama_lengkap}</p>
+                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Email</p>
+                        <p className="text-xs font-bold text-slate-800 truncate">{currentUser.email}</p>
                    </div>
                    <button onClick={handleLogout} className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 font-bold transition-colors">
                       <LogOut className="w-4 h-4"/> Keluar
@@ -486,17 +418,17 @@ const App: React.FC = () => {
       <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-32">
         {isGuru ? (
             <div className="animate-fade-in space-y-8 max-w-4xl mx-auto">
-                <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 rounded-[3rem] p-10 shadow-2xl text-white relative overflow-hidden">
+                <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 rounded-[3rem] p-8 sm:p-10 shadow-2xl text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full -mr-32 -mt-32 blur-[100px]"></div>
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-32 -mb-32 blur-[80px]"></div>
                     <div className="relative z-10">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-6 border border-white/20 backdrop-blur-md">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-4 sm:mb-6 border border-white/20 backdrop-blur-md">
                             <Sparkles className="w-3.5 h-3.5 text-blue-300" />
-                            Workspace Guru & Staf
+                            Workspace
                         </div>
-                        <h2 className="text-5xl font-black mb-4 leading-tight">Halo, Bapak/Ibu <br/>{currentUser.nama_lengkap.split(' ')[0]}</h2>
-                        <p className="text-blue-100/80 text-lg max-w-xl leading-relaxed font-medium">
-                            Pantau status laporan kerusakan dan peminjaman inventaris Anda secara real-time. Hubungi asisten AI untuk bantuan instan.
+                        <h2 className="text-3xl sm:text-5xl font-black mb-4 leading-tight">Halo, Bapak/Ibu <br/>{currentUser.nama_lengkap.split(' ')[0]}</h2>
+                        <p className="text-blue-100/80 text-sm sm:text-lg max-w-xl leading-relaxed font-medium">
+                            Pantau status laporan kerusakan dan peminjaman inventaris Anda secara real-time.
                         </p>
                     </div>
                 </div>
@@ -524,15 +456,15 @@ const App: React.FC = () => {
             </div>
         ) : isTamu ? (
             <div className="animate-fade-in space-y-8 max-w-6xl mx-auto">
-                 <div className="bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
-                    <div className="w-28 h-28 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-inner">
-                        <Globe className="w-14 h-14" />
+                 <div className="bg-white rounded-[3rem] p-8 sm:p-12 shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-6 sm:gap-10">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-inner">
+                        <Globe className="w-10 h-10 sm:w-14 sm:h-14" />
                     </div>
                     <div className="text-center md:text-left flex-1">
-                        <h2 className="text-4xl font-black text-slate-900 mb-3 tracking-tight">Pusat Layanan Tamu</h2>
-                        <p className="text-slate-500 font-medium text-lg leading-relaxed">Berikan penilaian Anda terhadap fasilitas sekolah kami untuk membantu kami terus berkembang.</p>
+                        <h2 className="text-2xl sm:text-4xl font-black text-slate-900 mb-2 sm:mb-3 tracking-tight">Pusat Layanan Tamu</h2>
+                        <p className="text-slate-500 font-medium text-sm sm:text-lg leading-relaxed">Bantu kami meningkatkan kualitas fasilitas sekolah.</p>
                     </div>
-                    <button onClick={() => setIsChatOpen(true)} className="px-10 py-5 bg-slate-900 text-white font-black rounded-3xl shadow-2xl hover:bg-blue-600 active:scale-95 transition-all text-lg flex items-center gap-3">
+                    <button onClick={() => setIsChatOpen(true)} className="w-full sm:w-auto px-10 py-4 sm:py-5 bg-slate-900 text-white font-black rounded-3xl shadow-2xl hover:bg-blue-600 active:scale-95 transition-all text-lg flex items-center justify-center gap-3">
                         <MessageCircle className="w-6 h-6" /> Hubungi AI
                     </button>
                  </div>
@@ -560,24 +492,25 @@ const App: React.FC = () => {
                  </div>
             </div>
         ) : (
-            <div className="animate-fade-in space-y-8">
-                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 flex justify-between items-center">
-                    <div className="flex items-center gap-6">
-                        <div className={`p-5 rounded-3xl bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border border-${roleConfig.color}-100 shadow-sm`}>
-                            <ShieldCheck className="w-8 h-8" />
+            <div className="animate-fade-in space-y-6 sm:space-y-8">
+                {/* COMPACT CLUSTER HEADER */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex justify-between items-center">
+                    <div className="flex items-center gap-4 sm:gap-6">
+                        <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-${roleConfig.color}-50 text-${roleConfig.color}-600 border border-${roleConfig.color}-100 shadow-sm`}>
+                            <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Operational Cluster</h2>
-                            <p className="text-xs text-slate-400 font-black uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                Logged as {roleConfig.label}
+                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Dashboard Cluster</h2>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Sistem Aktif
                             </p>
                         </div>
                     </div>
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                    <div className="lg:col-span-2 space-y-10">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10">
+                    <div className="lg:col-span-2 space-y-8 sm:space-y-10">
                         {canSeeAgenda && (
                             <AgendaActivityTable 
                                 activities={activities} 
@@ -589,7 +522,7 @@ const App: React.FC = () => {
                         {canSeePendingTickets && <PendingTicketTable reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />}
                     </div>
 
-                    <div className="space-y-10">
+                    <div className="space-y-8 sm:space-y-10">
                         {canSeeEvaluations && <AssetEvaluationSummary 
                             evaluations={evaluations} 
                             inventaris={inventaris} 
