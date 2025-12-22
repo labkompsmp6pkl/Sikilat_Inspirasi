@@ -40,9 +40,9 @@ const today = new Date();
 const daysAgo = (days: number) => new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
 
 export const MOCK_PENILAIAN_ASET: PenilaianAset[] = [
-    { id: 'EV-001', id_barang: 'inv01', nama_barang: 'PC Desktop', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 4, ulasan: 'Komputer cepat tapi keyboard agak berdebu.', tanggal: daysAgo(1) },
-    { id: 'EV-002', id_barang: 'inv02', nama_barang: 'Proyektor Epson', id_pengguna: 'u7', nama_pengguna: 'Tamu 1', skor: 2, ulasan: 'Warna sudah mulai pudar, perlu kalibrasi.', tanggal: daysAgo(3) },
-    { id: 'EV-003', id_barang: 'inv03', nama_barang: 'AC Panasonic', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 5, ulasan: 'Sangat dingin dan nyaman.', tanggal: daysAgo(5) }
+    { id: 'EV-001', id_barang: 'inv01', nama_barang: 'PC Desktop', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 4, ulasan: 'Komputer cepat tapi keyboard agak berdebu.', tanggal: daysAgo(1), status_penanganan: 'Terbuka' },
+    { id: 'EV-002', id_barang: 'inv02', nama_barang: 'Proyektor Epson', id_pengguna: 'u7', nama_pengguna: 'Tamu 1', skor: 2, ulasan: 'Warna sudah mulai pudar, perlu kalibrasi.', tanggal: daysAgo(3), status_penanganan: 'Selesai', balasan_admin: 'Terima kasih informasinya, tim IT akan segera menjadwalkan kalibrasi minggu ini.', tanggal_balasan: daysAgo(2) },
+    { id: 'EV-003', id_barang: 'inv03', nama_barang: 'AC Panasonic', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 5, ulasan: 'Sangat dingin dan nyaman.', tanggal: daysAgo(5), status_penanganan: 'Terbuka' }
 ];
 
 export const MOCK_AGENDA_KEGIATAN: AgendaKegiatan[] = [

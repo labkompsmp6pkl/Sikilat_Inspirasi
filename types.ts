@@ -41,6 +41,11 @@ export interface PenilaianAset {
   skor: number; // 1-5 stars
   ulasan: string;
   tanggal: Date;
+  // New interaction fields
+  balasan_admin?: string;
+  tanggal_balasan?: Date;
+  tanggapan_tamu?: string;
+  status_penanganan?: 'Terbuka' | 'Selesai';
 }
 
 export interface Pengguna {
