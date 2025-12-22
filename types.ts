@@ -36,12 +36,12 @@ export interface PenilaianAset {
   id: string;
   id_barang: string;
   nama_barang: string;
+  lokasi?: string; // New: Location context
   id_pengguna: string;
   nama_pengguna: string;
   skor: number; // 1-5 stars
   ulasan: string;
   tanggal: Date;
-  // New interaction fields
   balasan_admin?: string;
   tanggal_balasan?: Date;
   tanggapan_tamu?: string;

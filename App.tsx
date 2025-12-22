@@ -10,7 +10,7 @@ import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
 import { generateReplySuggestion } from './services/geminiService';
-import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle } from 'lucide-react';
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles, ClipboardList, ShieldAlert, Undo2, Check, Send, Sparkle, MapPin } from 'lucide-react';
 
 const AssetEvaluationSummary: React.FC<{ 
     evaluations: PenilaianAset[], 
@@ -65,7 +65,7 @@ const AssetEvaluationSummary: React.FC<{
     return (
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-full max-h-[700px]">
             <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
                     <MessageSquare className="w-5 h-5 text-blue-500" />
                     Review & Penilaian Aset
                 </h3>
@@ -88,7 +88,7 @@ const AssetEvaluationSummary: React.FC<{
                 ))}
             </div>
             
-            <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto pr-2 space-y-5 scrollbar-hide">
                 {filteredList.length > 0 ? filteredList.map(ev => {
                     const isMyEvaluation = ev.id_pengguna === currentUser.id_pengguna;
                     const hasAdminReply = !!ev.balasan_admin;
@@ -96,74 +96,87 @@ const AssetEvaluationSummary: React.FC<{
                     const isCurrentlyReplying = replyingId === ev.id;
 
                     return (
-                        <div key={ev.id} className={`p-4 rounded-2xl border transition-all ${isResolved ? 'bg-emerald-50/50 border-emerald-100 opacity-80' : 'bg-slate-50/50 border-slate-100 shadow-sm'} group`}>
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center gap-2">
-                                    <p className="text-xs font-bold text-slate-800">{ev.nama_barang}</p>
-                                    {isResolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                        <div key={ev.id} className={`p-5 rounded-3xl border transition-all ${isResolved ? 'bg-emerald-50/40 border-emerald-100 opacity-80' : 'bg-slate-50/50 border-slate-100 shadow-sm'} group relative`}>
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-black text-slate-900">{ev.nama_barang}</p>
+                                        {isResolved && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        <MapPin className="w-3 h-3" />
+                                        {ev.lokasi || 'Lokasi tidak diketahui'}
+                                    </div>
                                 </div>
                                 <div className="flex gap-0.5">
                                     {[...Array(5)].map((_, i) => (
-                                        <Star key={i} className={`w-3 h-3 ${i < ev.skor ? 'text-amber-400 fill-current' : 'text-slate-200'}`} />
+                                        <Star key={i} className={`w-3.5 h-3.5 ${i < ev.skor ? 'text-amber-400 fill-current' : 'text-slate-200'}`} />
                                     ))}
                                 </div>
                             </div>
-                            <p className="text-[11px] text-slate-600 italic leading-relaxed mb-4">"{ev.ulasan}"</p>
+                            <p className="text-[12px] text-slate-600 italic leading-relaxed mb-5 px-1 border-l-4 border-slate-200">"{ev.ulasan}"</p>
                             
-                            {/* THREAD BALASAN */}
+                            {/* THREAD BALASAN (SOCIAL STYLE) */}
                             {(hasAdminReply && !isCurrentlyReplying) && (
-                                <div className="ml-4 mb-4 p-3 bg-blue-50 rounded-xl border-l-4 border-blue-400">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Balasan Admin</span>
-                                        <span className="text-[8px] text-blue-400 font-bold">{ev.tanggal_balasan ? new Date(ev.tanggal_balasan).toLocaleDateString() : ''}</span>
+                                <div className="ml-4 mb-4 p-4 bg-white/60 rounded-2xl border border-blue-100 shadow-sm relative animate-fade-in">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[8px] font-black">A</div>
+                                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Balasan Admin</span>
+                                        </div>
+                                        <span className="text-[9px] text-slate-400 font-bold">{ev.tanggal_balasan ? new Date(ev.tanggal_balasan).toLocaleDateString() : ''}</span>
                                     </div>
-                                    <p className="text-[10px] text-blue-800 leading-relaxed font-medium">"{ev.balasan_admin}"</p>
+                                    <p className="text-[11px] text-slate-700 leading-relaxed">"{ev.balasan_admin}"</p>
                                 </div>
                             )}
 
                             {/* INLINE REPLY INPUT (MANAGER ONLY) */}
                             {isCurrentlyReplying && (
-                                <div className="ml-4 mb-4 space-y-2 animate-fade-in">
-                                    <div className="relative">
+                                <div className="ml-4 mb-4 space-y-3 animate-slide-up">
+                                    <div className="relative group">
                                         <textarea
                                             value={replyText}
                                             onChange={(e) => setReplyText(e.target.value)}
-                                            placeholder="Tulis balasan Anda..."
-                                            className="w-full text-xs p-3 rounded-xl border border-blue-200 focus:ring-2 focus:ring-blue-500 bg-white min-h-[80px] pr-10 shadow-inner"
+                                            placeholder="Tulis balasan Anda secara langsung..."
+                                            className="w-full text-xs p-4 rounded-2xl border border-blue-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 bg-white min-h-[100px] shadow-sm transition-all"
                                             autoFocus
                                         />
                                         <button 
                                             onClick={() => handleAutoSuggest(ev)}
                                             disabled={isGenerating}
-                                            className="absolute top-2 right-2 p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                                            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
                                             title="Saran Balasan AI"
                                         >
-                                            <Sparkle className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                                            <Sparkle className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                                            AI Suggest
                                         </button>
                                     </div>
                                     <div className="flex justify-end gap-2">
-                                        <button onClick={() => setReplyingId(null)} className="px-3 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
+                                        <button onClick={() => setReplyingId(null)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all">Batal</button>
                                         <button 
                                             onClick={() => handleSave(ev.id)} 
-                                            className="px-4 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg shadow-md hover:bg-blue-700 flex items-center gap-1.5"
+                                            className="px-5 py-2 bg-slate-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-blue-600 flex items-center gap-2 transition-all active:scale-95"
                                         >
-                                            <Send className="w-3 h-3" /> Simpan Balasan
+                                            <Send className="w-3.5 h-3.5" /> Kirim Balasan
                                         </button>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="flex justify-between items-center pt-3 border-t border-slate-200/50 mt-2">
-                                 <span className="text-[10px] text-slate-400 font-medium">Oleh: {ev.nama_pengguna}</span>
+                            <div className="flex justify-between items-center pt-4 border-t border-slate-200/40 mt-3">
+                                 <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center text-[8px] font-black">{ev.nama_pengguna.charAt(0)}</div>
+                                    <span className="text-[10px] text-slate-400 font-bold tracking-tight">Oleh: {ev.nama_pengguna}</span>
+                                 </div>
                                  
                                  <div className="flex gap-2">
                                      {/* Admin Action */}
                                      {isManager && !isResolved && !isCurrentlyReplying && (
                                         <button 
                                             onClick={() => handleStartReply(ev)} 
-                                            className="text-[10px] font-bold text-blue-600 flex items-center gap-1 hover:underline bg-white px-2 py-1 rounded-lg border border-blue-50 shadow-sm"
+                                            className="text-[10px] font-black text-blue-600 flex items-center gap-1.5 hover:bg-blue-50 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm transition-all active:scale-95"
                                         >
-                                            <Undo2 className="w-3 h-3" /> {hasAdminReply ? 'Ubah Balasan' : 'Balas Review'}
+                                            <Undo2 className="w-3.5 h-3.5" /> {hasAdminReply ? 'Ubah Balasan' : 'Balas Cepat'}
                                         </button>
                                      )}
 
@@ -174,28 +187,29 @@ const AssetEvaluationSummary: React.FC<{
                                                 <div className="flex gap-2">
                                                     <button 
                                                         onClick={() => onCompleteAction(ev.id, 'Selesai')} 
-                                                        className="px-2 py-1 bg-emerald-600 text-white text-[9px] font-black rounded uppercase hover:bg-emerald-700 transition-colors flex items-center gap-1 shadow-sm"
+                                                        className="px-4 py-1.5 bg-emerald-600 text-white text-[10px] font-black rounded-xl uppercase hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
                                                     >
-                                                        <Check className="w-2.5 h-2.5" /> Selesai
+                                                        <Check className="w-3 h-3" /> Selesaikan
                                                     </button>
                                                     <button 
                                                         onClick={() => onReviewAsset?.(ev.nama_barang)} 
-                                                        className="text-[9px] font-bold text-slate-500 hover:text-blue-600 border border-slate-200 px-2 py-1 rounded bg-white shadow-sm"
+                                                        className="text-[10px] font-black text-slate-500 hover:text-blue-600 border border-slate-200 px-3 py-1.5 rounded-xl bg-white shadow-sm transition-all"
                                                     >
                                                         Lanjut Tanya
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <span className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200">
-                                                    <CheckCircle2 className="w-2.5 h-2.5" /> Ditutup
-                                                </span>
+                                                <div className="flex items-center gap-1.5 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200">
+                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                    <span className="text-[10px] font-black text-emerald-600 uppercase">DITUTUP</span>
+                                                </div>
                                             )}
                                         </>
                                      )}
                                      
                                      {/* Tamu - Feedback button if not replied */}
                                      {isTamu && !hasAdminReply && !isResolved && (
-                                        <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-bold text-blue-600 bg-white px-2 py-1 rounded-lg border border-blue-50 shadow-sm">Kirim Komentar</button>
+                                        <button onClick={() => onReviewAsset?.(ev.nama_barang)} className="text-[10px] font-black text-blue-600 bg-white px-3 py-1.5 rounded-xl border border-blue-50 shadow-sm hover:bg-blue-50 transition-all active:scale-95">Komentari Lagi</button>
                                      )}
                                  </div>
                             </div>
