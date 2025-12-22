@@ -9,7 +9,8 @@ import AgendaActivityTable from './components/AgendaActivityTable';
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
-import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter } from 'lucide-react';
+// Added Sparkles icon to imports
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter, Bookmark, User as UserIcon, Sparkles } from 'lucide-react';
 
 const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventaris: Inventaris[], onReviewAsset?: (name: string) => void }> = ({ evaluations, inventaris, onReviewAsset }) => {
     const [filterCategory, setFilterCategory] = useState<'All' | 'IT' | 'Sarpras'>('All');
@@ -41,7 +42,7 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
     }, [filteredList]);
 
     return (
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-full max-h-[800px]">
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-full max-h-[700px]">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <MessageSquare className="w-5 h-5 text-blue-500" />
@@ -60,35 +61,13 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                         <button
                             key={cat}
                             onClick={() => setFilterCategory(cat)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
                                 filterCategory === cat 
                                 ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
                                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
                             }`}
                         >
-                            {cat === 'All' ? 'Semua Kategori' : cat === 'IT' ? 'Aset IT' : 'Sarpras & Umum'}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    <button
-                        onClick={() => setFilterRating(0)}
-                        className={`flex-shrink-0 px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                            filterRating === 0 ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-400 border-slate-100'
-                        }`}
-                    >
-                        Semua Rating
-                    </button>
-                    {[5, 4, 3, 2, 1].map(star => (
-                        <button
-                            key={star}
-                            onClick={() => setFilterRating(star)}
-                            className={`flex-shrink-0 px-3 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${
-                                filterRating === star ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-white text-slate-400 border-slate-100'
-                            }`}
-                        >
-                            {star} <Star className={`w-3 h-3 ${filterRating === star ? 'fill-current' : ''}`} />
+                            {cat === 'All' ? 'Semua' : cat === 'IT' ? 'IT' : 'Sarpras'}
                         </button>
                     ))}
                 </div>
@@ -129,7 +108,7 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                                         onClick={() => onReviewAsset(ev.nama_barang)}
                                         className="text-[10px] font-bold text-blue-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
-                                        Ikut Review <ArrowRight className="w-3 h-3" />
+                                        Beri Review <ArrowRight className="w-3 h-3" />
                                     </button>
                                 )}
                             </div>
@@ -138,7 +117,7 @@ const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventari
                 }) : (
                     <div className="flex flex-col items-center justify-center py-12 text-center opacity-50">
                         <ListFilter className="w-10 h-10 text-slate-300 mb-2" />
-                        <p className="text-xs text-slate-500 font-medium">Tidak ada ulasan yang sesuai filter</p>
+                        <p className="text-xs text-slate-500 font-medium">Tidak ada ulasan</p>
                     </div>
                 )}
             </div>
@@ -238,7 +217,6 @@ const App: React.FC = () => {
   }, []);
 
   const handleReviewAsset = useCallback((assetName: string) => {
-      // Prompt simplified for cleaner AI logic
       const prompt = `Saya ingin memberi penilaian untuk aset: ${assetName}`;
       setExternalMessage(prompt);
       setIsChatOpen(true);
@@ -251,9 +229,10 @@ const App: React.FC = () => {
   const isInternalStaff = ['admin', 'penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin'].includes(currentUser.peran);
   const isTechnicalStaff = ['penanggung_jawab'].includes(currentUser.peran);
   const isTamu = currentUser.peran === 'tamu';
+  const isGuru = currentUser.peran === 'guru';
 
   const canSeeAnalysis = isInternalStaff;
-  const canSeeEvaluations = isInternalStaff || isTamu;
+  const canSeeEvaluations = isInternalStaff || isTamu || isGuru;
   const canSeeAgenda = isInternalStaff;
   const canSeePendingTickets = isInternalStaff;
   const isReadOnly = !isTechnicalStaff;
@@ -285,43 +264,66 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-24">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-32">
         <div className="space-y-6">
-            {isTamu ? (
+            {/* GURU & TAMU LAYOUT (Simplified & Balanced) */}
+            {(isTamu || isGuru) ? (
                 <div className="animate-fade-in space-y-8">
-                    <div className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-                        <div className="relative z-10">
-                            <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
-                                <Globe className="w-8 h-8" />
-                                Halo, {currentUser.nama_lengkap}!
-                            </h2>
-                            <p className="text-blue-50 text-base max-w-2xl opacity-90">
-                                Bantu kami meningkatkan kualitas sekolah dengan memberikan penilaian terhadap fasilitas yang Anda gunakan hari ini. Suara Anda sangat berarti bagi kami.
-                            </p>
+                    {/* Hero Section */}
+                    <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-[2rem] p-8 shadow-2xl text-white relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full -mr-32 -mt-32 blur-[80px]"></div>
+                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-20 -mb-20 blur-[60px]"></div>
+                        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="max-w-2xl">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border border-white/10 backdrop-blur-md">
+                                    <Sparkles className="w-3 h-3 text-blue-400" />
+                                    SIKILAT - {roleConfig.label} Workspace
+                                </div>
+                                <h2 className="text-4xl font-black mb-3 leading-tight">
+                                    Halo, {currentUser.nama_lengkap.split(' ')[0]}!
+                                </h2>
+                                <p className="text-slate-300 text-base opacity-90 leading-relaxed">
+                                    {isGuru 
+                                        ? "Kelola peminjaman inventaris kelas dan laporkan kendala teknis dalam hitungan detik. Kami di sini untuk mendukung kelancaran pengajaran Anda."
+                                        : "Bantu kami meningkatkan kualitas sekolah dengan memberikan penilaian terhadap fasilitas yang Anda gunakan hari ini."}
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm text-center min-w-[120px]">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Status Anda</p>
+                                    <div className="text-emerald-400 font-black text-xl flex items-center justify-center gap-1.5">
+                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                        Active
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 space-y-6">
-                            <div className="flex justify-between items-center">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                        {/* LEFT: Dashboard atau Aset Tersedia */}
+                        <div className="space-y-6">
+                            {isGuru && <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />}
+                            
+                            <div className="space-y-4">
                                 <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                                     <Activity className="w-5 h-5 text-blue-600" />
-                                    Aset & Fasilitas Sekolah
+                                    Aset & Inventaris Sekolah
                                 </h3>
-                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full border border-slate-200">Terintegrasi AI</span>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {inventaris.length > 0 ? inventaris.map(item => (
-                                    <AvailableAssetCard key={item.id_barang} item={item} onReview={handleReviewAsset} />
-                                )) : (
-                                    <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-                                        <p className="text-slate-400">Memuat data aset...</p>
-                                    </div>
-                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {inventaris.length > 0 ? inventaris.map(item => (
+                                        <AvailableAssetCard key={item.id_barang} item={item} onReview={handleReviewAsset} />
+                                    )) : (
+                                        <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+                                            <p className="text-slate-400">Memuat data aset...</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <div className="space-y-6 lg:sticky lg:top-24 h-fit">
+
+                        {/* RIGHT: Penilaian & Feed */}
+                        <div className="lg:sticky lg:top-24 h-fit">
                             <AssetEvaluationSummary 
                                 evaluations={evaluations} 
                                 inventaris={inventaris} 
@@ -331,6 +333,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
             ) : (
+                /* ADMIN & PJ LAYOUT (Complex Monitoring) */
                 <div className="animate-fade-in space-y-6">
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex justify-between items-center">
                         <div className="flex items-start gap-4">
@@ -373,6 +376,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      {/* FIXED CHAT PANEL */}
       <div className={`fixed bottom-0 right-0 z-50 p-4 sm:p-6 transition-all duration-300 ${isChatOpen ? 'w-full max-w-lg' : 'w-auto'}`}>
           {isChatOpen ? (
               <div className="h-[600px] max-h-[85vh] shadow-2xl animate-slide-up">
@@ -394,7 +398,7 @@ const App: React.FC = () => {
               >
                   <MessageCircle className="w-6 h-6" />
                   <span className="font-bold text-sm hidden sm:inline pr-2">SIKILAT AI Assistant</span>
-                  {reports.filter(r => r.status === 'Pending').length > 0 && !isTamu && (
+                  {reports.filter(r => r.status === 'Pending').length > 0 && !isTamu && !isGuru && (
                     <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold ring-2 ring-white">
                         {reports.filter(r => r.status === 'Pending').length}
                     </span>

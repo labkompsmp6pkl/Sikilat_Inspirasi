@@ -10,11 +10,9 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
     // 1. Handling Asset Evaluation Form Trigger (Conversational Start)
     if (lowerMsg.includes('saya ingin memberi penilaian untuk aset:')) {
         const assetName = cleanMessage.split(':').pop()?.trim() || 'Aset';
-        const evals = db.getTable('penilaian_aset').filter(e => e.nama_barang === assetName);
-        const avg = evals.length > 0 ? (evals.reduce((a, b) => a + b.skor, 0) / evals.length).toFixed(1) : null;
-
+        
         return {
-            text: `Tentu! Saya akan membantu Anda memberikan penilaian untuk **${assetName}**. \n\n${avg ? `Saat ini aset ini memiliki rating rata-rata **${avg}/5** dari ulasan tamu sebelumnya.` : 'Aset ini belum memiliki ulasan sebelumnya.'} \n\nSilakan klik tombol di bawah untuk mengisi ulasan Anda: \n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "penilaian_aset", "label": "Buka Formulir Penilaian ${assetName}", "assetName": "${assetName}"}`
+            text: `Mempersiapkan formulir penilaian untuk **${assetName}**... \n\nSilakan klik tombol di bawah untuk mengisi detailnya: \n\n:::DATA_JSON:::{"type": "form_trigger", "formId": "penilaian_aset", "label": "Beri Penilaian ${assetName}", "assetName": "${assetName}"}`
         };
     }
 
@@ -45,7 +43,7 @@ const runSimulation = (message: string, user: User): GeminiResponse | null => {
                 };
 
                 return {
-                    text: `🌟 **Penilaian Berhasil Disimpan!**\n\nTerima kasih, ulasan Anda untuk **${barang}** telah masuk ke sistem. \n\n**Ringkasan:**\n- ⭐ Skor: ${skor}/5\n- 💬 Ulasan: "${ulasan}" \n\nIngin melihat ringkasan ulasan aset lainnya?`,
+                    text: `🌟 **Penilaian Berhasil Disimpan!**\n\nTerima kasih, ulasan Anda untuk **${barang}** telah masuk ke sistem. \n\n**Ringkasan:**\n- ⭐ Skor: ${skor}/5\n- 💬 Ulasan: "${ulasan}"`,
                     dataToSave: { table: 'penilaian_aset', payload: newEval }
                 };
             }
@@ -80,11 +78,11 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
 
   let systemInstruction = `Anda adalah SIKILAT AI Assistant. 
   Tugas utama Anda adalah membantu pengguna mengelola aset sekolah dengan cepat.
-  ATURAN:
-  1. Jangan memberikan kesimpulan panjang lebar (novel) kecuali diminta secara spesifik oleh pengguna menggunakan tombol "Buat Kesimpulan AI".
-  2. Jika pengguna ingin memberi penilaian atau melapor, berikan tombol form trigger menggunakan JSON :::DATA_JSON::: jika relevan.
-  3. Gunakan nada bicara profesional, singkat, dan solutif.
-  4. User saat ini: ${user.nama_lengkap} (Role: ${user.peran}).`;
+  ATURAN KETAT:
+  1. Jangan memberikan narasi panjang atau ringkasan riwayat aset saat pengguna ingin memberi penilaian. Langsung berikan tombol form trigger.
+  2. Gunakan JSON :::DATA_JSON::: untuk memberikan tombol aksi ("form_trigger") setiap kali pengguna menyebut ingin melaporkan atau menilai sesuatu.
+  3. Nada bicara: Sangat singkat, profesional, dan to-the-point.
+  4. User: ${user.nama_lengkap} (Role: ${user.peran}).`;
 
   let userPrompt = message;
   let modelName = 'gemini-3-flash-preview';
