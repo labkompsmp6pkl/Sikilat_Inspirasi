@@ -9,77 +9,169 @@ import AgendaActivityTable from './components/AgendaActivityTable';
 import { ROLE_CONFIGS } from './constants';
 import { User, UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Lokasi, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
-import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2 } from 'lucide-react';
+import { LogOut, ShieldCheck, Database, ChevronDown, CloudLightning, Share2, CheckCircle2, Globe, Key, Settings as SettingsIcon, X, Server, Wifi, Activity, Star, Monitor, Building2, MessageSquare, ArrowRight, Zap, MessageCircle, Filter, ListFilter } from 'lucide-react';
 
-const AssetEvaluationSummary = ({ evaluations, inventaris }: { evaluations: PenilaianAset[], inventaris: Inventaris[] }) => {
-    if (evaluations.length === 0) return null;
+const AssetEvaluationSummary: React.FC<{ evaluations: PenilaianAset[], inventaris: Inventaris[], onReviewAsset?: (name: string) => void }> = ({ evaluations, inventaris, onReviewAsset }) => {
+    const [filterCategory, setFilterCategory] = useState<'All' | 'IT' | 'Sarpras'>('All');
+    const [filterRating, setFilterRating] = useState<number>(0); // 0 means all ratings
 
-    // Helper to get category of an asset
     const getCategory = (evalItem: PenilaianAset) => {
         const item = inventaris.find(inv => inv.id_barang === evalItem.id_barang || inv.nama_barang === evalItem.nama_barang);
-        if (item) return item.kategori;
-        // Fallback detection for manual entries from AI
+        if (item) return item.kategori === 'IT' ? 'IT' : 'Sarpras';
         const name = evalItem.nama_barang.toLowerCase();
         if (name.includes('pc') || name.includes('komputer') || name.includes('proyektor') || name.includes('wifi') || name.includes('it')) return 'IT';
         return 'Sarpras';
     };
 
-    const itEvals = evaluations.filter(e => getCategory(e) === 'IT');
-    const sarprasEvals = evaluations.filter(e => getCategory(e) !== 'IT');
+    const filteredList = useMemo(() => {
+        return evaluations.filter(ev => {
+            const catMatch = filterCategory === 'All' || getCategory(ev) === filterCategory;
+            const ratMatch = filterRating === 0 || ev.skor === filterRating;
+            return catMatch && ratMatch;
+        });
+    }, [evaluations, filterCategory, filterRating]);
 
-    const renderEvalList = (list: PenilaianAset[], title: string, color: 'violet' | 'amber', Icon: any) => {
-        const avg = list.length > 0 ? (list.reduce((a, b) => a + b.skor, 0) / list.length).toFixed(1) : "0.0";
-        const colorClasses = {
-            violet: { border: 'border-violet-100', bg: 'bg-violet-50', text: 'text-violet-600', star: 'text-violet-500' },
-            amber: { border: 'border-amber-100', bg: 'bg-amber-50', text: 'text-amber-600', star: 'text-amber-500' }
+    const stats = useMemo(() => {
+        if (filteredList.length === 0) return { avg: "0.0", count: 0 };
+        const sum = filteredList.reduce((acc, curr) => acc + curr.skor, 0);
+        return {
+            avg: (sum / filteredList.length).toFixed(1),
+            count: filteredList.length
         };
-        const theme = colorClasses[color];
+    }, [filteredList]);
 
-        return (
-            <div className={`space-y-4 p-4 rounded-2xl border ${theme.border} ${theme.bg}/30`}>
-                <div className="flex justify-between items-center">
-                    <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${theme.text}`}>
-                        <Icon className="w-4 h-4" />
-                        {title}
-                    </h4>
-                    <div className="flex items-center gap-1">
-                        <Star className={`w-3 h-3 fill-current ${theme.star}`} />
-                        <span className="text-sm font-black text-slate-700">{avg}</span>
-                    </div>
+    return (
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-full max-h-[800px]">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-blue-500" />
+                    Review & Penilaian Aset
+                </h3>
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full">
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <span className="text-sm font-black text-slate-700">{stats.avg}</span>
+                    <span className="text-[10px] text-slate-400 font-bold ml-1">({stats.count})</span>
                 </div>
-                
-                <div className="space-y-3">
-                    {list.length > 0 ? list.slice(0, 3).map(ev => (
-                        <div key={ev.id} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                            <div className="flex justify-between items-start mb-1">
-                                <p className="text-[11px] font-bold text-slate-700 truncate w-2/3">{ev.nama_barang}</p>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="space-y-4 mb-6">
+                <div className="flex flex-wrap gap-2">
+                    {(['All', 'IT', 'Sarpras'] as const).map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setFilterCategory(cat)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                filterCategory === cat 
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                            }`}
+                        >
+                            {cat === 'All' ? 'Semua Kategori' : cat === 'IT' ? 'Aset IT' : 'Sarpras & Umum'}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <button
+                        onClick={() => setFilterRating(0)}
+                        className={`flex-shrink-0 px-3 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                            filterRating === 0 ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-400 border-slate-100'
+                        }`}
+                    >
+                        Semua Rating
+                    </button>
+                    {[5, 4, 3, 2, 1].map(star => (
+                        <button
+                            key={star}
+                            onClick={() => setFilterRating(star)}
+                            className={`flex-shrink-0 px-3 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${
+                                filterRating === star ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-white text-slate-400 border-slate-100'
+                            }`}
+                        >
+                            {star} <Star className={`w-3 h-3 ${filterRating === star ? 'fill-current' : ''}`} />
+                        </button>
+                    ))}
+                </div>
+            </div>
+            
+            {/* Review List */}
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-hide">
+                {filteredList.length > 0 ? filteredList.map(ev => {
+                    const category = getCategory(ev);
+                    const theme = category === 'IT' 
+                        ? { border: 'border-violet-100', text: 'text-violet-600', star: 'text-violet-500', bg: 'bg-violet-50' }
+                        : { border: 'border-amber-100', text: 'text-amber-600', star: 'text-amber-500', bg: 'bg-amber-50' };
+
+                    return (
+                        <div key={ev.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group animate-fade-in">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-800 mb-0.5">{ev.nama_barang}</p>
+                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${theme.bg} ${theme.text} border ${theme.border}`}>
+                                        {category}
+                                    </span>
+                                </div>
                                 <div className="flex gap-0.5">
                                     {[...Array(5)].map((_, i) => (
-                                        <Star key={i} className={`w-2.5 h-2.5 ${i < ev.skor ? theme.star + ' fill-current' : 'text-slate-200'}`} />
+                                        <Star key={i} className={`w-3 h-3 ${i < ev.skor ? 'text-amber-400 fill-current' : 'text-slate-100'}`} />
                                     ))}
                                 </div>
                             </div>
-                            <p className="text-[10px] text-slate-500 italic line-clamp-2 leading-relaxed">"{ev.ulasan}"</p>
+                            <p className="text-[11px] text-slate-600 italic leading-relaxed mb-3">"{ev.ulasan}"</p>
+                            <div className="flex justify-between items-center pt-3 border-t border-slate-50">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-400 uppercase">
+                                        {ev.nama_pengguna.charAt(0)}
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 font-medium">{ev.nama_pengguna}</span>
+                                </div>
+                                {onReviewAsset && (
+                                    <button 
+                                        onClick={() => onReviewAsset(ev.nama_barang)}
+                                        className="text-[10px] font-bold text-blue-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        Beri Feedback Serupa <ArrowRight className="w-3 h-3" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    )) : (
-                        <p className="text-[10px] text-slate-400 italic text-center py-4">Belum ada penilaian kategori ini</p>
-                    )}
-                </div>
+                    );
+                }) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center opacity-50">
+                        <ListFilter className="w-10 h-10 text-slate-300 mb-2" />
+                        <p className="text-xs text-slate-500 font-medium">Tidak ada ulasan yang sesuai filter</p>
+                    </div>
+                )}
             </div>
-        );
-    };
+        </div>
+    );
+};
+
+const AvailableAssetCard: React.FC<{ item: Inventaris, onReview: (name: string) => void }> = ({ item, onReview }) => {
+    const statusColor = item.status_barang === 'Baik' ? 'emerald' : 'amber';
+    const isIT = item.kategori === 'IT';
+    const Icon = isIT ? Monitor : Building2;
 
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6">
-                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                Review & Penilaian Aset
-            </h3>
-            
-            <div className="grid grid-cols-1 gap-6">
-                {renderEvalList(itEvals, "Review Aset IT", "violet", Monitor)}
-                {renderEvalList(sarprasEvals, "Review Sarpras & Umum", "amber", Building2)}
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="flex justify-between items-start mb-3">
+                <div className={`p-2 rounded-lg ${isIT ? 'bg-violet-100 text-violet-600' : 'bg-amber-100 text-amber-600'}`}>
+                    <Icon className="w-5 h-5" />
+                </div>
+                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-${statusColor}-100 text-${statusColor}-700 border border-${statusColor}-200`}>
+                    {item.status_barang}
+                </span>
             </div>
+            <h4 className="font-bold text-slate-800 text-sm mb-1 group-hover:text-blue-600 transition-colors">{item.nama_barang}</h4>
+            <p className="text-[10px] text-slate-400 mb-4">Lokasi: {item.id_lokasi}</p>
+            <button 
+                onClick={() => onReview(item.nama_barang)}
+                className="w-full py-2 bg-slate-50 hover:bg-blue-600 hover:text-white text-slate-600 text-[10px] font-bold rounded-lg border border-slate-200 hover:border-blue-600 transition-all flex items-center justify-center gap-1.5"
+            >
+                <Zap className="w-3 h-3" />
+                Beri Penilaian
+            </button>
         </div>
     );
 };
@@ -88,12 +180,9 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showSavedNotification, setShowSavedNotification] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false); 
   const [externalMessage, setExternalMessage] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  const [cloudConfig, setCloudConfig] = useState<{endpoint: string, user: string} | null>(db.getCloudConfig());
-  const [isSyncing, setIsSyncing] = useState(false);
 
   const [bookings, setBookings] = useState<PeminjamanAntrian[]>([]);
   const [reports, setReports] = useState<PengaduanKerusakan[]>([]);
@@ -141,16 +230,17 @@ const App: React.FC = () => {
       else if (data.table === 'penilaian_aset') setEvaluations(db.getTable('penilaian_aset'));
       else if (data.table === 'agenda_kegiatan') setActivities(db.getTable('agenda_kegiatan'));
       
-      if (cloudConfig) {
-          setIsSyncing(true);
-          setTimeout(() => setIsSyncing(false), 1500);
-      }
-
       setShowSavedNotification(true);
       setTimeout(() => setShowSavedNotification(false), 3000);
-  }, [cloudConfig]);
+  }, []);
 
   const handleTriggerChatAction = useCallback((prompt: string) => {
+      setExternalMessage(prompt);
+      setIsChatOpen(true);
+  }, []);
+
+  const handleReviewAsset = useCallback((assetName: string) => {
+      const prompt = `Saya ingin memberi penilaian untuk aset: ${assetName}`;
       setExternalMessage(prompt);
       setIsChatOpen(true);
   }, []);
@@ -159,26 +249,18 @@ const App: React.FC = () => {
 
   const roleConfig = ROLE_CONFIGS[currentUser.peran];
   
-  // Update internal staff list to include new Pengawas roles
-  const isInternalStaff = [
-    'admin', 
-    'penanggung_jawab', 
-    'pengawas_it', 
-    'pengawas_sarpras', 
-    'pengawas_admin'
-  ].includes(currentUser.peran);
-  
-  // Only the person who actually works on it is Technical Staff
+  const isInternalStaff = ['admin', 'penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin'].includes(currentUser.peran);
   const isTechnicalStaff = ['penanggung_jawab'].includes(currentUser.peran);
-  
-  const canSeeAnalysis = isInternalStaff && currentUser.peran !== 'tamu';
-  const canSeeEvaluations = isInternalStaff;
-  const canSeeAgenda = isInternalStaff && currentUser.peran !== 'tamu';
-  const canSeePendingTickets = isInternalStaff; // All staff can see, but only tech can take action
-  const isReadOnly = !isTechnicalStaff; // Only PJ has write access to technical execution
+  const isTamu = currentUser.peran === 'tamu';
+
+  const canSeeAnalysis = isInternalStaff;
+  const canSeeEvaluations = isInternalStaff || isTamu;
+  const canSeeAgenda = isInternalStaff;
+  const canSeePendingTickets = isInternalStaff;
+  const isReadOnly = !isTechnicalStaff;
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col relative">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -204,61 +286,130 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-24">
         <div className="space-y-6">
-            {currentUser.peran === 'tamu' ? (
-                <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-2xl p-6 shadow-md text-white">
-                    <h2 className="text-2xl font-bold mb-2">Layanan Pengunjung & Tamu</h2>
-                    <p className="text-blue-100 text-sm max-w-2xl">Bantu kami meningkatkan kualitas sekolah dengan memberikan **Penilaian/Evaluasi** terhadap fasilitas yang Anda gunakan.</p>
+            {isTamu ? (
+                <div className="animate-fade-in space-y-8">
+                    <div className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                        <div className="relative z-10">
+                            <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
+                                <Globe className="w-8 h-8" />
+                                Halo, {currentUser.nama_lengkap}!
+                            </h2>
+                            <p className="text-blue-50 text-base max-w-2xl opacity-90">
+                                Bantu kami meningkatkan kualitas sekolah dengan memberikan penilaian terhadap fasilitas yang Anda gunakan hari ini. Suara Anda sangat berarti bagi kami.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-blue-600" />
+                                    Aset & Fasilitas Sekolah
+                                </h3>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full border border-slate-200">Terintegrasi AI</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {inventaris.length > 0 ? inventaris.map(item => (
+                                    <AvailableAssetCard key={item.id_barang} item={item} onReview={handleReviewAsset} />
+                                )) : (
+                                    <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+                                        <p className="text-slate-400">Memuat data aset...</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="space-y-6 lg:sticky lg:top-24 h-fit">
+                            <AssetEvaluationSummary 
+                                evaluations={evaluations} 
+                                inventaris={inventaris} 
+                                onReviewAsset={handleReviewAsset}
+                            />
+                        </div>
+                    </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex justify-between items-center">
-                    <div className="flex items-start gap-4">
-                        <div className={`p-3 rounded-full bg-${roleConfig.color}-100 text-${roleConfig.color}-600`}>
-                            <ShieldCheck className="w-6 h-6" />
+                <div className="animate-fade-in space-y-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex justify-between items-center">
+                        <div className="flex items-start gap-4">
+                            <div className={`p-3 rounded-full bg-${roleConfig.color}-100 text-${roleConfig.color}-600`}>
+                                <ShieldCheck className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-800">Operational Cluster</h2>
+                                <p className="text-slate-600 text-sm">Cluster Status: <span className="text-emerald-600 font-bold uppercase text-[10px]">Active</span></p>
+                                <p className="text-xs text-slate-400 mt-1">Logged in as: <span className="font-bold">{roleConfig.label}</span></p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-slate-800">Operational Cluster</h2>
-                            <p className="text-slate-600 text-sm">Cluster Status: <span className="text-emerald-600 font-bold uppercase text-[10px]">Active</span></p>
-                            <p className="text-xs text-slate-400 mt-1">Logged in as: <span className="font-bold">{roleConfig.label}</span></p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-6">
+                            {canSeeAgenda && (
+                                <AgendaActivityTable 
+                                  activities={activities} 
+                                  currentUserRole={currentUser.peran} 
+                                />
+                            )}
+
+                            {canSeeAnalysis && (
+                                <DamageReportChart reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />
+                            )}
+
+                            {canSeePendingTickets && (
+                                <PendingTicketTable reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />
+                            )}
+                        </div>
+
+                        <div className="space-y-6">
+                            {canSeeEvaluations && <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} />}
+                            <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />
                         </div>
                     </div>
                 </div>
             )}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    {canSeeAgenda && (
-                        <AgendaActivityTable 
-                          activities={activities} 
-                          currentUserRole={currentUser.peran} 
-                        />
-                    )}
-
-                    {canSeeAnalysis && (
-                        <DamageReportChart reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />
-                    )}
-
-                    {canSeePendingTickets && (
-                        <PendingTicketTable reports={reports} onProcessAction={handleTriggerChatAction} isReadOnly={isReadOnly} />
-                    )}
-                </div>
-
-                <div className="space-y-6">
-                    {canSeeEvaluations && <AssetEvaluationSummary evaluations={evaluations} inventaris={inventaris} />}
-                    <MyStatusDashboard currentUser={currentUser} reports={reports} bookings={bookings} activities={activities} />
-                </div>
-            </div>
         </div>
-
-        <ChatInterface user={currentUser} roleConfig={roleConfig} onDataSaved={handleDataSaved} stats={reports.filter(r => r.status === 'Pending').length} isOpen={isChatOpen} onToggle={handleToggleChat} externalMessage={externalMessage} onClearExternalMessage={() => setExternalMessage(null)} />
       </main>
 
+      {/* FIXED CHAT PANEL */}
+      <div className={`fixed bottom-0 right-0 z-50 p-4 sm:p-6 transition-all duration-300 ${isChatOpen ? 'w-full max-w-lg' : 'w-auto'}`}>
+          {isChatOpen ? (
+              <div className="h-[600px] max-h-[85vh] shadow-2xl animate-slide-up">
+                  <ChatInterface 
+                    user={currentUser} 
+                    roleConfig={roleConfig} 
+                    onDataSaved={handleDataSaved} 
+                    stats={reports.filter(r => r.status === 'Pending').length} 
+                    isOpen={isChatOpen} 
+                    onToggle={handleToggleChat} 
+                    externalMessage={externalMessage} 
+                    onClearExternalMessage={() => setExternalMessage(null)} 
+                  />
+              </div>
+          ) : (
+              <button 
+                onClick={() => setIsChatOpen(true)}
+                className="group flex items-center gap-3 bg-slate-900 text-white p-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
+              >
+                  <MessageCircle className="w-6 h-6" />
+                  <span className="font-bold text-sm hidden sm:inline pr-2">SIKILAT AI Assistant</span>
+                  {reports.filter(r => r.status === 'Pending').length > 0 && !isTamu && (
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold ring-2 ring-white">
+                        {reports.filter(r => r.status === 'Pending').length}
+                    </span>
+                  )}
+              </button>
+          )}
+      </div>
+
       {showSavedNotification && (
-        <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-lg shadow-2xl animate-fade-in-up z-50">
+        <div className="fixed bottom-24 right-6 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl animate-fade-in-up z-40 border border-slate-700">
             <p className="text-sm font-bold flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                Data Saved & Processed
+                Data Berhasil Diproses
             </p>
         </div>
       )}
