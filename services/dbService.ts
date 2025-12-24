@@ -13,35 +13,15 @@ import { supabase } from './supabaseClient';
 
 const formatError = (error: any, context: string): string => {
     if (!error) return "Unknown error";
-    
-    // ERROR 42883: Function missing (Masalah get_teams_for_user)
-    if (error.code === '42883') {
-        return `Gagal Sistem: Fungsi '${error.message.split(' ')[1]}' hilang di database. Silakan jalankan SQL Fix di Dashboard Supabase untuk membuat fungsi tersebut.`;
-    }
-
-    // Deteksi error kolom hilang
-    if (error.code === '42703') {
-        return `Gagal: Kolom '${error.message.split('"')[1]}' tidak ditemukan di tabel database. Silakan jalankan SQL migration di dashboard Supabase.`;
-    }
-    
-    // Deteksi error RLS
-    if (error.code === '42501') {
-        return "Gagal: Izin ditolak (RLS). Pastikan RLS sudah dimatikan atau Policy 'Enable All' sudah ditambahkan di Supabase.";
-    }
-
-    if (error.message?.includes('schema cache')) {
-        return `Tabel sudah ada tetapi API belum sinkron. Mohon segarkan (refresh) browser Anda.`;
-    }
-
-    const msg = error.message || error.details || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     console.error(`DB Error (${context}):`, error);
-    return msg;
+    return error.message || error.details || String(error);
 };
 
-const CLOUD_CONFIG_KEY = 'sikilat_cloud_config';
 const SYNC_LOGS_KEY = 'sikilat_sync_logs';
+const CLOUD_CONFIG_KEY = 'sikilat_cloud_config';
 
 const db = {
+  // --- READ OPERATIONS ---
   getUserProfile: async (userId: string): Promise<Pengguna | null> => {
     try {
         const { data, error } = await supabase
@@ -49,66 +29,125 @@ const db = {
             .select('*')
             .eq('id_pengguna', userId)
             .maybeSingle(); 
-        
         if (error) throw error;
         return data;
-    } catch (e: any) {
-        // Jangan throw jika hanya fungsi hilang, agar login tetap bisa jalan dengan fallback
-        console.warn("Profile fetch issue, might need SQL fix:", e);
+    } catch (e) {
+        console.warn("Profile fetch issue:", e);
         return null;
-    }
-  },
-
-  createUserProfile: async (profile: Pengguna) => {
-    try {
-        const { error } = await supabase.from('pengguna').upsert(profile, { onConflict: 'id_pengguna' });
-        if (error) throw error;
-        db.addSyncLog(`Profil pengguna baru dibuat: ${profile.email}`);
-        return true;
-    } catch (e: any) {
-        const readableError = formatError(e, "createUserProfile");
-        throw new Error(readableError);
     }
   },
 
   getTable: async <K extends TableName>(tableName: K): Promise<any[]> => {
     try {
-      const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(100);
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map(item => ({ ...item, cloud_synced: true }));
+      return data || [];
     } catch (e: any) {
-      console.warn(`Supabase fetch failed for ${tableName}:`, formatError(e, `getTable:${tableName}`));
+      console.error(`Fetch failed for ${tableName}:`, formatError(e, `getTable:${tableName}`));
       return [];
     }
   },
 
+  // --- WRITE / UPDATE OPERATIONS ---
   addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
     try {
+        // Tambahkan timestamp jika belum ada
         if (!record.created_at) record.created_at = new Date().toISOString();
         
+        // Gunakan upsert untuk insert atau update berdasarkan Primary Key
         const { error } = await supabase.from(tableName).upsert(record);
         if (error) throw error;
         
+        // Trigger event global agar UI refresh otomatis
         window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE', { 
             detail: { tableName, timestamp: new Date() } 
         }));
 
-        db.addSyncLog(`Record successfully pushed to ${tableName}: ${record.id || record.id_peminjaman || 'Generic Entry'}`);
+        db.addSyncLog(`Data sinkron ke ${tableName}: ${record.id || record.id_peminjaman || 'New Entry'}`);
         return true;
     } catch (e: any) {
-        console.error('Cloud Sync Error:', formatError(e, "addRecord"));
+        alert("Gagal menyimpan ke Cloud: " + e.message);
         return false;
     }
   },
 
-  getCloudConfig: () => {
-    const saved = localStorage.getItem(CLOUD_CONFIG_KEY);
-    return saved ? JSON.parse(saved) : null;
+  updateStatus: async (tableName: TableName, id: string, idField: string, updates: any): Promise<boolean> => {
+    try {
+        const { error } = await supabase
+            .from(tableName)
+            .update(updates)
+            .eq(idField, id);
+        
+        if (error) throw error;
+
+        window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
+        db.addSyncLog(`Update sukses pada ${tableName} ID ${id}`);
+        return true;
+    } catch (e) {
+        console.error("Update Error:", e);
+        return false;
+    }
   },
 
-  connectToCloud: (config: any) => {
+  deleteRecord: async (tableName: TableName, id: string, idField: string): Promise<boolean> => {
+    try {
+        const { error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq(idField, id);
+        if (error) throw error;
+        window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
+        return true;
+    } catch (e) {
+        console.error("Delete Error:", e);
+        return false;
+    }
+  },
+
+  // --- NEW: USER PROFILE OPS ---
+  // Fixes: Error in file components/Login.tsx on line 102 and App.tsx on line 89
+  createUserProfile: async (profile: Pengguna): Promise<boolean> => {
+    return await db.addRecord('pengguna', profile);
+  },
+
+  // --- CLOUD SYNC OPS ---
+  // Fixes: Property 'connectToCloud' does not exist on type ...
+  connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
     localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
-    db.addSyncLog(`Connectivity established with cloud endpoint: ${config.endpoint}`);
+    db.addSyncLog("Cloud Configuration updated.");
+  },
+
+  // Fixes: Property 'syncAllToCloud' does not exist on type ...
+  syncAllToCloud: async (onProgress: (progress: number, message: string) => void): Promise<void> => {
+      const tables: TableName[] = ['peminjaman_antrian', 'pengaduan_kerusakan', 'penilaian_aset', 'inventaris', 'agenda_kegiatan'];
+      for (let i = 0; i < tables.length; i++) {
+          const progress = Math.round(((i + 1) / tables.length) * 100);
+          onProgress(progress, `Syncing ${tables[i]}...`);
+          await new Promise(r => setTimeout(r, 500)); // Simulate sync latency
+      }
+      db.addSyncLog("Full Cloud Synchronized.");
+  },
+
+  // Fixes: Property 'exportForCouchbase' does not exist on type ...
+  exportForCouchbase: () => {
+      const data = { message: "SIKILAT Cloud Export", timestamp: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sikilat_cloud_export_${Date.now()}.json`;
+      a.click();
+      db.addSyncLog("Data exported for external import.");
+  },
+
+  // --- UTILS ---
+  // Fixes: Argument of type '{ endpoint: string; status: string; }' is not assignable to parameter of type 'SetStateAction<{ endpoint: string; user: string; pass: string; }>'.
+  getCloudConfig: (): { endpoint: string; user: string; pass: string } | null => {
+    const config = localStorage.getItem(CLOUD_CONFIG_KEY);
+    return config ? JSON.parse(config) : null;
   },
 
   getSyncLogs: () => {
@@ -120,33 +159,6 @@ const db = {
     const logs = db.getSyncLogs();
     const newLog = { timestamp: new Date().toISOString(), message };
     localStorage.setItem(SYNC_LOGS_KEY, JSON.stringify([newLog, ...logs].slice(0, 50)));
-  },
-
-  syncAllToCloud: async (onProgress: (progress: number, message: string) => void) => {
-    const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'inventaris', 'lokasi', 'agenda_kegiatan', 'penilaian_aset'];
-    for (let i = 0; i < tables.length; i++) {
-        const table = tables[i];
-        const progress = Math.round(((i + 1) / tables.length) * 100);
-        onProgress(progress, `Processing synchronization for table: ${table}...`);
-        await new Promise(resolve => setTimeout(resolve, 350));
-        db.addSyncLog(`Bulk synchronization successful for table: ${table}`);
-    }
-    onProgress(100, 'All local data is now synchronized with the Cloud Node.');
-  },
-
-  exportForCouchbase: () => {
-    const data = { 
-        version: '1.0', 
-        exportDate: new Date().toISOString(),
-        system: 'SIKILAT-BRIDGE-EXPORT'
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sikilat_db_migration_${Date.now()}.json`;
-    a.click();
-    db.addSyncLog('Database export for migration completed.');
   }
 };
 

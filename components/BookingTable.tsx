@@ -6,7 +6,7 @@ import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight,
 interface BookingTableProps {
   bookings: PeminjamanAntrian[];
   currentUserRole?: UserRole;
-  onUpdateStatus?: (id: string, status: 'Disetujui' | 'Ditolak', reason?: string) => void;
+  onUpdateStatus?: (id: string, status: 'Disetujui' | 'Ditolak') => void;
 }
 
 const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, onUpdateStatus }) => {
@@ -22,89 +22,69 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
   }, [bookings]);
 
   const currentData = sortedBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
   const canManage = ['penanggung_jawab', 'admin'].includes(currentUserRole || '');
 
   return (
-    <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full">
       <div className="p-6 border-b bg-slate-50/50 flex justify-between items-center">
         <div>
             <h3 className="font-black text-slate-800 flex items-center gap-2 text-lg">
                 <Calendar className="w-5 h-5 text-blue-600" />
-                Peminjaman & Antrian
+                Booking & Antrian
             </h3>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Status Sinkronisasi: LIVE CLOUD</p>
         </div>
         {canManage && (
-             <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100">
+             <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">
                 <ShieldAlert className="w-3.5 h-3.5" /> Management
              </div>
         )}
       </div>
-      <div className="overflow-x-auto">
+      <div className="flex-1 overflow-x-auto">
         <table className="w-full text-sm text-left border-collapse">
           <thead className="text-[10px] text-slate-400 uppercase font-black tracking-widest bg-slate-50/30 border-b border-slate-100">
             <tr>
-              <th className="px-8 py-5">Aset / Ruangan</th>
+              <th className="px-8 py-5">Aset</th>
               <th className="px-8 py-5">Keperluan</th>
-              <th className="px-8 py-5">Waktu</th>
-              <th className="px-8 py-5 text-right">Status & Aksi</th>
+              <th className="px-8 py-5 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {currentData.map((booking) => (
               <tr key={booking.id_peminjaman} className="group hover:bg-slate-50/50 transition-all">
                 <td className="px-8 py-6">
-                    <div className="font-black text-slate-800 text-base">{booking.nama_barang}</div>
-                    <div className="text-[10px] text-slate-400 font-mono mt-1 opacity-60">ID: {booking.id_peminjaman}</div>
+                    <div className="font-black text-slate-800 text-sm">{booking.nama_barang}</div>
+                    <div className="text-[10px] text-slate-400 font-bold">{new Date(booking.tanggal_peminjaman).toLocaleDateString()}</div>
                 </td>
-                <td className="px-8 py-6">
-                    <div className="flex items-center gap-2 text-slate-600 font-bold mb-1.5 text-xs">
-                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">{booking.id_pengguna.charAt(0)}</div>
-                        {booking.id_pengguna}
-                    </div>
-                    <div className="text-[11px] text-slate-500 font-medium italic line-clamp-2 max-w-[200px]">"{booking.keperluan}"</div>
-                </td>
-                <td className="px-8 py-6">
-                    <div className="text-xs font-black text-slate-700">{new Date(booking.tanggal_peminjaman).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                    <div className="text-[10px] text-slate-400 font-bold mt-1 bg-slate-100 w-fit px-2 py-0.5 rounded-md">{booking.jam_mulai} - {booking.jam_selesai}</div>
+                <td className="px-8 py-6 max-w-[200px]">
+                    <p className="text-[11px] text-slate-500 font-medium italic truncate">"{booking.keperluan}"</p>
                 </td>
                 <td className="px-8 py-6 text-right">
-                    <div className="flex flex-col items-end gap-3">
-                        <div className="flex items-center gap-2">
-                             {/* Auto-Sync Badge */}
-                             {(booking as any).cloud_synced ? (
-                                <div className="flex items-center gap-1 text-[8px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 uppercase tracking-tighter">
-                                    <Cloud className="w-2.5 h-2.5" /> SYNCED
-                                </div>
-                             ) : (
-                                <div className="flex items-center gap-1 text-[8px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100 uppercase tracking-tighter animate-pulse">
-                                    <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Pushing...
-                                </div>
-                             )}
-
-                             {booking.status_peminjaman === 'Disetujui' ? (
-                                <span className="px-3 py-1 bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg">Disetujui</span>
-                             ) : booking.status_peminjaman === 'Ditolak' ? (
-                                <span className="px-3 py-1 bg-rose-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg">Ditolak</span>
-                             ) : (
-                                <span className="px-3 py-1 bg-amber-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg">Menunggu</span>
-                             )}
-                        </div>
-                        
-                        {canManage && booking.status_peminjaman === 'Menunggu' && onUpdateStatus && (
+                    <div className="flex flex-col items-end gap-2">
+                        {booking.status_peminjaman === 'Disetujui' ? (
+                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 font-black text-[9px] uppercase tracking-widest rounded-lg">Disetujui</span>
+                        ) : booking.status_peminjaman === 'Ditolak' ? (
+                            <span className="px-3 py-1 bg-rose-100 text-rose-700 font-black text-[9px] uppercase tracking-widest rounded-lg">Ditolak</span>
+                        ) : (
                             <div className="flex gap-2">
-                                <button 
-                                  onClick={() => onUpdateStatus(booking.id_peminjaman, 'Disetujui')} 
-                                  className="px-4 py-2 bg-emerald-600 text-white text-[10px] font-black rounded-xl shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-95"
-                                >
-                                  Terima
-                                </button>
-                                <button 
-                                  onClick={() => onUpdateStatus(booking.id_peminjaman, 'Ditolak', 'Jadwal Bentrok')} 
-                                  className="px-4 py-2 bg-white border border-rose-200 text-rose-600 text-[10px] font-black rounded-xl hover:bg-rose-50 transition-all active:scale-95"
-                                >
-                                  Tolak
-                                </button>
+                                {canManage ? (
+                                    <>
+                                        <button 
+                                            onClick={() => onUpdateStatus?.(booking.id_peminjaman, 'Disetujui')} 
+                                            className="px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black rounded-lg hover:bg-emerald-700"
+                                        >
+                                            Setuju
+                                        </button>
+                                        <button 
+                                            onClick={() => onUpdateStatus?.(booking.id_peminjaman, 'Ditolak')} 
+                                            className="px-3 py-1.5 bg-rose-600 text-white text-[9px] font-black rounded-lg hover:bg-rose-700"
+                                        >
+                                            Tolak
+                                        </button>
+                                    </>
+                                ) : (
+                                    <span className="px-3 py-1 bg-amber-100 text-amber-700 font-black text-[9px] uppercase tracking-widest rounded-lg">Menunggu</span>
+                                )}
                             </div>
                         )}
                     </div>
@@ -114,6 +94,13 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+          <div className="p-4 bg-slate-50 border-t flex justify-between items-center">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} className="p-2 bg-white rounded-lg border border-slate-200"><ChevronLeft className="w-4 h-4"/></button>
+              <span className="text-[10px] font-black uppercase text-slate-400">Page {currentPage} / {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} className="p-2 bg-white rounded-lg border border-slate-200"><ChevronRight className="w-4 h-4"/></button>
+          </div>
+      )}
     </div>
   );
 };
