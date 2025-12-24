@@ -14,6 +14,11 @@ import { supabase } from './supabaseClient';
 const formatError = (error: any, context: string): string => {
     if (!error) return "Unknown error";
     
+    // ERROR 42883: Function missing (Masalah get_teams_for_user)
+    if (error.code === '42883') {
+        return `Gagal Sistem: Fungsi '${error.message.split(' ')[1]}' hilang di database. Silakan jalankan SQL Fix di Dashboard Supabase untuk membuat fungsi tersebut.`;
+    }
+
     // Deteksi error kolom hilang
     if (error.code === '42703') {
         return `Gagal: Kolom '${error.message.split('"')[1]}' tidak ditemukan di tabel database. Silakan jalankan SQL migration di dashboard Supabase.`;
@@ -21,18 +26,18 @@ const formatError = (error: any, context: string): string => {
     
     // Deteksi error RLS
     if (error.code === '42501') {
-        return "Gagal: Izin ditolak (RLS). Silakan nonaktifkan RLS atau tambahkan Policy 'Enable Insert for Authenticated Users' di Supabase.";
+        return "Gagal: Izin ditolak (RLS). Pastikan RLS sudah dimatikan atau Policy 'Enable All' sudah ditambahkan di Supabase.";
     }
 
     if (error.message?.includes('schema cache')) {
-        return `Tabel '${error.details?.split("'")[1] || 'pengguna'}' sudah ada tetapi API belum sinkron. Mohon tunggu sejenak.`;
+        return `Tabel sudah ada tetapi API belum sinkron. Mohon segarkan (refresh) browser Anda.`;
     }
+
     const msg = error.message || error.details || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     console.error(`DB Error (${context}):`, error);
     return msg;
 };
 
-// Keys for local storage persistence
 const CLOUD_CONFIG_KEY = 'sikilat_cloud_config';
 const SYNC_LOGS_KEY = 'sikilat_sync_logs';
 
@@ -45,44 +50,34 @@ const db = {
             .eq('id_pengguna', userId)
             .maybeSingle(); 
         
-        if (error) throw new Error(formatError(error, "getUserProfile"));
+        if (error) throw error;
         return data;
     } catch (e: any) {
-        throw e;
+        // Jangan throw jika hanya fungsi hilang, agar login tetap bisa jalan dengan fallback
+        console.warn("Profile fetch issue, might need SQL fix:", e);
+        return null;
     }
   },
 
   createUserProfile: async (profile: Pengguna) => {
     try {
-        console.log("Attempting to create profile for:", profile.email);
         const { error } = await supabase.from('pengguna').upsert(profile, { onConflict: 'id_pengguna' });
-        
-        if (error) {
-            console.error("Supabase Upsert Error:", error);
-            throw new Error(formatError(error, "createUserProfile"));
-        }
-        
+        if (error) throw error;
         db.addSyncLog(`Profil pengguna baru dibuat: ${profile.email}`);
         return true;
     } catch (e: any) {
-        console.error("Caught Exception in createUserProfile:", e);
-        throw e;
+        const readableError = formatError(e, "createUserProfile");
+        throw new Error(readableError);
     }
   },
 
   getTable: async <K extends TableName>(tableName: K): Promise<any[]> => {
     try {
       const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(100);
-      if (error) {
-          if (error.code === '42P01' || error.message?.includes('schema cache')) {
-              console.warn(`Table '${tableName}' might be missing or in sync.`);
-              return [];
-          }
-          throw error;
-      }
+      if (error) throw error;
       return (data || []).map(item => ({ ...item, cloud_synced: true }));
     } catch (e: any) {
-      console.warn(`Supabase fetch failed for ${tableName}:`, e.message || e);
+      console.warn(`Supabase fetch failed for ${tableName}:`, formatError(e, `getTable:${tableName}`));
       return [];
     }
   },
@@ -101,7 +96,7 @@ const db = {
         db.addSyncLog(`Record successfully pushed to ${tableName}: ${record.id || record.id_peminjaman || 'Generic Entry'}`);
         return true;
     } catch (e: any) {
-        console.error('Cloud Sync Error:', e.message || e);
+        console.error('Cloud Sync Error:', formatError(e, "addRecord"));
         return false;
     }
   },

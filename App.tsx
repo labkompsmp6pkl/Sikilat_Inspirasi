@@ -81,10 +81,35 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const syncUserProfile = async (authId: string, email: string) => {
+    try {
+        let profile = await db.getUserProfile(authId);
+        
+        // AUTO-REPAIR LOGIC: Jika user ada di Auth tapi tidak ada di Tabel Pengguna
+        if (!profile) {
+            console.log("Profile not found in DB table, creating auto-fix entry...");
+            const fixProfile: Pengguna = {
+                id_pengguna: authId,
+                nama_lengkap: email.split('@')[0],
+                email: email,
+                no_hp: '-',
+                peran: 'tamu',
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authId}`
+            };
+            await db.createUserProfile(fixProfile);
+            profile = fixProfile;
+        }
+        
+        setCurrentUser(profile);
+        refreshAllData();
+    } catch (err) {
+        console.error("Critical Profile Sync Error:", err);
+    }
+  };
+
   useEffect(() => {
     const failsafe = setTimeout(() => {
         if (isAppLoading) {
-            console.warn("SIKILAT: Initializing forced by timeout...");
             setIsAppLoading(false);
         }
     }, 6000);
@@ -98,11 +123,7 @@ const App: React.FC = () => {
             if (sessionError) throw sessionError;
 
             if (session?.user) {
-                const profile = await db.getUserProfile(session.user.id);
-                if (profile) { 
-                    setCurrentUser(profile); 
-                    refreshAllData(); 
-                }
+                await syncUserProfile(session.user.id, session.user.email!);
             }
         } catch (e) { 
             console.error("Auth Init Hook Error:", e); 
@@ -118,11 +139,7 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
-            const profile = await db.getUserProfile(session.user.id);
-            if (profile) { 
-                setCurrentUser(profile); 
-                refreshAllData(); 
-            }
+            await syncUserProfile(session.user.id, session.user.email!);
         } else if (event === 'SIGNED_OUT') {
             setCurrentUser(null); 
             setBookings([]); 
@@ -161,18 +178,6 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-5xl font-black tracking-tighter italic animate-pulse mb-4">SIKILAT</h1>
           <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.5em] mb-8 opacity-50">Secure Sync Initialization</p>
-          
-          <div className="max-w-xs space-y-4">
-              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                  Kami sedang menyeimbangkan koneksi database. Jika sistem terhenti di sini, silakan periksa izin cookies browser Anda.
-              </p>
-              <button 
-                onClick={() => setIsAppLoading(false)}
-                className="px-6 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
-              >
-                Lewati & Masuk Manual
-              </button>
-          </div>
       </div>
   );
 
