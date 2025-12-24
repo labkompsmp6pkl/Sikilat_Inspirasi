@@ -1,8 +1,26 @@
 
 import React, { useState } from 'react';
-import { ROLE_CONFIGS } from '../constants';
+import { ROLE_CONFIGS, MOCK_USERS } from '../constants';
 import { UserRole, Pengguna } from '../types';
-import { ArrowRight, UserPlus, LogIn, ChevronLeft, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { 
+  LogIn, 
+  Loader2, 
+  AlertCircle, 
+  Eye, 
+  EyeOff, 
+  UserPlus, 
+  ChevronRight, 
+  Mail, 
+  Lock,
+  ArrowLeft,
+  CheckCircle2,
+  Users,
+  Wrench,
+  Monitor,
+  Building2,
+  ShieldCheck,
+  Settings
+} from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import db from '../services/dbService';
 
@@ -11,7 +29,7 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [authMode, setAuthMode] = useState<'demo' | 'login' | 'register'>('demo');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -24,206 +42,293 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     peran: 'guru' as UserRole
   });
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleManualAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
     try {
-        if (isRegistering) {
-            // 1. Sign Up to Supabase Auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: formData.email,
-                password: formData.password,
-            });
+      if (authMode === 'register') {
+        const { data: authData, error: authError } = await (supabase.auth as any).signUp({
+          email: formData.email,
+          password: formData.password,
+        });
 
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Registrasi gagal.");
+        if (authError) throw authError;
 
-            // 2. Create Profile in Public Table
-            const newProfile: Pengguna = {
-                id_pengguna: authData.user.id,
-                nama_lengkap: formData.nama,
-                email: formData.email,
-                no_hp: formData.hp,
-                peran: formData.peran,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.nama}`
-            };
+        const newProfile: Pengguna = {
+          id_pengguna: authData.user!.id,
+          nama_lengkap: formData.nama,
+          email: formData.email,
+          no_hp: formData.hp,
+          peran: formData.peran,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.nama}`
+        };
 
-            const success = await db.createUserProfile(newProfile);
-            if (!success) throw new Error("Gagal menyimpan profil pengguna.");
+        await db.createUserProfile(newProfile);
+        onLoginSuccess(newProfile);
+      } else {
+        const { data: authData, error: authError } = await (supabase.auth as any).signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
 
-            onLoginSuccess(newProfile);
+        if (authError) throw authError;
+
+        const profile = await db.getUserProfile(authData.user!.id);
+        if (profile) {
+          onLoginSuccess(profile);
         } else {
-            // Sign In
-            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-                email: formData.email,
-                password: formData.password,
-            });
-
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Login gagal.");
-
-            // Fetch Profile
-            const profile = await db.getUserProfile(authData.user.id);
-            if (!profile) throw new Error("Profil tidak ditemukan.");
-
-            onLoginSuccess(profile);
+          // Fallback jika profil tidak ditemukan di tabel pengguna
+          onLoginSuccess({
+            id_pengguna: authData.user!.id,
+            nama_lengkap: authData.user!.email?.split('@')[0] || 'User',
+            email: authData.user!.email || '',
+            no_hp: '-',
+            peran: 'tamu',
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user!.id}`
+          });
         }
+      }
     } catch (e: any) {
-        setErrorMsg(e.message || "Terjadi kesalahan sistem.");
+      setErrorMsg(e.message || "Gagal melakukan autentikasi");
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const handleDemoLogin = (role: UserRole) => {
+    setIsLoading(true);
+    setTimeout(() => {
+      onLoginSuccess(MOCK_USERS[role] as Pengguna);
+      setIsLoading(false);
+    }, 800);
+  };
+
+  // Map icons for cards
+  const RoleIcon = ({ role, color }: { role: string, color: string }) => {
+    const icons: Record<string, any> = {
+      guru: Users,
+      penanggung_jawab: Wrench,
+      pengawas_it: Monitor,
+      pengawas_sarpras: Building2,
+      pengawas_admin: ShieldCheck,
+      admin: Settings
+    };
+    const IconComponent = icons[role] || Users;
+    
+    const colors: Record<string, string> = {
+      blue: 'bg-blue-50 text-blue-500',
+      emerald: 'bg-emerald-50 text-emerald-500',
+      violet: 'bg-violet-50 text-violet-500',
+      amber: 'bg-amber-50 text-amber-500',
+      indigo: 'bg-indigo-50 text-indigo-500',
+      rose: 'bg-rose-50 text-rose-500'
+    };
+
+    return (
+      <div className={`p-3 rounded-xl ${colors[color] || 'bg-slate-50'}`}>
+        <IconComponent className="w-6 h-6" />
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center p-6">
-      <div className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-0 md:p-6 lg:p-12">
+      <div className="w-full max-w-6xl bg-white shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row min-h-[720px]">
         
-        {/* Left Side: Branding */}
-        <div className="md:w-2/5 bg-slate-900 p-10 flex flex-col justify-between text-white relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-10">
-                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                  <path fill="#FFF" d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-4.9C93.5,9.3,82.2,22.9,71.1,34.3C60,45.7,49.1,54.8,37.2,62.6C25.3,70.4,12.5,76.9,-0.6,77.9C-13.7,78.9,-27.7,74.4,-39.9,66.5C-52.1,58.6,-62.5,47.3,-70.6,34.4C-78.7,21.5,-84.5,7,-82.9,-6.8C-81.3,-20.6,-72.3,-33.7,-61.8,-43.3C-51.3,-52.9,-39.3,-59,-27.1,-67.2C-14.9,-75.4,-2.5,-85.7,11,-87.5C24.5,-89.3,30.5,-73.6,44.7,-76.4Z" transform="translate(100 100)" />
-                </svg>
-            </div>
+        {/* SIDEBAR (KIRI) */}
+        <div className="md:w-[42%] bg-[#0f172a] p-10 md:p-16 flex flex-col justify-between text-white relative overflow-hidden">
+          {/* Decorative Blobs */}
+          <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[50%] bg-indigo-500/10 rounded-full blur-[80px]"></div>
+          <div className="absolute bottom-[20%] right-[-20%] w-[100px] h-[100px] bg-blue-500/20 rounded-full blur-[40px]"></div>
+
           <div className="relative z-10">
-            <h1 className="text-4xl font-black mb-2 tracking-tight">SIKILAT</h1>
-            <p className="text-slate-400 text-sm font-black uppercase tracking-widest opacity-80">Sync Integration Hub</p>
+            <h1 className="text-6xl font-black tracking-tighter mb-4 italic">SIKILAT</h1>
+            <p className="text-slate-400 text-lg font-medium leading-relaxed max-w-[280px]">
+              Sistem Informasi Kilat & Manajemen Aset
+            </p>
           </div>
-          <div className="relative z-10">
-             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 mb-6">
-                 <p className="text-blue-100/80 text-sm font-medium leading-relaxed italic">
-                    "Manajemen aset kini lebih aman dengan Supabase Auth & Real-time Database Sync."
-                 </p>
-             </div>
-             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Secure Cloud Active
-             </div>
+
+          <div className="relative z-10 space-y-12">
+            <p className="text-slate-300 text-lg leading-relaxed font-medium">
+              Transformasi manajemen aset dari reaktif ke proaktif. Gunakan AI Chat untuk pelaporan instan tanpa formulir manual.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-bold text-slate-400 tracking-wide">System Operational</span>
+            </div>
           </div>
         </div>
 
-        {/* Right Side: Auth Form */}
-        <div className="md:w-3/5 p-10 bg-white overflow-y-auto relative">
-          
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-2">
-                <h2 className="text-3xl font-black text-slate-800 tracking-tight">
-                    {isRegistering ? 'Daftar Akun' : 'Masuk Sistem'}
-                </h2>
-                <button 
-                  onClick={() => { setIsRegistering(!isRegistering); setErrorMsg(null); }}
-                  className="text-blue-600 text-xs font-black uppercase tracking-widest hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-xl transition-all"
-                >
-                  {isRegistering ? 'Sudah Ada Akun?' : 'Buat Akun Baru'}
-                </button>
+        {/* CONTENT (KANAN) */}
+        <div className="flex-1 p-10 md:p-16 flex flex-col bg-white overflow-y-auto max-h-screen scrollbar-hide">
+          <div className="flex justify-between items-center mb-12">
+            <div>
+              <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">Selamat Datang</h2>
+              <p className="text-slate-500 font-medium">
+                {authMode === 'demo' ? 'Pilih peran akun demo untuk masuk.' : 
+                 authMode === 'login' ? 'Masuk ke akun SIKILAT Anda.' : 'Buat akun SIKILAT baru.'}
+              </p>
             </div>
-            <p className="text-slate-500 text-sm font-medium">
-                {isRegistering ? 'Lengkapi data profil untuk akses penuh.' : 'Gunakan email sekolah Anda untuk masuk.'}
-            </p>
+            {authMode === 'demo' ? (
+              <button 
+                onClick={() => setAuthMode('register')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all"
+              >
+                <UserPlus className="w-4 h-4" /> Buat Akun
+              </button>
+            ) : (
+              <button 
+                onClick={() => setAuthMode('demo')}
+                className="flex items-center gap-2 px-5 py-2.5 text-slate-500 hover:text-slate-900 font-bold text-sm transition-all"
+              >
+                <ArrowLeft className="w-4 h-4" /> Kembali ke Demo
+              </button>
+            )}
           </div>
 
           {errorMsg && (
-              <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-bold flex items-center gap-3 animate-shake">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  {errorMsg}
-              </div>
+            <div className="mb-8 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-4 text-rose-600 text-sm font-bold animate-shake">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              {errorMsg}
+            </div>
           )}
 
-          <form onSubmit={handleAuth} className="space-y-4">
-            {isRegistering && (
-                <div className="animate-fade-in space-y-4">
+          {authMode === 'demo' ? (
+            <div className="grid grid-cols-1 gap-4">
+              {Object.entries(ROLE_CONFIGS).map(([id, config]) => (
+                <button
+                  key={id}
+                  onClick={() => handleDemoLogin(id as UserRole)}
+                  disabled={isLoading}
+                  className="group flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl hover:border-blue-200 hover:shadow-[0_10px_30px_rgba(59,130,246,0.08)] transition-all text-left disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-5">
+                    <RoleIcon role={id} color={config.color} />
                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nama Lengkap</label>
-                        <input 
-                            type="text" required
-                            className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                            placeholder="Andi Pratama"
-                            value={formData.nama}
-                            onChange={e => setFormData({...formData, nama: e.target.value})}
-                        />
+                      <h4 className="font-black text-slate-900 text-lg group-hover:text-blue-600 transition-colors">{config.label}</h4>
+                      <p className="text-slate-400 text-sm font-medium">{config.description}</p>
                     </div>
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">No HP / WhatsApp</label>
-                        <input 
-                            type="tel" required
-                            className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                            placeholder="0812345678"
-                            value={formData.hp}
-                            onChange={e => setFormData({...formData, hp: e.target.value})}
-                        />
-                    </div>
-                </div>
-            )}
-
-            <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Email Sekolah</label>
-                <input 
-                    type="email" required
-                    className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                    placeholder="email@sekolah.id"
-                    value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
-                />
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                </button>
+              ))}
+              
+              <div className="mt-8 pt-8 border-t border-slate-50 text-center">
+                <button 
+                  onClick={() => setAuthMode('login')}
+                  className="text-xs font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors"
+                >
+                  Sudah memiliki akun? <span className="text-blue-600">Masuk Manual</span>
+                </button>
+              </div>
             </div>
-
-            <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Kata Sandi</label>
-                <div className="relative">
+          ) : (
+            <form onSubmit={handleManualAuth} className="space-y-6">
+              {authMode === 'register' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nama Lengkap</label>
+                  <div className="relative">
+                    <Users className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input 
-                        type={showPassword ? "text" : "password"} 
-                        required minLength={6}
-                        className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={e => setFormData({...formData, password: e.target.value})}
+                      type="text" 
+                      required
+                      placeholder="Masukkan nama Anda"
+                      className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800 bg-slate-50/50"
+                      value={formData.nama} 
+                      onChange={e => setFormData({...formData, nama: e.target.value})} 
                     />
-                    <button 
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
+                  </div>
                 </div>
-            </div>
-
-            {isRegistering && (
-                <div className="animate-fade-in">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Peran / Jabatan</label>
-                    <select 
-                        className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all bg-white font-bold text-slate-700"
-                        value={formData.peran}
-                        onChange={e => setFormData({...formData, peran: e.target.value as UserRole})}
-                    >
-                        {Object.values(ROLE_CONFIGS).map((config) => (
-                            <option key={config.id} value={config.id}>{config.label}</option>
-                        ))}
-                    </select>
-                </div>
-            )}
-
-            <button 
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-black transition-all flex items-center justify-center gap-3 mt-4 shadow-xl shadow-slate-200 disabled:opacity-70 active:scale-[0.98]"
-            >
-              {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                  <>
-                    <LogIn className="w-5 h-5" />
-                    {isRegistering ? 'Daftar Sekarang' : 'Masuk Ke Sistem'}
-                  </>
               )}
-            </button>
-            
-            <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest mt-6">
-                &copy; 2024 SIKILAT &bull; SMP N 6 PEKALONGAN
-            </p>
-          </form>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Email Sekolah / Institusi</label>
+                <div className="relative">
+                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input 
+                    type="email" 
+                    required
+                    placeholder="email@sekolah.sch.id"
+                    className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800 bg-slate-50/50"
+                    value={formData.email} 
+                    onChange={e => setFormData({...formData, email: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Kata Sandi</label>
+                <div className="relative">
+                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    required
+                    placeholder="••••••••"
+                    className="w-full pl-14 pr-14 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-800 bg-slate-50/50"
+                    value={formData.password} 
+                    onChange={e => setFormData({...formData, password: e.target.value})} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {authMode === 'register' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Pilih Peran</label>
+                  <select 
+                    className="w-full px-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 outline-none font-bold text-slate-800 bg-slate-50/50 appearance-none"
+                    value={formData.peran}
+                    onChange={e => setFormData({...formData, peran: e.target.value as UserRole})}
+                  >
+                    {Object.entries(ROLE_CONFIGS).map(([id, config]) => (
+                      <option key={id} value={id}>{config.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl hover:bg-black transition-all shadow-xl shadow-slate-200 disabled:opacity-50 flex items-center justify-center gap-3 active:scale-[0.98]"
+              >
+                {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+                  <>
+                    {authMode === 'login' ? <LogIn className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                    {authMode === 'login' ? 'Masuk ke Dashboard' : 'Konfirmasi Pendaftaran'}
+                  </>
+                )}
+              </button>
+
+              <div className="text-center pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                  className="text-xs font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors"
+                >
+                  {authMode === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Login'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {isLoading && authMode === 'demo' && (
+            <div className="fixed inset-0 z-[100] bg-white/60 backdrop-blur-sm flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+                <p className="font-black text-slate-900 tracking-tighter italic animate-pulse">Menghubungkan ke Node...</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
