@@ -20,7 +20,8 @@ import {
   ShieldCheck,
   Settings,
   Sparkles,
-  Circle
+  Circle,
+  UserCircle
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import db from '../services/dbService';
@@ -112,7 +113,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       pengawas_it: Monitor,
       pengawas_sarpras: Building2,
       pengawas_admin: ShieldCheck,
-      admin: Settings
+      admin: Settings,
+      tamu: UserCircle
     };
     const IconComponent = icons[role] || Users;
     
@@ -122,7 +124,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       violet: 'bg-violet-50 text-violet-500',
       amber: 'bg-amber-50 text-amber-500',
       indigo: 'bg-indigo-50 text-indigo-500',
-      rose: 'bg-rose-50 text-rose-500'
+      rose: 'bg-rose-50 text-rose-500',
+      cyan: 'bg-cyan-50 text-cyan-500'
     };
 
     return (
@@ -132,15 +135,23 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     );
   };
 
-  const rolesToDisplay: UserRole[] = ['guru', 'penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin'];
+  // UPDATED: Added 'admin' and 'tamu' to the display list
+  const rolesToDisplay: UserRole[] = [
+    'guru', 
+    'penanggung_jawab', 
+    'pengawas_it', 
+    'pengawas_sarpras', 
+    'pengawas_admin', 
+    'admin', 
+    'tamu'
+  ];
 
   return (
     <div className="min-h-screen bg-[#e2e8f0] flex items-center justify-center p-4 md:p-8">
       <div className="w-full max-w-6xl bg-white shadow-4xl rounded-[3rem] overflow-hidden flex flex-col md:flex-row min-h-[780px]">
         
-        {/* LEFT PANEL: BRANDING (Matches Image) */}
+        {/* LEFT PANEL: BRANDING */}
         <div className="md:w-[42%] bg-[#0f172a] p-12 md:p-16 flex flex-col justify-between text-white relative overflow-hidden">
-          {/* Decorative shapes */}
           <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-slate-800/30 rounded-full blur-[100px]"></div>
           <div className="absolute bottom-[-5%] left-[-5%] w-[250px] h-[250px] bg-indigo-900/20 rounded-full blur-[80px]"></div>
 
@@ -197,7 +208,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           )}
 
           {authMode === 'demo' ? (
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-4 pb-10">
               {rolesToDisplay.map((role) => {
                 const config = ROLE_CONFIGS[role];
                 return (
@@ -307,7 +318,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                         <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-indigo-500 animate-pulse" />
                     </div>
                     <div className="text-center">
-                        <p className="font-black text-slate-900 text-xl tracking-tighter italic italic">MENYAMBUNGKAN KE SIKILAT...</p>
+                        <p className="font-black text-slate-900 text-xl tracking-tighter italic">MENYAMBUNGKAN KE SIKILAT...</p>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Sinkronisasi Keamanan Node</p>
                     </div>
                 </div>
