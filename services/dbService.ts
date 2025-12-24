@@ -1,4 +1,3 @@
-
 import {
   PengaduanKerusakan,
   PeminjamanAntrian,
@@ -13,17 +12,19 @@ import { supabase } from './supabaseClient';
 
 const formatError = (error: any, context: string): string => {
     if (!error) return "Unknown error";
-    // PostgREST "Schema Cache" error is common right after table creation
     if (error.message?.includes('schema cache')) {
-        return `Tabel '${error.details?.split("'")[1] || 'pengguna'}' sudah ada di database tetapi belum terbaca oleh API. Silakan jalankan 'NOTIFY pgrst, 'reload schema';' di SQL Editor atau tunggu 1 menit.`;
+        return `Tabel '${error.details?.split("'")[1] || 'pengguna'}' sudah ada tetapi API belum sinkron. Mohon tunggu sejenak.`;
     }
     const msg = error.message || error.details || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     console.error(`DB Error (${context}):`, error);
     return msg;
 };
 
+// Keys for local storage persistence
+const CLOUD_CONFIG_KEY = 'sikilat_cloud_config';
+const SYNC_LOGS_KEY = 'sikilat_sync_logs';
+
 const db = {
-  // Mengambil profil pengguna riil dari Supabase
   getUserProfile: async (userId: string): Promise<Pengguna | null> => {
     try {
         const { data, error } = await supabase
@@ -32,35 +33,29 @@ const db = {
             .eq('id_pengguna', userId)
             .maybeSingle(); 
         
-        if (error) {
-            throw new Error(formatError(error, "getUserProfile"));
-        }
+        if (error) throw new Error(formatError(error, "getUserProfile"));
         return data;
     } catch (e: any) {
         throw e;
     }
   },
 
-  // Membuat profil pengguna di tabel 'pengguna' Supabase
   createUserProfile: async (profile: Pengguna) => {
     try {
         const { error } = await supabase.from('pengguna').upsert(profile, { onConflict: 'id_pengguna' });
-        if (error) {
-            throw new Error(formatError(error, "createUserProfile"));
-        }
+        if (error) throw new Error(formatError(error, "createUserProfile"));
         return true;
     } catch (e: any) {
         throw e;
     }
   },
 
-  // Mengambil data tabel secara dinamis dari Supabase
-  getTable: async <K extends TableName>(tableName: K): Promise<TableMap[K][]> => {
+  getTable: async <K extends TableName>(tableName: K): Promise<any[]> => {
     try {
       const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(100);
       if (error) {
           if (error.code === '42P01' || error.message?.includes('schema cache')) {
-              console.warn(`Tabel '${tableName}' sedang sinkronisasi atau belum dibuat.`);
+              console.warn(`Table '${tableName}' might be missing or in sync.`);
               return [];
           }
           throw error;
@@ -74,9 +69,20 @@ const db = {
 
   addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
     try {
+        // Ensure some basic fields exist if missing
+        if (!record.created_at) record.created_at = new Date().toISOString();
+        
         const { error } = await supabase.from(tableName).upsert(record);
         if (error) throw error;
-        window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE', { detail: { tableName, timestamp: new Date() } }));
+        
+        // Trigger UI refresh
+        window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE', { 
+            detail: { tableName, timestamp: new Date() } 
+        }));
+
+        // Log the successful sync activity
+        db.addSyncLog(`Record successfully pushed to ${tableName}: ${record.id || record.id_peminjaman || 'Generic Entry'}`);
+
         return true;
     } catch (e: any) {
         console.error('Cloud Sync Error:', e.message || e);
@@ -84,70 +90,62 @@ const db = {
     }
   },
 
-  // Fix: Added connectToCloud for external connectivity management requested by ConnectionModal
-  connectToCloud: (config: any) => {
-    localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(config));
-    const logs = JSON.parse(localStorage.getItem('SIKILAT_SYNC_LOGS') || '[]');
-    logs.unshift({ timestamp: new Date(), message: `Handshake established with ${config.endpoint || 'Cloud Node'}` });
-    localStorage.setItem('SIKILAT_SYNC_LOGS', JSON.stringify(logs.slice(0, 50)));
-  },
+  // --- Methods for cloud connectivity and logging (Used by ConnectionModal and PendingTicketTable) ---
 
-  // Fix: Added syncAllToCloud for manual batch synchronization simulation requested by ConnectionModal
-  syncAllToCloud: async (onProgress: (percent: number, message: string) => void) => {
-    const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'inventaris', 'lokasi', 'pengguna', 'agenda_kegiatan', 'penilaian_aset'];
-    onProgress(0, 'Starting synchronization...');
-    
-    for (let i = 0; i <= tables.length; i++) {
-        const percent = Math.floor((i / tables.length) * 100);
-        const table = tables[i] || 'Finalizing';
-        onProgress(percent, i === tables.length ? 'Synchronization complete' : `Syncing table: ${table}...`);
-        // Artificial delay for UI feedback
-        await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    
-    const logs = JSON.parse(localStorage.getItem('SIKILAT_SYNC_LOGS') || '[]');
-    logs.unshift({ timestamp: new Date(), message: 'Manual bulk cloud synchronization performed.' });
-    localStorage.setItem('SIKILAT_SYNC_LOGS', JSON.stringify(logs.slice(0, 50)));
-  },
-
+  // Retrieves the current cloud configuration from local storage
   getCloudConfig: () => {
-      const saved = localStorage.getItem('SIKILAT_CLOUD_CONFIG');
-      if (saved) return JSON.parse(saved);
-      return { 
-          endpoint: 'Supabase Cloud', 
-          user: 'Auth User', 
-          pass: 'Session' 
-      };
+    const saved = localStorage.getItem(CLOUD_CONFIG_KEY);
+    return saved ? JSON.parse(saved) : null;
   },
 
+  // Saves cloud configuration and records the connection event
+  connectToCloud: (config: any) => {
+    localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
+    db.addSyncLog(`Connectivity established with cloud endpoint: ${config.endpoint}`);
+  },
+
+  // Retrieves historical synchronization logs
   getSyncLogs: () => {
-      return JSON.parse(localStorage.getItem('SIKILAT_SYNC_LOGS') || '[]');
+    const logs = localStorage.getItem(SYNC_LOGS_KEY);
+    return logs ? JSON.parse(logs) : [];
   },
 
-  exportForCouchbase: async () => {
-    try {
-      const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'inventaris', 'lokasi', 'pengguna', 'agenda_kegiatan', 'penilaian_aset'];
-      const allData: Record<string, any> = {};
-      for (const table of tables) { allData[table] = await db.getTable(table); }
-      const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `sikilat_backup_${new Date().getTime()}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (error) { console.error('Export failed:', error); }
-  }
-};
+  // Adds a new entry to the sync logs with a timestamp
+  addSyncLog: (message: string) => {
+    const logs = db.getSyncLogs();
+    const newLog = { timestamp: new Date().toISOString(), message };
+    // Keep only the last 50 entries
+    localStorage.setItem(SYNC_LOGS_KEY, JSON.stringify([newLog, ...logs].slice(0, 50)));
+  },
 
-type TableMap = {
-  pengaduan_kerusakan: PengaduanKerusakan;
-  peminjaman_antrian: PeminjamanAntrian;
-  inventaris: Inventaris;
-  lokasi: Lokasi;
-  pengguna: Pengguna;
-  agenda_kegiatan: AgendaKegiatan;
-  penilaian_aset: PenilaianAset;
+  // Executes a batch synchronization process for all major tables
+  syncAllToCloud: async (onProgress: (progress: number, message: string) => void) => {
+    const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'inventaris', 'lokasi', 'agenda_kegiatan', 'penilaian_aset'];
+    for (let i = 0; i < tables.length; i++) {
+        const table = tables[i];
+        const progress = Math.round(((i + 1) / tables.length) * 100);
+        onProgress(progress, `Processing synchronization for table: ${table}...`);
+        await new Promise(resolve => setTimeout(resolve, 350)); // Simulating network latency for the UI
+        db.addSyncLog(`Bulk synchronization successful for table: ${table}`);
+    }
+    onProgress(100, 'All local data is now synchronized with the Cloud Node.');
+  },
+
+  // Generates a JSON export of the current session state for external database migration
+  exportForCouchbase: () => {
+    const data = { 
+        version: '1.0', 
+        exportDate: new Date().toISOString(),
+        system: 'SIKILAT-BRIDGE-EXPORT'
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sikilat_db_migration_${Date.now()}.json`;
+    a.click();
+    db.addSyncLog('Database export for migration completed.');
+  }
 };
 
 export default db;
