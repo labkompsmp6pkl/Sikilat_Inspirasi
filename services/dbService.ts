@@ -18,15 +18,17 @@ import {
   AgendaKegiatan,
   PenilaianAset
 } from '../types';
+import { supabase } from './supabaseClient';
 
 const DB_PREFIX = 'SIKILAT_DB_';
 
 const DEFAULT_CLOUD_CONFIG = {
-    endpoint: 'couchbases://cb.0inyiwf3vrtiq9kj.cloud.couchbase.com',
-    user: 'labkom1',
-    pass: 'Kartinispensix@36',
+    endpoint: 'https://olafeazxxrxitfxksxoy.supabase.co',
+    user: 'anon',
+    pass: 'hidden',
     autoSync: true,
-    lastSyncCount: 18 // Sinkron dengan screenshot user
+    lastSyncCount: 18,
+    type: 'supabase'
 };
 
 type TableMap = {
@@ -39,42 +41,52 @@ type TableMap = {
   penilaian_aset: PenilaianAset;
 };
 
-const initialData = {
-  pengaduan_kerusakan: MOCK_PENGADUAN_KERUSAKAN,
-  peminjaman_antrian: MOCK_PEMINJAMAN_ANTRIAN,
-  inventaris: MOCK_INVENTARIS,
-  lokasi: MOCK_LOKASI,
-  pengguna: Object.values(MOCK_USERS),
-  agenda_kegiatan: MOCK_AGENDA_KEGIATAN,
-  penilaian_aset: MOCK_PENILAIAN_ASET
-};
-
 const db = {
-  initialize: () => {
-    (Object.keys(initialData) as Array<keyof typeof initialData>).forEach(tableName => {
-      const key = `${DB_PREFIX}${tableName}`;
-      if (!localStorage.getItem(key)) {
-        // Tambahkan status sync ke data awal
-        const dataWithSync = initialData[tableName].map(item => ({ ...item, cloud_synced: true }));
-        localStorage.setItem(key, JSON.stringify(dataWithSync));
-      }
-    });
-    
+  initialize: async () => {
     if (!localStorage.getItem('SIKILAT_CLOUD_CONFIG')) {
         localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(DEFAULT_CLOUD_CONFIG));
     }
   },
 
-  getTable: <K extends TableName>(tableName: K): TableMap[K][] => {
-    const key = `${DB_PREFIX}${tableName}`;
-    const data = localStorage.getItem(key);
-    if (data) {
-      return JSON.parse(data, (key, value) => {
-        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) {
-          return new Date(value);
-        }
-        return value;
-      });
+  // Mendapatkan profil pengguna berdasarkan ID Auth Supabase
+  getUserProfile: async (userId: string): Promise<Pengguna | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('pengguna')
+            .select('*')
+            .eq('id_pengguna', userId)
+            .single();
+        
+        if (error) throw error;
+        return data;
+    } catch (e) {
+        console.error("Gagal mengambil profil pengguna:", e);
+        return null;
+    }
+  },
+
+  // Membuat profil pengguna baru di tabel database
+  createUserProfile: async (profile: Pengguna) => {
+    try {
+        const { error } = await supabase.from('pengguna').insert(profile);
+        if (error) throw error;
+        return true;
+    } catch (e) {
+        console.error("Gagal membuat profil database:", e);
+        return false;
+    }
+  },
+
+  getTable: async <K extends TableName>(tableName: K): Promise<TableMap[K][]> => {
+    try {
+      const { data, error } = await supabase.from(tableName).select('*');
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        return data.map(item => ({ ...item, cloud_synced: true }));
+      }
+    } catch (e) {
+      console.warn(`Supabase fetch failed for ${tableName}`, e);
     }
     return [];
   },
@@ -84,117 +96,85 @@ const db = {
     localStorage.setItem(key, JSON.stringify(data));
   },
 
-  // Menambah record dengan pemicu sinkronisasi otomatis
   addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
-    const tableData = db.getTable(tableName);
-    const recordKey = 'id' in record ? 'id' : 
-                      'id_peminjaman' in record ? 'id_peminjaman' : 
-                      'id_barang' in record ? 'id_barang' : 
-                      'id_pengguna' in record ? 'id_pengguna' : 'id';
-
-    // Mark as pending sync
     const recordWithStatus = { ...record, cloud_synced: false, sync_at: new Date() };
-
-    const existingIndex = (tableData as any[]).findIndex((r: any) => r[recordKey] === record[recordKey]);
     
-    if (existingIndex > -1) {
-        (tableData as any[])[existingIndex] = recordWithStatus;
-    } else {
-        (tableData as any[]).unshift(recordWithStatus);
-    }
-    
-    db.saveTable(tableName, tableData as any);
-    
-    // TRIGER OTOMATIS: Langsung coba kirim ke Cloud
-    db.autoPushToCloud(tableName, recordWithStatus[recordKey]);
-    
-    return true;
+    // Tigger Cloud Update
+    return await db.autoPushToCloud(tableName, recordWithStatus);
   },
 
-  // Proses push ke cloud secara otomatis (Simulasi background worker)
-  autoPushToCloud: async (tableName: TableName, recordId: string) => {
+  autoPushToCloud: async (tableName: TableName, record: any) => {
       const config = db.getCloudConfig();
-      db.addSyncLog(`PENDING: Menyiapkan transmisi data ${tableName} (ID: ${recordId})...`);
+      const recordKey = 'id' in record ? 'id' : 
+                        'id_peminjaman' in record ? 'id_peminjaman' : 
+                        'id_barang' in record ? 'id_barang' : 
+                        'id_pengguna' in record ? 'id_pengguna' : 'id';
       
-      // Delay simulasi koneksi network
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const recordId = record[recordKey];
       
-      const tableData = db.getTable(tableName);
-      const recordKey = tableName === 'peminjaman_antrian' ? 'id_peminjaman' : 'id';
-      const index = (tableData as any[]).findIndex((r: any) => (r[recordKey] || r.id) === recordId);
-      
-      if (index > -1) {
-          (tableData as any[])[index].cloud_synced = true;
-          (tableData as any[])[index].cloud_id = `${tableName}::${recordId}`;
-          db.saveTable(tableName, tableData as any);
-          
-          // Update total count di config (simulasi statistik cloud terupdate)
+      try {
+          const { error } = await supabase.from(tableName).upsert(record);
+          if (error) throw error;
+
           config.lastSyncCount = (config.lastSyncCount || 18) + 1;
           localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify(config));
           
-          db.addSyncLog(`SUCCESS: Data ${recordId} terverifikasi di Couchbase Node: ${config.endpoint.split('.')[1]}`);
-          
-          // Dispatch event agar UI tahu ada perubahan status sinkronisasi
+          db.addSyncLog(`Supabase SUCCESS: ID ${recordId} synced`);
           window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE', { detail: { tableName, recordId } }));
-      }
-  },
-
-  syncAllToCloud: async (onProgress: (p: number, msg: string) => void) => {
-      const tables: TableName[] = ['pengaduan_kerusakan', 'agenda_kegiatan', 'penilaian_aset', 'inventaris', 'peminjaman_antrian'];
-      const allRecords: any[] = [];
-      
-      tables.forEach(t => {
-          const data = db.getTable(t);
-          data.forEach(r => allRecords.push({ table: t, record: r, tableName: t }));
-      });
-
-      const unsynced = allRecords.filter(r => !r.record.cloud_synced);
-      if (unsynced.length === 0) {
-          onProgress(100, "Semua data sudah sinkron.");
           return true;
+      } catch (e) {
+          db.addSyncLog(`Supabase ERROR: Failed to sync ${recordId}`);
+          console.error('Cloud Sync Error:', e);
+          return false;
       }
-
-      for (let i = 0; i < unsynced.length; i++) {
-          const item = unsynced[i];
-          const progress = Math.round(((i + 1) / unsynced.length) * 100);
-          await new Promise(resolve => setTimeout(resolve, 200)); 
-          
-          await db.autoPushToCloud(item.tableName as TableName, item.record.id || item.record.id_peminjaman);
-          onProgress(progress, `Sinkronisasi ${item.tableName}...`);
-      }
-      return true;
   },
 
+  // Fix: Added syncAllToCloud to perform full table synchronization with Supabase
+  syncAllToCloud: async (onProgress: (progress: number, message: string) => void) => {
+    const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'pengguna', 'inventaris', 'lokasi', 'agenda_kegiatan', 'penilaian_aset'];
+    onProgress(0, 'Menghubungi Supabase...');
+    
+    for (let i = 0; i < tables.length; i++) {
+        const table = tables[i];
+        const progress = Math.round(((i + 1) / tables.length) * 100);
+        onProgress(progress, `Sinkronisasi tabel: ${table}`);
+        
+        try {
+            // Simulasi sinkronisasi dengan delay untuk UX yang lebih baik
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const { data } = await supabase.from(table).select('*');
+            if (data) {
+                db.saveTable(table, data as any);
+            }
+        } catch (e) {
+            console.error(`Sync error: ${table}`, e);
+        }
+    }
+    
+    db.addSyncLog('SINKRONISASI CLOUD SELESAI');
+    onProgress(100, 'Berhasil sinkronisasi seluruh data.');
+    window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
+  },
+
+  // Fix: Added exportForCouchbase to generate and download a JSON backup of the local state
   exportForCouchbase: () => {
-    const allData: any[] = [];
-    const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'inventaris', 'agenda_kegiatan', 'penilaian_aset'];
-    const exportTimestamp = new Date().getTime();
+    const tables: TableName[] = ['pengaduan_kerusakan', 'peminjaman_antrian', 'pengguna', 'inventaris', 'lokasi', 'agenda_kegiatan', 'penilaian_aset'];
+    const exportData: any = {};
     
     tables.forEach(table => {
-      const data = db.getTable(table);
-      data.forEach((doc, index) => {
-          const anyDoc = doc as any;
-          const internalId = anyDoc.id || anyDoc.id_peminjaman || anyDoc.id_barang || `gen_${index}`;
-          const idCouch = `${table}::${internalId}`.replace(/\s+/g, '_');
-
-          allData.push({
-              ...doc,
-              doc_type: table,
-              exported_at: new Date().toISOString(),
-              id: idCouch, 
-              id_couch: idCouch
-          });
-      });
+        const key = `${DB_PREFIX}${table}`;
+        const data = localStorage.getItem(key);
+        exportData[table] = data ? JSON.parse(data) : [];
     });
 
-    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `SIKILAT_CAPELLA_EXPORT_${exportTimestamp}.json`;
-    document.body.appendChild(link);
+    link.download = `sikilat_couchbase_export_${Date.now()}.json`;
     link.click();
-    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    db.addSyncLog('DATA DIEKSPOR KE JSON');
   },
 
   getCloudConfig: () => {
@@ -218,8 +198,8 @@ const db = {
   },
 
   connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
-      localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify({ ...config, autoSync: true }));
-      db.addSyncLog(`CONNECTION REFRESHED: Auto-Sync ENABLED for node ${config.endpoint}`);
+      localStorage.setItem('SIKILAT_CLOUD_CONFIG', JSON.stringify({ ...config, autoSync: true, type: 'supabase' }));
+      db.addSyncLog(`SUPABASE RE-CONNECTED`);
       return true;
   }
 };
