@@ -29,10 +29,10 @@ import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris,
 
 export const MOCK_USERS: Record<string, User> = {
   guru: { id_pengguna: 'u1', nama_lengkap: 'Budi Santoso', email: 'budi@sikilat.sch.id', no_hp: '081234567890', peran: 'guru', avatar: 'https://picsum.photos/seed/guru/100/100' },
-  pj: { id_pengguna: 'u2', nama_lengkap: 'Siti Aminah', email: 'siti@sikilat.sch.id', no_hp: '081234567891', peran: 'penanggung_jawab', avatar: 'https://picsum.photos/seed/pj/100/100' },
-  it: { id_pengguna: 'u3', nama_lengkap: 'Rudi Hartono', email: 'rudi@sikilat.sch.id', no_hp: '081234567892', peran: 'pengawas_it', avatar: 'https://picsum.photos/seed/it/100/100' },
-  sarpras: { id_pengguna: 'u4', nama_lengkap: 'Dewi Sartika', email: 'dewi@sikilat.sch.id', no_hp: '081234567893', peran: 'pengawas_sarpras', avatar: 'https://picsum.photos/seed/sarp/100/100' },
-  admin_p: { id_pengguna: 'u5', nama_lengkap: 'Ahmad Dahlan', email: 'ahmad@sikilat.sch.id', no_hp: '081234567894', peran: 'pengawas_admin', avatar: 'https://picsum.photos/seed/adm/100/100' },
+  penanggung_jawab: { id_pengguna: 'u2', nama_lengkap: 'Siti Aminah', email: 'siti@sikilat.sch.id', no_hp: '081234567891', peran: 'penanggung_jawab', avatar: 'https://picsum.photos/seed/pj/100/100' },
+  pengawas_it: { id_pengguna: 'u3', nama_lengkap: 'Rudi Hartono', email: 'rudi@sikilat.sch.id', no_hp: '081234567892', peran: 'pengawas_it', avatar: 'https://picsum.photos/seed/it/100/100' },
+  pengawas_sarpras: { id_pengguna: 'u4', nama_lengkap: 'Dewi Sartika', email: 'dewi@sikilat.sch.id', no_hp: '081234567893', peran: 'pengawas_sarpras', avatar: 'https://picsum.photos/seed/sarp/100/100' },
+  pengawas_admin: { id_pengguna: 'u5', nama_lengkap: 'Ahmad Dahlan', email: 'ahmad@sikilat.sch.id', no_hp: '081234567894', peran: 'pengawas_admin', avatar: 'https://picsum.photos/seed/adm/100/100' },
   admin: { id_pengguna: 'u6', nama_lengkap: 'Super Admin', email: 'admin@sikilat.sch.id', no_hp: '081234567895', peran: 'admin', avatar: 'https://picsum.photos/seed/super/100/100' },
   tamu: { id_pengguna: 'u7', nama_lengkap: 'Pengunjung', email: 'tamu@gmail.com', no_hp: '-', peran: 'tamu', avatar: 'https://picsum.photos/seed/tamu/100/100' },
 };
