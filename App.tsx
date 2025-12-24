@@ -114,7 +114,6 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Failsafe: Pastikan loading screen App tutup dalam 4 detik apapun yang terjadi
     const failsafe = setTimeout(() => {
         setIsAppLoading(false);
     }, 4000);
@@ -146,11 +145,7 @@ const App: React.FC = () => {
         if (event === 'SIGNED_IN' && session?.user && !currentUser) {
             await syncUserProfile(session.user.id, session.user.email!);
         } else if (event === 'SIGNED_OUT') {
-            setCurrentUser(null); 
-            setBookings([]); 
-            setReports([]); 
-            setIsChatOpen(false);
-            setIsSqlEditorOpen(false);
+            resetAppState();
         }
     });
 
@@ -160,6 +155,19 @@ const App: React.FC = () => {
         window.removeEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
     };
   }, [refreshAllData, currentUser]);
+
+  const resetAppState = () => {
+    setCurrentUser(null); 
+    setBookings([]); 
+    setReports([]); 
+    setEvaluations([]);
+    setInventaris([]);
+    setActivities([]);
+    setAiConclusion(null);
+    setIsChatOpen(false);
+    setIsSqlEditorOpen(false);
+    setIsProfileMenuOpen(false);
+  };
 
   const handleAiConclusion = async () => {
       if (!currentUser) return;
@@ -171,8 +179,18 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    // 1. Tutup menu & set status loading kecil
     setIsProfileMenuOpen(false);
-    await supabase.auth.signOut();
+    
+    // 2. Bersihkan state aplikasi secara manual (Penting untuk akun Demo)
+    resetAppState();
+    
+    // 3. Panggil logout resmi Supabase (Penting untuk akun Asli)
+    try {
+        await supabase.auth.signOut();
+    } catch (e) {
+        console.warn("SignOut process logged out locally but failed on cloud server:", e);
+    }
   };
 
   if (isAppLoading) return (
