@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Login from './components/Login';
 import ChatInterface from './components/ChatInterface';
 import MyStatusDashboard from './components/MyStatusDashboard';
@@ -7,7 +7,7 @@ import DamageReportChart from './components/DamageReportChart';
 import PendingTicketTable from './components/PendingTicketTable';
 import AgendaActivityTable from './components/AgendaActivityTable'; 
 import BookingTable from './components/BookingTable';
-import SQLEditor from './components/SQLEditor'; // Impor baru
+import SQLEditor from './components/SQLEditor';
 import { ROLE_CONFIGS } from './constants';
 import { UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
@@ -32,7 +32,7 @@ import {
   Clock,
   LayoutDashboard,
   ChevronRight,
-  Terminal // Icon baru
+  Terminal 
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -42,7 +42,7 @@ const App: React.FC = () => {
   const [isSyncingGlobal, setIsSyncingGlobal] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false); 
-  const [isSqlEditorOpen, setIsSqlEditorOpen] = useState(false); // State baru
+  const [isSqlEditorOpen, setIsSqlEditorOpen] = useState(false);
   const [externalMessage, setExternalMessage] = useState<string | null>(null);
   const [cloudDocCount, setCloudDocCount] = useState(0);
 
@@ -56,6 +56,7 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const isAdminRole = currentUser && ['admin', 'pengawas_admin', 'pengawas_it'].includes(currentUser.peran);
+  const hasInitialized = useRef(false);
 
   const refreshAllData = useCallback(async () => {
     setIsSyncingGlobal(true);
@@ -74,29 +75,47 @@ const App: React.FC = () => {
         setActivities(a);
         setCloudDocCount(b.length + r.length + e.length + i.length + a.length);
     } catch (e) { 
-        console.error(e); 
+        console.error("Refresh Data Error:", e); 
     } finally { 
         setIsSyncingGlobal(false); 
     }
   }, []);
 
   useEffect(() => {
+    // Failsafe timeout: Jika 5 detik belum selesai loading, paksa masuk
+    const failsafe = setTimeout(() => {
+        if (isAppLoading) {
+            console.warn("SIKILAT: Loading taking too long, forcing initialization...");
+            setIsAppLoading(false);
+        }
+    }, 5000);
+
     const initializeAuth = async () => {
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            // Cek apakah storage bisa diakses (sering gagal di iframe domain berbeda)
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            
+            if (sessionError) throw sessionError;
+
             if (session?.user) {
                 const profile = await db.getUserProfile(session.user.id);
                 if (profile) { 
                     setCurrentUser(profile); 
-                    await refreshAllData(); 
+                    // Jangan ditunggu (non-blocking) agar loading screen segera hilang
+                    refreshAllData(); 
                 }
             }
         } catch (e) { 
-            console.error(e); 
+            console.error("Auth Initialization Error (might be blocked by iframe security):", e); 
         } finally { 
             setIsAppLoading(false);
+            clearTimeout(failsafe);
         }
     };
+
     initializeAuth();
     
     window.addEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
@@ -106,7 +125,7 @@ const App: React.FC = () => {
             const profile = await db.getUserProfile(session.user.id);
             if (profile) { 
                 setCurrentUser(profile); 
-                await refreshAllData(); 
+                refreshAllData(); 
             }
         } else if (event === 'SIGNED_OUT') {
             setCurrentUser(null); 
@@ -116,8 +135,10 @@ const App: React.FC = () => {
             setIsSqlEditorOpen(false);
         }
     });
+
     return () => {
         subscription.unsubscribe();
+        clearTimeout(failsafe);
         window.removeEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
     };
   }, [refreshAllData]);
@@ -144,6 +165,7 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-5xl font-black tracking-tighter italic animate-pulse">SIKILAT</h1>
           <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.5em] mt-4 opacity-50">Secure Sync Initialization</p>
+          <p className="mt-8 text-[10px] text-slate-500 font-medium">Jika layar ini menetap, pastikan browser mengizinkan cookies pihak ketiga.</p>
       </div>
   );
 
@@ -183,7 +205,7 @@ const App: React.FC = () => {
                       </div>
                       <div className="flex flex-col">
                           <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Global Node</span>
-                          <span className="text-xs font-black text-slate-800 leading-none">SUPABASE CONNECTED</span>
+                          <span className="text-xs font-black text-slate-800 leading-none uppercase">{isSyncingGlobal ? 'Syncing...' : 'Connected'}</span>
                       </div>
                   </div>
                   
