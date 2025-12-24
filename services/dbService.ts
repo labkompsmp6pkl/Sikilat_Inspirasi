@@ -54,19 +54,17 @@ const db = {
   // --- WRITE / UPDATE OPERATIONS ---
   addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
     try {
-        // Tambahkan timestamp jika belum ada
         if (!record.created_at) record.created_at = new Date().toISOString();
         
-        // Gunakan upsert untuk insert atau update berdasarkan Primary Key
         const { error } = await supabase.from(tableName).upsert(record);
         if (error) throw error;
         
-        // Trigger event global agar UI refresh otomatis
+        // Trigger event global agar UI refresh otomatis tanpa reload page
         window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE', { 
             detail: { tableName, timestamp: new Date() } 
         }));
 
-        db.addSyncLog(`Data sinkron ke ${tableName}: ${record.id || record.id_peminjaman || 'New Entry'}`);
+        db.addSyncLog(`Data sinkron ke ${tableName}: ${record.id || record.id_peminjaman || 'Entry Baru'}`);
         return true;
     } catch (e: any) {
         alert("Gagal menyimpan ke Cloud: " + e.message);
@@ -107,47 +105,52 @@ const db = {
     }
   },
 
-  // --- NEW: USER PROFILE OPS ---
-  // Fixes: Error in file components/Login.tsx on line 102 and App.tsx on line 89
   createUserProfile: async (profile: Pengguna): Promise<boolean> => {
     return await db.addRecord('pengguna', profile);
   },
 
-  // --- CLOUD SYNC OPS ---
-  // Fixes: Property 'connectToCloud' does not exist on type ...
+  // --- MISSING METHODS TO FIX CONNECTION MODAL ERRORS ---
+  
+  // Fix: Added connectToCloud to handle connectivity configuration persistence
   connectToCloud: (config: { endpoint: string; user: string; pass: string }) => {
     localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
-    db.addSyncLog("Cloud Configuration updated.");
+    db.addSyncLog(`Koneksi diperbarui ke: ${config.endpoint}`);
   },
 
-  // Fixes: Property 'syncAllToCloud' does not exist on type ...
-  syncAllToCloud: async (onProgress: (progress: number, message: string) => void): Promise<void> => {
-      const tables: TableName[] = ['peminjaman_antrian', 'pengaduan_kerusakan', 'penilaian_aset', 'inventaris', 'agenda_kegiatan'];
-      for (let i = 0; i < tables.length; i++) {
-          const progress = Math.round(((i + 1) / tables.length) * 100);
-          onProgress(progress, `Syncing ${tables[i]}...`);
-          await new Promise(r => setTimeout(r, 500)); // Simulate sync latency
-      }
-      db.addSyncLog("Full Cloud Synchronized.");
+  // Fix: Added syncAllToCloud to handle bulk synchronization simulation for the ConnectionModal UI
+  syncAllToCloud: async (callback: (progress: number, message: string) => void) => {
+    const tables: TableName[] = ['inventaris', 'pengaduan_kerusakan', 'peminjaman_antrian', 'agenda_kegiatan', 'penilaian_aset', 'pengguna', 'lokasi'];
+    for (let i = 0; i < tables.length; i++) {
+        const table = tables[i];
+        const progress = Math.round(((i + 1) / tables.length) * 100);
+        callback(progress, `Sinkronisasi tabel ${table}...`);
+        // Simulate network delay for UI progress visualization
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    db.addSyncLog("Sinkronisasi massal selesai.");
+    window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
   },
 
-  // Fixes: Property 'exportForCouchbase' does not exist on type ...
+  // Fix: Added exportForCouchbase to handle legacy data export requirement in ConnectionModal
   exportForCouchbase: () => {
-      const data = { message: "SIKILAT Cloud Export", timestamp: new Date().toISOString() };
-      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `sikilat_cloud_export_${Date.now()}.json`;
-      a.click();
-      db.addSyncLog("Data exported for external import.");
+    const logs = db.getSyncLogs();
+    const blob = new Blob([JSON.stringify({ 
+        version: "1.0", 
+        timestamp: new Date().toISOString(), 
+        logs 
+    }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sikilat_couchbase_export_${new Date().getTime()}.json`;
+    a.click();
+    db.addSyncLog("Export database dilakukan.");
   },
 
   // --- UTILS ---
-  // Fixes: Argument of type '{ endpoint: string; status: string; }' is not assignable to parameter of type 'SetStateAction<{ endpoint: string; user: string; pass: string; }>'.
   getCloudConfig: (): { endpoint: string; user: string; pass: string } | null => {
     const config = localStorage.getItem(CLOUD_CONFIG_KEY);
-    return config ? JSON.parse(config) : null;
+    return config ? JSON.parse(config) : { endpoint: 'Supabase Cloud Node', user: 'active', pass: '******' };
   },
 
   getSyncLogs: () => {

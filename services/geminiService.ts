@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { User, GeminiResponse, PengaduanKerusakan, SavedData, LaporanStatus, TableName, PenilaianAset, PeminjamanAntrian, AgendaKegiatan, Inventaris } from "../types";
+import { User, GeminiResponse, PengaduanKerusakan, TableName, PenilaianAset, PeminjamanAntrian, AgendaKegiatan, Inventaris } from "../types";
 
 export const generateGlobalConclusion = async (data: {
     reports: PengaduanKerusakan[],
@@ -8,52 +8,70 @@ export const generateGlobalConclusion = async (data: {
     activities: AgendaKegiatan[],
     inventaris: Inventaris[]
 }, user: User): Promise<string> => {
-    if (!process.env.API_KEY) return "Fitur AI memerlukan API Key aktif.";
+    if (!process.env.API_KEY) return "Fitur AI memerlukan API Key aktif di lingkungan pengembangan.";
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+    const itStats = {
+        total: data.inventaris.filter(i => i.kategori === 'IT').length,
+        baik: data.inventaris.filter(i => i.kategori === 'IT' && i.status_barang === 'Baik').length,
+        rusak: data.inventaris.filter(i => i.kategori === 'IT' && i.status_barang !== 'Baik').length
+    };
+
+    const sarprasStats = {
+        total: data.inventaris.filter(i => i.kategori === 'Sarpras').length,
+        baik: data.inventaris.filter(i => i.kategori === 'Sarpras' && i.status_barang === 'Baik').length,
+        rusak: data.inventaris.filter(i => i.kategori === 'Sarpras' && i.status_barang !== 'Baik').length
+    };
+
     const context = `
-    DATA REAL-TIME SIKILAT:
+    KONTEKS OPERASIONAL SIKILAT:
     
-    1. INVENTARIS: Total ${data.inventaris.length} aset. Baik: ${data.inventaris.filter(i => i.status_barang === 'Baik').length}, Butuh Perhatian: ${data.inventaris.filter(i => i.status_barang !== 'Baik').length}.
-    2. LAPORAN KERUSAKAN: ${data.reports.filter(r => r.status === 'Pending').length} tiket pending. Contoh: ${data.reports.filter(r => r.status === 'Pending').slice(0,3).map(r => r.nama_barang + ' di ' + r.lokasi_kerusakan).join(', ')}.
-    3. BOOKING AKTIF: ${data.bookings.filter(b => b.status_peminjaman === 'Disetujui').length} disetujui, ${data.bookings.filter(b => b.status_peminjaman === 'Menunggu').length} menunggu.
-    4. AGENDA PETUGAS: ${data.activities.length} agenda terdaftar.
+    1. INVENTARIS IT: ${itStats.total} total. Baik: ${itStats.baik}, Rusak/Perbaikan: ${itStats.rusak}.
+    2. INVENTARIS SARPRAS: ${sarprasStats.total} total. Baik: ${sarprasStats.baik}, Rusak/Perbaikan: ${sarprasStats.rusak}.
+    3. TIKET KERUSAKAN: ${data.reports.filter(r => r.status === 'Pending').length} pending, ${data.reports.filter(r => r.status === 'Proses').length} sedang dikerjakan.
+    4. UTILISASI: ${data.bookings.filter(b => b.status_peminjaman === 'Disetujui').length} booking disetujui, ${data.bookings.filter(b => b.status_peminjaman === 'Menunggu').length} menunggu persetujuan.
+    5. AGENDA PJ: ${data.activities.filter(a => a.status === 'Pending').length} agenda perbaikan/maintenance menunggu review.
     `;
 
-    const systemInstruction = `Anda adalah SIKILAT AI Analis Manajemen Infrastruktur.
-    Tugas: Berikan Kesimpulan Strategis singkat (maks 200 kata) bagi manajemen sekolah berdasarkan data live di atas.
-    Fokus pada: 📊 Ringkasan Kesehatan Aset, 🔥 Titik Masalah Kritis, dan 🎯 Rekomendasi Tindakan Segera.
-    Gunakan Markdown yang profesional dan tajam.`;
+    const systemInstruction = `Anda adalah SIKILAT AI Analyst (Executive Level).
+    Tugas: Berikan "Executive Strategic Summary" singkat (maks 250 kata) untuk Manajemen Sekolah.
+    Poin Analisis:
+    - 🛡️ Kesehatan Infrastruktur: Evaluasi kondisi IT vs Sarpras.
+    - ⚡ Bottleneck Operasional: Soroti tiket pending atau antrian booking.
+    - 🎯 Roadmap Tindakan: Berikan 3 poin rekomendasi taktis untuk PJ (Penanggung Jawab).
+    Gunakan Bahasa Indonesia yang tajam, profesional, dan gunakan Markdown.`;
 
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-pro-preview",
             config: { systemInstruction },
-            contents: { parts: [{ text: `Analisis data ini: ${context}` }] },
+            contents: { parts: [{ text: `Lakukan analisis mendalam berdasarkan data real-time ini: ${context}` }] },
         });
-        return response.text || "Gagal melakukan analisis.";
+        return response.text || "AI gagal memproses data saat ini.";
     } catch (e) {
-        return "Terjadi kendala saat menghubungkan ke AI Strategic Node.";
+        console.error("AI Global Summary Error:", e);
+        return "Terjadi kendala saat menghubungkan ke Strategic Intelligence Node.";
     }
 };
 
 export const sendMessageToGemini = async (message: string, user: User, imageBase64?: string | null, mimeType?: string | null): Promise<GeminiResponse> => {
-  if (!process.env.API_KEY) return { text: `⚠️ **Mode Offline**: Koneksi AI tidak tersedia.`};
+  if (!process.env.API_KEY) return { text: `⚠️ **API Key Missing**: Hubungkan API Key di backend.`};
   
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  let systemInstruction = `Anda adalah SIKILAT AI Assistant. User adalah ${user.peran}.
+  let systemInstruction = `Anda adalah SIKILAT AI Assistant. User Anda adalah ${user.peran}.
   
-  Format Response:
-  - Gunakan bahasa Indonesia yang profesional.
-  - Jika user ingin melaporkan, meminjam, atau input data, Anda HARUS menyertakan widget form JSON dengan format:
-    :::DATA_JSON:::{"type": "form_trigger", "formId": "ID_FORM", "label": "LABEL_TOMBOL", "assetName": "NAMA_ASET_JIKA_ADA"}
+  Format Respons:
+  - Gunakan bahasa Indonesia yang membantu dan profesional.
+  - Jika user mengeluh soal barang rusak, tawarkan untuk memicu :::DATA_JSON::: form 'lapor_kerusakan'.
+  - Jika user ingin pinjam ruangan/alat, pemicu form 'booking_ruangan'.
+  - Anda memiliki akses data melalui :::DATA_JSON::: widget untuk membantu visualisasi.
   
-  ID FORM TERSEDIA:
-  - booking_ruangan
-  - lapor_kerusakan
-  - input_kegiatan
-  - penilaian_aset
-  - cek_laporan`;
+  ID FORM AKTIF:
+  - booking_ruangan (Untuk Guru/Siswa)
+  - lapor_kerusakan (Untuk semua)
+  - input_kegiatan (Khusus Penanggung Jawab)
+  - penilaian_aset (Untuk Tamu/Ortu)
+  - cek_laporan (Tracking ID Tiket)`;
 
   try {
     const parts: any[] = [{ text: message }];
@@ -65,8 +83,9 @@ export const sendMessageToGemini = async (message: string, user: User, imageBase
         config: { systemInstruction },
         contents: { parts },
     });
-    return { text: response.text || "Maaf, AI sedang melakukan sinkronisasi ulang." };
+    return { text: response.text || "Respon kosong dari AI." };
   } catch (error: any) {
-    return { text: `⚠️ AI SIKILAT sedang dalam mode pemeliharaan.` };
+    console.error("Gemini Chat Error:", error);
+    return { text: `⚠️ Koneksi AI terganggu. SIKILAT sedang melakukan sinkronisasi ulang.` };
   }
 };

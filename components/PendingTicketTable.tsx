@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { PengaduanKerusakan } from '../types';
-import { Clock, Play, MapPin, User, ChevronLeft, ChevronRight, CloudCheck, Cloud } from 'lucide-react';
+import { Clock, Play, MapPin, User, ChevronLeft, ChevronRight, CloudCheck, Cloud, Copy, Check } from 'lucide-react';
 import db from '../services/dbService';
 
 interface PendingTicketTableProps {
@@ -12,6 +12,7 @@ interface PendingTicketTableProps {
 
 const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProcessAction, isReadOnly = false }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [copied, setCopied] = useState(false);
   const itemsPerPage = 5;
   const isCloudActive = !!db.getCloudConfig();
 
@@ -37,14 +38,35 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
     if (currentPage > 1) setCurrentPage(prev => prev - 1);
   };
 
+  const handleCopyToClipboard = () => {
+    const header = "ANTRIAN TIKET PENDING SIKILAT\n------------------------------\n";
+    const rows = currentData.map(r => 
+      `ID: ${r.id}\nTanggal: ${new Date(r.tanggal_lapor).toLocaleDateString()}\nAset: ${r.nama_barang}\nMasalah: ${r.deskripsi_masalah}\nLokasi: ${r.lokasi_kerusakan}\n---`
+    ).join('\n');
+    
+    navigator.clipboard.writeText(header + rows).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-4 border-b bg-amber-50/50 border-amber-100 flex justify-between items-center">
-        <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-amber-600" />
-          Antrian Tiket Pending ({pendingReports.length})
-          {isReadOnly && <span className="text-xs text-slate-400 font-normal ml-2">(Mode Monitor)</span>}
-        </h3>
+        <div className="flex items-center gap-4">
+            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-600" />
+            Antrian Tiket Pending ({pendingReports.length})
+            {isReadOnly && <span className="text-xs text-slate-400 font-normal ml-2">(Mode Monitor)</span>}
+            </h3>
+            <button 
+                onClick={handleCopyToClipboard}
+                className={`flex items-center gap-2 px-3 py-1 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all border ${copied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-amber-200 text-amber-700 hover:bg-amber-50'}`}
+            >
+                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {copied ? 'Copied!' : 'Copy Page Data'}
+            </button>
+        </div>
         <div className="flex items-center gap-2">
             {isCloudActive && (
                 <div className="flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
@@ -74,7 +96,6 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
                      </span>
                      <span className="text-xs text-slate-400 mt-1 ml-0.5 flex items-center gap-1">
                         {new Date(report.tanggal_lapor).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
-                        {/* Fix: Lucide icons do not support the 'title' prop. Wrapping in span for tooltip functionality. */}
                         {isCloudActive && (
                           <span title="Synced to Cloud">
                             <Cloud className="w-2.5 h-2.5 text-blue-400" />

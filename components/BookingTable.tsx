@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { PeminjamanAntrian, UserRole } from '../types';
-import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, ShieldAlert, X, Cloud, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, ShieldAlert, X, Cloud, RefreshCw, Copy, Check } from 'lucide-react';
 
 interface BookingTableProps {
   bookings: PeminjamanAntrian[];
@@ -11,6 +11,7 @@ interface BookingTableProps {
 
 const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, onUpdateStatus }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [copied, setCopied] = useState(false);
   const itemsPerPage = 5;
 
   const sortedBookings = useMemo(() => {
@@ -25,14 +26,33 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
   const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
   const canManage = ['penanggung_jawab', 'admin'].includes(currentUserRole || '');
 
+  const handleCopyToClipboard = () => {
+    const header = "LAPORAN BOOKING SIKILAT\n-----------------------\n";
+    const rows = currentData.map(b => 
+      `Aset: ${b.nama_barang}\nTanggal: ${new Date(b.tanggal_peminjaman).toLocaleDateString()}\nKeperluan: ${b.keperluan}\nStatus: ${b.status_peminjaman}\n---`
+    ).join('\n');
+    
+    navigator.clipboard.writeText(header + rows).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full">
       <div className="p-6 border-b bg-slate-50/50 flex justify-between items-center">
-        <div>
+        <div className="flex items-center gap-4">
             <h3 className="font-black text-slate-800 flex items-center gap-2 text-lg">
                 <Calendar className="w-5 h-5 text-blue-600" />
                 Booking & Antrian
             </h3>
+            <button 
+                onClick={handleCopyToClipboard}
+                className={`flex items-center gap-2 px-3 py-1 rounded-xl font-bold text-[9px] uppercase tracking-wider transition-all border ${copied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+            >
+                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {copied ? 'Copied!' : 'Copy Data'}
+            </button>
         </div>
         {canManage && (
              <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">
