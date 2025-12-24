@@ -7,6 +7,7 @@ import DamageReportChart from './components/DamageReportChart';
 import PendingTicketTable from './components/PendingTicketTable';
 import AgendaActivityTable from './components/AgendaActivityTable'; 
 import BookingTable from './components/BookingTable';
+import SQLEditor from './components/SQLEditor'; // Impor baru
 import { ROLE_CONFIGS } from './constants';
 import { UserRole, SavedData, PengaduanKerusakan, PeminjamanAntrian, Pengguna, Inventaris, AgendaKegiatan, PenilaianAset } from './types';
 import db from './services/dbService'; 
@@ -30,7 +31,8 @@ import {
   Database,
   Clock,
   LayoutDashboard,
-  ChevronRight
+  ChevronRight,
+  Terminal // Icon baru
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -40,6 +42,7 @@ const App: React.FC = () => {
   const [isSyncingGlobal, setIsSyncingGlobal] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false); 
+  const [isSqlEditorOpen, setIsSqlEditorOpen] = useState(false); // State baru
   const [externalMessage, setExternalMessage] = useState<string | null>(null);
   const [cloudDocCount, setCloudDocCount] = useState(0);
 
@@ -51,6 +54,8 @@ const App: React.FC = () => {
   
   const [aiConclusion, setAiConclusion] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const isAdminRole = currentUser && ['admin', 'pengawas_admin', 'pengawas_it'].includes(currentUser.peran);
 
   const refreshAllData = useCallback(async () => {
     setIsSyncingGlobal(true);
@@ -108,6 +113,7 @@ const App: React.FC = () => {
             setBookings([]); 
             setReports([]); 
             setIsChatOpen(false);
+            setIsSqlEditorOpen(false);
         }
     });
     return () => {
@@ -159,6 +165,17 @@ const App: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-4 md:gap-8">
+                  {/* SQL EDITOR BUTTON - Admin Only */}
+                  {isAdminRole && (
+                    <button 
+                      onClick={() => setIsSqlEditorOpen(true)}
+                      className="hidden sm:flex items-center gap-3 px-5 py-2.5 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-xl shadow-slate-900/20 hover:bg-black transition-all group"
+                    >
+                      <Terminal className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">SQL Console</span>
+                    </button>
+                  )}
+
                   <div className="hidden lg:flex items-center gap-4 px-5 py-2.5 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
                       <div className="relative">
                           <Database className="w-5 h-5 text-indigo-500" />
@@ -224,6 +241,11 @@ const App: React.FC = () => {
                                 {isAnalyzing ? <Loader2 className="w-7 h-7 animate-spin" /> : <Sparkles className="w-7 h-7 group-hover:scale-125 transition-transform" />}
                                 GENERATE CONCLUSION
                             </button>
+                            {isAdminRole && (
+                              <button onClick={() => setIsSqlEditorOpen(true)} className="flex items-center gap-4 md:gap-5 bg-indigo-500/10 text-white px-8 md:px-12 py-5 md:py-7 rounded-[2.5rem] font-black text-sm md:text-base hover:bg-indigo-500/20 transition-all border border-indigo-500/20 active:scale-95 shadow-xl">
+                                  <Database className="w-7 h-7" /> DATABASE EXPLORER
+                              </button>
+                            )}
                             {['guru', 'tamu'].includes(currentUser.peran) && (
                                 <button onClick={() => { setExternalMessage("Saya ingin lapor kerusakan aset."); setIsChatOpen(true); }} className="flex items-center gap-4 md:gap-5 bg-white/5 backdrop-blur-3xl text-white px-8 md:px-12 py-5 md:py-7 rounded-[2.5rem] font-black text-sm md:text-base hover:bg-white/10 transition-all border border-white/10 active:scale-95 shadow-xl">
                                     <MessageCircle className="w-7 h-7" /> LAPOR KERUSAKAN
@@ -355,6 +377,9 @@ const App: React.FC = () => {
             </div>
         </div>
       </main>
+
+      {/* MODALS & OVERLAYS */}
+      <SQLEditor isOpen={isSqlEditorOpen} onClose={() => setIsSqlEditorOpen(false)} />
 
       {/* AI CHAT BUTTON & INTERFACE */}
       <div className={`fixed bottom-0 right-0 z-[120] p-6 md:p-10 transition-all duration-500 ease-in-out ${isChatOpen ? 'w-full max-w-2xl' : 'w-auto'}`}>
