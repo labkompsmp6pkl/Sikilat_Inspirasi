@@ -57,6 +57,7 @@ const App: React.FC = () => {
 
   const isAdminRole = currentUser && ['admin', 'pengawas_admin', 'pengawas_it'].includes(currentUser.peran);
   const hasInitialized = useRef(false);
+  const isSyncingProfile = useRef(false);
 
   const refreshAllData = useCallback(async () => {
     setIsSyncingGlobal(true);
@@ -82,12 +83,14 @@ const App: React.FC = () => {
   }, []);
 
   const syncUserProfile = async (authId: string, email: string) => {
+    if (isSyncingProfile.current) return;
+    isSyncingProfile.current = true;
+
     try {
         let profile = await db.getUserProfile(authId);
         
-        // AUTO-REPAIR LOGIC: Jika user ada di Auth tapi tidak ada di Tabel Pengguna
         if (!profile) {
-            console.log("Profile not found in DB table, creating auto-fix entry...");
+            console.log("Profile missing in table, initiating auto-repair...");
             const fixProfile: Pengguna = {
                 id_pengguna: authId,
                 nama_lengkap: email.split('@')[0],
@@ -104,15 +107,17 @@ const App: React.FC = () => {
         refreshAllData();
     } catch (err) {
         console.error("Critical Profile Sync Error:", err);
+    } finally {
+        isSyncingProfile.current = false;
+        setIsAppLoading(false);
     }
   };
 
   useEffect(() => {
+    // Failsafe: Pastikan loading screen App tutup dalam 4 detik apapun yang terjadi
     const failsafe = setTimeout(() => {
-        if (isAppLoading) {
-            setIsAppLoading(false);
-        }
-    }, 6000);
+        setIsAppLoading(false);
+    }, 4000);
 
     const initializeAuth = async () => {
         if (hasInitialized.current) return;
@@ -124,12 +129,12 @@ const App: React.FC = () => {
 
             if (session?.user) {
                 await syncUserProfile(session.user.id, session.user.email!);
+            } else {
+                setIsAppLoading(false);
             }
         } catch (e) { 
             console.error("Auth Init Hook Error:", e); 
-        } finally { 
             setIsAppLoading(false);
-            clearTimeout(failsafe);
         }
     };
 
@@ -138,7 +143,7 @@ const App: React.FC = () => {
     window.addEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (event === 'SIGNED_IN' && session?.user && !currentUser) {
             await syncUserProfile(session.user.id, session.user.email!);
         } else if (event === 'SIGNED_OUT') {
             setCurrentUser(null); 
@@ -154,7 +159,7 @@ const App: React.FC = () => {
         clearTimeout(failsafe);
         window.removeEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
     };
-  }, [refreshAllData]);
+  }, [refreshAllData, currentUser]);
 
   const handleAiConclusion = async () => {
       if (!currentUser) return;
@@ -176,8 +181,8 @@ const App: React.FC = () => {
             <div className="w-24 h-24 border-8 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
             <Sparkles className="absolute inset-0 m-auto w-10 h-10 text-indigo-400 animate-pulse" />
           </div>
-          <h1 className="text-5xl font-black tracking-tighter italic animate-pulse mb-4">SIKILAT</h1>
-          <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.5em] mb-8 opacity-50">Secure Sync Initialization</p>
+          <h1 className="text-5xl font-black tracking-tighter italic animate-pulse mb-4 text-indigo-400">SIKILAT</h1>
+          <p className="text-xs font-black text-indigo-300/50 uppercase tracking-[0.5em] mb-8">Secure Sync Node</p>
       </div>
   );
 
@@ -189,7 +194,7 @@ const App: React.FC = () => {
       <header className="fixed top-0 left-0 right-0 h-24 bg-white/95 backdrop-blur-2xl border-b border-slate-200 z-[100] shadow-xl shadow-slate-900/5 flex items-center px-6 md:px-10">
           <div className="max-w-[1800px] w-full mx-auto flex justify-between items-center">
               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-950 rounded-[1.25rem] flex items-center justify-center text-white font-black shadow-2xl rotate-6 group hover:rotate-0 transition-transform">S</div>
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-950 rounded-[1.25rem] flex items-center justify-center text-white font-black shadow-2xl rotate-6 group hover:rotate-0 transition-transform text-lg">S</div>
                   <div className="flex flex-col">
                       <span className="font-black text-slate-900 text-xl md:text-2xl tracking-tighter italic leading-none">SIKILAT</span>
                       <span className="text-[9px] md:text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em] mt-1.5 flex items-center gap-2">
@@ -212,7 +217,7 @@ const App: React.FC = () => {
                         <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white"></span>
                       </div>
                       <div className="text-left hidden md:block pr-4">
-                          <p className="text-sm font-black text-slate-900 leading-none mb-1.5">{currentUser.nama_lengkap}</p>
+                          <p className="text-sm font-black text-slate-900 leading-none mb-1.5 truncate max-w-[100px]">{currentUser.nama_lengkap}</p>
                           <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{currentUser.peran.replace('_',' ')}</p>
                       </div>
                       

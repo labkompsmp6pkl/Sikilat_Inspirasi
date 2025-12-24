@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ROLE_CONFIGS, MOCK_USERS } from '../constants';
 import { UserRole, Pengguna } from '../types';
 import { 
@@ -40,6 +40,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isEmailTaken, setIsEmailTaken] = useState(false);
+  const loginTimeoutRef = useRef<any>(null);
 
   const [formData, setFormData] = useState({
     nama: '',
@@ -52,6 +53,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   useEffect(() => {
     setErrorMsg(null);
     setIsEmailTaken(false);
+    return () => {
+        if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
+    };
   }, [authMode, formData.email]);
 
   const handleManualAuth = async (e: React.FormEvent) => {
@@ -59,6 +63,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
     setErrorMsg(null);
     setIsEmailTaken(false);
+
+    // Timeout pengaman: Jika dalam 15 detik tidak ada respon, beri peringatan
+    loginTimeoutRef.current = setTimeout(() => {
+        if (isLoading) {
+            setIsLoading(false);
+            setErrorMsg("Koneksi ke database sedang lambat. Silakan coba lagi atau cek koneksi internet Anda.");
+        }
+    }, 15000);
 
     try {
       if (authMode === 'register') {
@@ -83,16 +95,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           email: formData.email,
           no_hp: formData.hp,
           peran: formData.peran,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.nama}`
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user.id}`
         };
 
-        // Simpan ke tabel 'pengguna'
         try {
           await db.createUserProfile(newProfile);
           onLoginSuccess(newProfile);
         } catch (profileError: any) {
-          console.error("Profile Creation Failed, but Auth Succeeded:", profileError);
-          // Jika gagal buat profil (karena kolom kurang), tetap masukkan user dengan profil standar
+          console.warn("Profile Creation Sync Error (Ignored for UX):", profileError);
           onLoginSuccess(newProfile);
         }
         
@@ -109,7 +119,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           if (profile) {
             onLoginSuccess(profile);
           } else {
-            // Jika profil tidak ada di DB, buatkan profil default
             const fallbackProfile: Pengguna = {
               id_pengguna: authData.user.id,
               nama_lengkap: authData.user.email?.split('@')[0] || 'User',
@@ -125,8 +134,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     } catch (e: any) {
       console.error("Auth Exception:", e);
       setErrorMsg(e.message || "Terjadi kesalahan sistem.");
-    } finally {
       setIsLoading(false);
+    } finally {
+        if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
+        // Jangan langsung set isLoading(false) jika onLoginSuccess dipanggil, 
+        // biarkan unmount yang menangani agar transisi mulus
     }
   };
 
@@ -364,7 +376,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-indigo-500 animate-pulse" />
                 </div>
                 <p className="font-black text-slate-900 text-xl tracking-tighter italic">MENYAMBUNGKAN KE CLOUD...</p>
-                <button onClick={() => setIsLoading(false)} className="mt-12 px-6 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest">Batal</button>
+                <p className="text-xs text-slate-400 mt-2 font-bold">Mohon tunggu sebentar, sedang sinkronisasi data.</p>
+                <button onClick={() => setIsLoading(false)} className="mt-12 px-10 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">
+                    Batal & Coba Lagi
+                </button>
             </div>
           )}
         </div>
