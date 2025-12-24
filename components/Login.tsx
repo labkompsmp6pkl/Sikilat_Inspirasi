@@ -23,7 +23,8 @@ import {
   Circle,
   UserCircle,
   Phone,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import db from '../services/dbService';
@@ -46,14 +47,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     peran: 'guru' as UserRole
   });
 
-  // Failsafe untuk loading: matikan loading otomatis setelah 10 detik jika macet
   useEffect(() => {
     let timer: any;
     if (isLoading) {
       timer = setTimeout(() => {
         setIsLoading(false);
-        if (!errorMsg) setErrorMsg("Proses terlalu lama. Pastikan koneksi stabil atau coba login kembali.");
-      }, 10000);
+      }, 15000);
     }
     return () => clearTimeout(timer);
   }, [isLoading]);
@@ -72,8 +71,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
         if (authError) throw authError;
 
+        if (!authData.user) throw new Error("Registrasi berhasil tapi user tidak ditemukan. Silakan cek email konfirmasi jika fitur tersebut aktif.");
+
         const newProfile: Pengguna = {
-          id_pengguna: authData.user!.id,
+          id_pengguna: authData.user.id,
           nama_lengkap: formData.nama,
           email: formData.email,
           no_hp: formData.hp,
@@ -81,7 +82,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.nama}`
         };
 
+        // Simpan ke tabel 'pengguna'
         await db.createUserProfile(newProfile);
+        
+        // Login jika berhasil simpan profil
         onLoginSuccess(newProfile);
       } else {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -95,7 +99,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         if (profile) {
           onLoginSuccess(profile);
         } else {
-          // Fallback jika profile tidak ditemukan tapi auth berhasil
           onLoginSuccess({
             id_pengguna: authData.user!.id,
             nama_lengkap: authData.user!.email?.split('@')[0] || 'User',
@@ -107,8 +110,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         }
       }
     } catch (e: any) {
-      console.error("Auth Error:", e);
-      setErrorMsg(e.message || "Gagal melakukan autentikasi. Periksa kembali data Anda.");
+      console.error("Auth Exception:", e);
+      setErrorMsg(e.message || "Terjadi kesalahan saat registrasi/login.");
     } finally {
       setIsLoading(false);
     }
@@ -151,15 +154,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     );
   };
 
-  const rolesToDisplay: UserRole[] = [
-    'guru', 
-    'penanggung_jawab', 
-    'pengawas_it', 
-    'pengawas_sarpras', 
-    'pengawas_admin', 
-    'admin', 
-    'tamu'
-  ];
+  const rolesToDisplay: UserRole[] = ['guru', 'penanggung_jawab', 'pengawas_it', 'pengawas_sarpras', 'pengawas_admin', 'admin', 'tamu'];
 
   return (
     <div className="min-h-screen bg-[#e2e8f0] flex items-center justify-center p-4 md:p-8">
@@ -176,7 +171,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </div>
           <div className="relative z-10 space-y-12">
             <p className="text-slate-300 text-lg leading-relaxed font-medium">
-              Manajemen aset sekolah yang cepat, transparan, dan didukung kecerdasan buatan.
+              Digitalisasi sarana prasarana sekolah masa depan.
             </p>
             <div className="flex items-center gap-3">
               <Circle className="w-3 h-3 fill-emerald-500 text-emerald-500 animate-pulse" />
@@ -214,9 +209,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </div>
 
           {errorMsg && (
-            <div className="mb-8 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-4 text-rose-600 text-sm font-bold animate-fade-in">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              {errorMsg}
+            <div className="mb-8 p-6 bg-rose-50 border-2 border-rose-100 rounded-[2rem] flex flex-col gap-2 text-rose-700 animate-slide-up">
+              <div className="flex items-center gap-4">
+                 <AlertTriangle className="w-6 h-6 flex-shrink-0" />
+                 <span className="text-sm font-black uppercase tracking-tight">Terjadi Masalah Database</span>
+              </div>
+              <p className="text-xs font-medium ml-10 opacity-80">{errorMsg}</p>
             </div>
           )}
 
@@ -277,7 +275,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     </div>
                   </div>
 
-                  {/* ROLE SELECTION UI */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Daftar Sebagai (Peran)</label>
                     <div className="relative">
@@ -299,7 +296,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               )}
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Sekolah / Pribadi</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                   <input 
@@ -336,12 +333,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   </>
                 )}
               </button>
-              
-              <div className="text-center">
-                 <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-xs font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest">
-                   {authMode === 'login' ? 'Belum punya akun? Registrasi' : 'Sudah punya akun? Login'}
-                 </button>
-              </div>
             </form>
           )}
 
@@ -351,16 +342,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     <div className="w-20 h-20 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                     <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-indigo-500 animate-pulse" />
                 </div>
-                <p className="font-black text-slate-900 text-xl tracking-tighter italic">MENYAMBUNGKAN KE SIKILAT...</p>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Sinkronisasi Keamanan Node</p>
-                
-                {/* Tombol bantuan jika macet */}
-                <button 
-                  onClick={() => setIsLoading(false)}
-                  className="mt-12 px-6 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                >
-                  Batal / Hubungkan Manual
-                </button>
+                <p className="font-black text-slate-900 text-xl tracking-tighter italic">MENYAMBUNGKAN KE CLOUD...</p>
+                <button onClick={() => setIsLoading(false)} className="mt-12 px-6 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest">Batal</button>
             </div>
           )}
         </div>
@@ -369,7 +352,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   );
 };
 
-// Menambahkan icon dropdown untuk select
 const ChevronDown = ({ className }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m6 9 6 6 6-6"/></svg>
 );
