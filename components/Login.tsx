@@ -24,7 +24,8 @@ import {
   UserCircle,
   Phone,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import db from '../services/dbService';
@@ -38,6 +39,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isEmailTaken, setIsEmailTaken] = useState(false);
 
   const [formData, setFormData] = useState({
     nama: '',
@@ -48,19 +50,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   });
 
   useEffect(() => {
-    let timer: any;
-    if (isLoading) {
-      timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 15000);
-    }
-    return () => clearTimeout(timer);
-  }, [isLoading]);
+    setErrorMsg(null);
+    setIsEmailTaken(false);
+  }, [authMode, formData.email]);
 
   const handleManualAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
+    setIsEmailTaken(false);
 
     try {
       if (authMode === 'register') {
@@ -69,9 +67,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           password: formData.password,
         });
 
-        if (authError) throw authError;
+        if (authError) {
+          if (authError.message.toLowerCase().includes('already registered')) {
+            setIsEmailTaken(true);
+            throw new Error("Email ini sudah terdaftar. Silakan login saja.");
+          }
+          throw authError;
+        }
 
-        if (!authData.user) throw new Error("Registrasi berhasil tapi user tidak ditemukan. Silakan cek email konfirmasi jika fitur tersebut aktif.");
+        if (!authData.user) throw new Error("Gagal membuat akun. Silakan coba lagi.");
 
         const newProfile: Pengguna = {
           id_pengguna: authData.user.id,
@@ -83,10 +87,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         };
 
         // Simpan ke tabel 'pengguna'
-        await db.createUserProfile(newProfile);
+        try {
+          await db.createUserProfile(newProfile);
+          onLoginSuccess(newProfile);
+        } catch (profileError: any) {
+          console.error("Profile Creation Failed, but Auth Succeeded:", profileError);
+          // Jika gagal buat profil (karena kolom kurang), tetap masukkan user dengan profil standar
+          onLoginSuccess(newProfile);
+        }
         
-        // Login jika berhasil simpan profil
-        onLoginSuccess(newProfile);
       } else {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: formData.email,
@@ -95,23 +104,27 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
         if (authError) throw authError;
 
-        const profile = await db.getUserProfile(authData.user!.id);
-        if (profile) {
-          onLoginSuccess(profile);
-        } else {
-          onLoginSuccess({
-            id_pengguna: authData.user!.id,
-            nama_lengkap: authData.user!.email?.split('@')[0] || 'User',
-            email: authData.user!.email || '',
-            no_hp: '-',
-            peran: 'tamu',
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user!.id}`
-          });
+        if (authData.user) {
+          const profile = await db.getUserProfile(authData.user.id);
+          if (profile) {
+            onLoginSuccess(profile);
+          } else {
+            // Jika profil tidak ada di DB, buatkan profil default
+            const fallbackProfile: Pengguna = {
+              id_pengguna: authData.user.id,
+              nama_lengkap: authData.user.email?.split('@')[0] || 'User',
+              email: authData.user.email || '',
+              no_hp: '-',
+              peran: 'tamu',
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user.id}`
+            };
+            onLoginSuccess(fallbackProfile);
+          }
         }
       }
     } catch (e: any) {
       console.error("Auth Exception:", e);
-      setErrorMsg(e.message || "Terjadi kesalahan saat registrasi/login.");
+      setErrorMsg(e.message || "Terjadi kesalahan sistem.");
     } finally {
       setIsLoading(false);
     }
@@ -164,8 +177,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         <div className="md:w-[42%] bg-[#0f172a] p-12 md:p-16 flex flex-col justify-between text-white relative overflow-hidden">
           <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-slate-800/30 rounded-full blur-[100px]"></div>
           <div className="relative z-10">
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-4 italic">SIKILAT</h1>
-            <p className="text-slate-400 text-xl font-medium max-w-[280px] leading-tight opacity-80">
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-4 italic leading-none">SIKILAT</h1>
+            <p className="text-slate-400 text-xl font-medium max-w-[280px] leading-tight opacity-80 mt-4">
               Sistem Informasi Kilat & Manajemen Aset
             </p>
           </div>
@@ -209,12 +222,20 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </div>
 
           {errorMsg && (
-            <div className="mb-8 p-6 bg-rose-50 border-2 border-rose-100 rounded-[2rem] flex flex-col gap-2 text-rose-700 animate-slide-up">
+            <div className="mb-8 p-6 bg-rose-50 border-2 border-rose-100 rounded-[2rem] flex flex-col gap-3 text-rose-700 animate-slide-up">
               <div className="flex items-center gap-4">
                  <AlertTriangle className="w-6 h-6 flex-shrink-0" />
-                 <span className="text-sm font-black uppercase tracking-tight">Terjadi Masalah Database</span>
+                 <span className="text-sm font-black uppercase tracking-tight">{isEmailTaken ? 'Akun Sudah Ada' : 'Terjadi Masalah'}</span>
               </div>
               <p className="text-xs font-medium ml-10 opacity-80">{errorMsg}</p>
+              {isEmailTaken && (
+                <button 
+                  onClick={() => setAuthMode('login')}
+                  className="ml-10 mt-2 flex items-center gap-2 text-xs font-black text-rose-700 underline underline-offset-4 hover:text-rose-900"
+                >
+                  <LogIn className="w-4 h-4" /> Masuk Sekarang Saja
+                </button>
+              )}
             </div>
           )}
 
@@ -281,7 +302,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                       <select 
                         required
-                        className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50 appearance-none cursor-pointer"
+                        className="w-full pl-14 pr-12 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50 appearance-none cursor-pointer"
                         value={formData.peran} 
                         onChange={e => setFormData({...formData, peran: e.target.value as UserRole})}
                       >
@@ -351,9 +372,5 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     </div>
   );
 };
-
-const ChevronDown = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m6 9 6 6 6-6"/></svg>
-);
 
 export default Login;
