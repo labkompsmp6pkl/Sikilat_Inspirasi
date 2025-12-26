@@ -44,7 +44,7 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
           type: 'ticket',
           title: `Memperbaiki ${r.nama_barang}`,
           handler: r.diselesaikan_oleh || 'Tim Teknis',
-          date: new Date(r.tanggal_lapor),
+          date: r.tanggal_lapor ? new Date(r.tanggal_lapor) : new Date(0),
           detail: r.catatan_penyelesaian || 'Selesai'
       }));
 
@@ -53,7 +53,7 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
           type: 'activity',
           title: a.uraian_kegiatan,
           handler: a.nama_pj || 'Staff',
-          date: new Date(a.waktu_mulai),
+          date: a.waktu_mulai ? new Date(a.waktu_mulai) : new Date(0),
           detail: a.hasil_kegiatan
       }));
 
@@ -71,12 +71,20 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
 
   const myReports = reports
     .filter(r => r.id_pengadu === currentUser.id_pengguna)
-    .sort((a, b) => b.tanggal_lapor.getTime() - a.tanggal_lapor.getTime())
+    .sort((a, b) => {
+      const dateA = a.tanggal_lapor ? new Date(a.tanggal_lapor).getTime() : 0;
+      const dateB = b.tanggal_lapor ? new Date(b.tanggal_lapor).getTime() : 0;
+      return dateB - dateA;
+    })
     .slice(0, 3);
 
   const myBookings = bookings
     .filter(b => b.id_pengguna === currentUser.id_pengguna)
-    .sort((a, b) => b.tanggal_peminjaman.getTime() - a.tanggal_peminjaman.getTime())
+    .sort((a, b) => {
+      const dateA = a.tanggal_peminjaman ? new Date(a.tanggal_peminjaman).getTime() : 0;
+      const dateB = b.tanggal_peminjaman ? new Date(b.tanggal_peminjaman).getTime() : 0;
+      return dateB - dateA;
+    })
     .slice(0, 3);
     
   const statusMap: Record<string, { text: string; color: string; Icon: React.FC<any> }> = {
@@ -203,6 +211,7 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
           {data.map(item => {
             const statusInfo = statusMap[item.status || item.status_peminjaman] || { text: item.status || item.status_peminjaman, color: 'bg-slate-500', Icon: AlertTriangle };
             const Icon = statusInfo.Icon;
+            const dateObj = item.tanggal_lapor || item.tanggal_peminjaman ? new Date(item.tanggal_lapor || item.tanggal_peminjaman) : null;
             return (
               <li key={item.id || item.id_peminjaman} className="flex items-center gap-4 p-4 bg-white rounded-3xl border border-slate-100 hover:shadow-md transition-all group">
                 <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${statusInfo.color} shadow-${statusInfo.color.split('-')[1]}-100`}>
@@ -213,7 +222,7 @@ const MyStatusDashboard: React.FC<MyStatusDashboardProps> = ({ currentUser, repo
                     <div className="min-w-0">
                       <p className="font-black text-slate-800 text-sm truncate">{item.nama_barang}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        {new Date(item.tanggal_lapor || item.tanggal_peminjaman).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                        {dateObj ? dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
                       </p>
                     </div>
                     <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg border ${statusInfo.color.replace('bg-','text-').replace('-500','-600')} ${statusInfo.color.replace('bg-','bg-').replace('-500','-50')} ${statusInfo.color.replace('bg-','border-').replace('-500','-100')}`}>

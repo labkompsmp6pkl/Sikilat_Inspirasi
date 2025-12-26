@@ -18,11 +18,17 @@ const AgendaActivityTable: React.FC<AgendaActivityTableProps> = ({ activities, o
     if (filterStatus !== 'All') filtered = activities.filter(a => a.status === filterStatus);
     const groups: Record<string, AgendaKegiatan[]> = {};
     filtered.forEach(activity => {
-        const dateKey = new Date(activity.waktu_mulai).toDateString();
-        if (!groups[dateKey]) groups[dateKey] = [];
-        groups[dateKey].push(activity);
+        if (activity.waktu_mulai) {
+          const dateKey = new Date(activity.waktu_mulai).toDateString();
+          if (!groups[dateKey]) groups[dateKey] = [];
+          groups[dateKey].push(activity);
+        }
     });
-    return Object.entries(groups).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
+    return Object.entries(groups).sort((a, b) => {
+      const dateA = new Date(a[0]).getTime();
+      const dateB = new Date(b[0]).getTime();
+      return dateB - dateA;
+    });
   }, [activities, filterStatus]);
 
   return (
@@ -58,9 +64,9 @@ const AgendaActivityTable: React.FC<AgendaActivityTableProps> = ({ activities, o
                 {dateActivities.map(item => (
                     <div key={item.id} className="flex gap-6 p-6 bg-white rounded-[1.5rem] border border-slate-100 hover:shadow-md transition-all group relative">
                         <div className="flex flex-col items-center justify-center border-r border-slate-100 pr-6 min-w-[100px]">
-                            <span className="text-sm font-black text-slate-800">{new Date(item.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-sm font-black text-slate-800">{item.waktu_mulai ? new Date(item.waktu_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</span>
                             <div className="h-4 w-px bg-slate-200 my-1"></div>
-                            <span className="text-[10px] font-bold text-slate-400">{new Date(item.waktu_selesai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-[10px] font-bold text-slate-400">{item.waktu_selesai ? new Date(item.waktu_selesai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</span>
                         </div>
 
                         <div className="flex-1">

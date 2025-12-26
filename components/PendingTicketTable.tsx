@@ -12,7 +12,11 @@ interface PendingTicketTableProps {
 const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProcessAction, isReadOnly = false }) => {
   const pendingReports = useMemo(() => {
     return reports.filter(r => r.status === 'Pending')
-      .sort((a, b) => new Date(a.tanggal_lapor).getTime() - new Date(b.tanggal_lapor).getTime());
+      .sort((a, b) => {
+        const dateA = a.tanggal_lapor ? new Date(a.tanggal_lapor).getTime() : 0;
+        const dateB = b.tanggal_lapor ? new Date(b.tanggal_lapor).getTime() : 0;
+        return dateA - dateB;
+      });
   }, [reports]);
 
   if (pendingReports.length === 0) return null;
@@ -51,7 +55,7 @@ const PendingTicketTable: React.FC<PendingTicketTableProps> = ({ reports, onProc
                         {report.id}
                      </span>
                      <span className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-tight">
-                        {new Date(report.tanggal_lapor).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}
+                        {report.tanggal_lapor ? new Date(report.tanggal_lapor).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' }) : '-'}
                      </span>
                   </div>
                 </td>
