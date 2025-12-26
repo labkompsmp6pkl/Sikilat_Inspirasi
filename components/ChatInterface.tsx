@@ -185,8 +185,7 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
             tanggal_peminjaman: formData.tanggal || new Date().toISOString().split('T')[0],
             jam_mulai: formData.jam_mulai,
             jam_selesai: formData.jam_selesai,
-            keperluan: formData.keperluan,
-            tanggal_pengembalian_rencana: formData.tanggal || new Date().toISOString().split('T')[0]
+            keperluan: formData.keperluan
         };
     } else if (activeForm.id === 'lapor_kerusakan') {
         payload = {

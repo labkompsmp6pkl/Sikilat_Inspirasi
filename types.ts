@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 
 export type UserRole = 
@@ -23,8 +22,8 @@ export interface AgendaKegiatan {
   hasil_kegiatan: string;
   objek_pengguna: string;
   status: 'Pending' | 'Disetujui' | 'Ditolak';
-  alasan_penolakan?: string; // New: Reason why supervisor rejected it
-  direview_oleh?: string;   // New: Who reviewed the agenda
+  alasan_penolakan?: string; 
+  direview_oleh?: string;   
 }
 
 export interface Inventaris {
@@ -39,10 +38,10 @@ export interface PenilaianAset {
   id: string;
   id_barang: string;
   nama_barang: string;
-  lokasi?: string; // New: Location context
+  lokasi?: string; 
   id_pengguna: string;
   nama_pengguna: string;
-  skor: number; // 1-5 stars
+  skor: number; 
   ulasan: string;
   tanggal: Date;
   balasan_admin?: string;
@@ -86,8 +85,6 @@ export interface PeminjamanAntrian {
   jam_mulai?: string;
   jam_selesai?: string;
   keperluan?: string;
-  tanggal_pengembalian_rencana: Date;
-  tanggal_pengembalian_aktual?: Date;
   status_peminjaman: 'Menunggu' | 'Disetujui' | 'Ditolak' | 'Kembali';
   alasan_penolakan?: string;
 }
@@ -148,9 +145,6 @@ export interface RoleConfig {
   actions: QuickAction[];
 }
 
-/**
- * Updated ChatInterfaceProps to resolve prop mismatches with usage in App.tsx and ChatInterface.tsx
- */
 export interface ChatInterfaceProps {
   user: User;
   roleConfig: RoleConfig;
