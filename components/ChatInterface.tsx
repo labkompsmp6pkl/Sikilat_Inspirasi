@@ -169,27 +169,29 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
     };
 
     let payload: any = {};
-    const inputNama = formData.nama_barang || 'Aset';
+    const inputNama = formData.nama_barang || 'Aset Sekolah';
+    
+    // Coba cari ID aset yang sudah ada dari prop inventaris agar tidak melanggar FK
+    const existingAsset = inventaris.find(i => i.nama_barang.toLowerCase().includes(inputNama.toLowerCase()));
+    const finalIdBarang = existingAsset ? existingAsset.id_barang : `GEN-${inputNama.substring(0,3).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Perbaikan: Pastikan SEMUA data dari formData disertakan dalam payload
-    // agar kolom seperti tanggal_peminjaman, jam_mulai, dll tidak NULL di database.
     if (activeForm.id === 'booking_ruangan') {
         payload = {
-            ...formData, // Sertakan input user: tanggal, jam_mulai, jam_selesai, keperluan
             id_peminjaman: `PM-${Date.now().toString().slice(-6)}`,
-            id_barang: `GEN-${inputNama.substring(0,3).toUpperCase()}`,
+            id_barang: finalIdBarang,
             nama_barang: inputNama,
             id_pengguna: user.id_pengguna,
             status_peminjaman: 'Menunggu',
-            tanggal_peminjaman: formData.tanggal || new Date().toISOString().split('T')[0]
+            tanggal_peminjaman: formData.tanggal || new Date().toISOString().split('T')[0],
+            jam_mulai: formData.jam_mulai,
+            jam_selesai: formData.jam_selesai,
+            keperluan: formData.keperluan,
+            tanggal_pengembalian_rencana: formData.tanggal || new Date().toISOString().split('T')[0]
         };
-        // Hapus field yang mungkin redundan atau berbeda nama kolom
-        delete payload.tanggal; 
     } else if (activeForm.id === 'lapor_kerusakan') {
         payload = {
-            ...formData,
             id: `TK-${Date.now().toString().slice(-6)}`,
-            id_barang: `GEN-${inputNama.substring(0,3).toUpperCase()}`,
+            id_barang: finalIdBarang,
             nama_barang: inputNama,
             id_pengadu: user.id_pengguna,
             lokasi_kerusakan: formData.lokasi || 'Umum',
@@ -198,8 +200,19 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
             kategori_aset: 'General',
             tanggal_lapor: new Date().toISOString()
         };
-        delete payload.lokasi;
-        delete payload.deskripsi;
+    } else if (activeForm.id === 'input_kegiatan') {
+        payload = {
+            id: `AG-${Date.now().toString().slice(-6)}`,
+            nama_pj: user.nama_lengkap,
+            id_pj: user.id_pengguna,
+            posisi: formData.posisi,
+            uraian_kegiatan: formData.uraian_kegiatan,
+            hasil_kegiatan: formData.hasil_kegiatan,
+            objek_pengguna: formData.objek_pengguna,
+            waktu_mulai: formData.waktu_mulai,
+            waktu_selesai: formData.waktu_selesai,
+            status: 'Pending'
+        };
     } else {
         payload = { ...formData, id_pengguna: user.id_pengguna };
     }
@@ -210,14 +223,14 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
         setMessages(prev => [...prev, { 
             id: Date.now().toString(), 
             sender: 'ai', 
-            text: `✅ **Berhasil Terkirim!** Data "${inputNama}" telah masuk ke sistem Cloud Supabase. Silakan cek di Dashboard.`, 
+            text: `✅ **Berhasil Terkirim!** Permohonan "${inputNama}" telah masuk ke sistem Cloud. Anda dapat memantau statusnya di Dashboard.`, 
             timestamp: new Date() 
         }]);
     } else {
         setMessages(prev => [...prev, { 
             id: Date.now().toString(), 
             sender: 'ai', 
-            text: `❌ **Gagal Sinkronisasi!** Database menolak data. Pastikan semua field terisi dengan benar.`, 
+            text: `❌ **Gagal Sinkronisasi!** Terjadi kesalahan pada validasi database. Pastikan data yang Anda masukkan valid.`, 
             timestamp: new Date() 
         }]);
     }
@@ -324,7 +337,7 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
                 onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(inputText); }}}
                 className="flex-1 bg-transparent px-4 py-3 outline-none text-sm font-medium resize-none placeholder:text-slate-400" 
                 rows={1} 
-                placeholder="Ketik pesan..." 
+                placeholder="Tanyakan jadwal atau lapor aset..." 
               />
               <button 
                 onClick={() => handleSend(inputText)} 
