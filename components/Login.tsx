@@ -25,7 +25,9 @@ import {
   Phone,
   RefreshCw,
   AlertTriangle,
-  ChevronDown
+  ChevronDown,
+  ShieldAlert,
+  HelpCircle
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import db from '../services/dbService';
@@ -39,6 +41,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotInfo, setShowForgotInfo] = useState(false);
   const loginTimeoutRef = useRef<any>(null);
 
   const [formData, setFormData] = useState({
@@ -51,6 +54,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   useEffect(() => {
     setErrorMsg(null);
+    setShowForgotInfo(false);
     return () => {
         if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
     };
@@ -117,20 +121,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const handleDemoLogin = async (role: UserRole) => {
     setIsLoading(true);
     const mockUser = MOCK_USERS[role] as Pengguna;
-    
-    // Alur Non-Blocking: Kita langsung login-kan user ke UI
-    // Sambil di background mencoba sinkronisasi ke cloud jika memungkinkan
     try {
-        // Jangan 'await' proses ini agar user tidak stuck jika database lambat
-        db.createUserProfile(mockUser).catch(err => console.warn("Background sync failed, staying offline"));
-        
-        // Beri delay sedikit untuk efek visual loading yang mulus
+        db.createUserProfile(mockUser).catch(() => {});
         setTimeout(() => {
           onLoginSuccess(mockUser);
           setIsLoading(false);
         }, 600);
     } catch (e) {
-        // Jika ada error fatal di logika, tetap arahkan ke dashboard
         onLoginSuccess(mockUser);
         setIsLoading(false);
     }
@@ -206,6 +203,20 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             )}
           </div>
 
+          {showForgotInfo && (
+            <div className="mb-8 p-6 bg-indigo-50 border-2 border-indigo-100 rounded-[2rem] flex flex-col gap-3 text-indigo-700 animate-slide-up">
+              <div className="flex items-center gap-4">
+                 <ShieldAlert className="w-6 h-6 flex-shrink-0" />
+                 <span className="text-sm font-black uppercase tracking-tight">Lupa Password?</span>
+              </div>
+              <p className="text-xs font-medium ml-10 leading-relaxed">
+                Silakan hubungi **Super Admin** atau bagian IT sekolah untuk mereset kata sandi Anda. 
+                Admin memiliki wewenang penuh untuk mengganti kredensial akses Anda secara manual.
+              </p>
+              <button onClick={() => setShowForgotInfo(false)} className="ml-10 text-[10px] font-black uppercase text-indigo-600 hover:underline">Mengerti</button>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="mb-8 p-6 bg-rose-50 border-2 border-rose-100 rounded-[2rem] flex flex-col gap-3 text-rose-700 animate-slide-up">
               <div className="flex items-center gap-4">
@@ -277,7 +288,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                    <button type="button" onClick={() => setShowForgotInfo(true)} className="text-[9px] font-black text-blue-500 uppercase tracking-wider hover:underline">Lupa Password?</button>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                   <input type={showPassword ? "text" : "password"} required placeholder="••••••••" className="w-full pl-14 pr-14 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
