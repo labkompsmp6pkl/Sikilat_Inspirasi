@@ -74,7 +74,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // PENTING: Panggil refreshAllData saat currentUser berubah (Login Sukses)
+  // PENTING: Panggil refreshAllData segera saat currentUser tersedia (Login Sukses)
   useEffect(() => {
     if (currentUser) {
       refreshAllData();
@@ -91,6 +91,8 @@ const App: React.FC = () => {
       setIsAppLoading(false);
     };
     checkSession();
+    
+    // Listener untuk sinkronisasi otomatis dari komponen lain
     window.addEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
     return () => window.removeEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
   }, [refreshAllData]);
@@ -204,21 +206,30 @@ const App: React.FC = () => {
                 <BookingTable 
                     bookings={bookings} 
                     currentUserRole={currentUser.peran} 
-                    onUpdateStatus={(id, status) => db.updateStatus('peminjaman_antrian', id, 'id_peminjaman', { status_peminjaman: status })}
+                    onUpdateStatus={async (id, status) => {
+                        await db.updateStatus('peminjaman_antrian', id, 'id_peminjaman', { status_peminjaman: status });
+                        refreshAllData();
+                    }}
                     onAddBooking={handleOpenBookingForm}
                 />
 
                 <AgendaActivityTable 
                     activities={activities} 
                     currentUserRole={currentUser.peran} 
-                    onUpdateStatus={(id, status, reason) => db.updateStatus('agenda_kegiatan', id, 'id', { status, alasan_penolakan: reason })} 
+                    onUpdateStatus={async (id, status, reason) => {
+                        await db.updateStatus('agenda_kegiatan', id, 'id', { status, alasan_penolakan: reason });
+                        refreshAllData();
+                    }} 
                 />
 
                 <PendingTicketTable 
                     reports={reports} 
                     onProcessAction={async (prompt) => {
                         const idMatch = prompt.match(/laporan\s(\S+)/);
-                        if (idMatch) await db.updateStatus('pengaduan_kerusakan', idMatch[1], 'id', { status: 'Proses' });
+                        if (idMatch) {
+                            await db.updateStatus('pengaduan_kerusakan', idMatch[1], 'id', { status: 'Proses' });
+                            refreshAllData();
+                        }
                         setExternalMessage(prompt); 
                         setIsChatOpen(true); 
                     }} 

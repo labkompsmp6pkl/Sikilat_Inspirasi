@@ -37,6 +37,7 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
   const canManage = ['penanggung_jawab', 'admin'].includes(currentUserRole || '');
 
   const triggerRefresh = () => {
+    // Mengirim event ke App.tsx untuk memicu re-fetch data
     window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
   };
 

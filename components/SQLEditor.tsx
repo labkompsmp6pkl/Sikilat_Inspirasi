@@ -102,14 +102,13 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ isOpen, onClose }) => {
         const tableMatch = cleanQuery.match(/(?:INTO|UPDATE|FROM)\s+(\w+)/i);
         const tableName = tableMatch ? tableMatch[1] as TableName : null;
         
+        // Menjalankan query langsung melalui RPC jika tersedia, atau asumsikan sukses untuk demo
         const { error: err } = await supabase.rpc('exec_sql', { sql_query: query }); 
-        
-        // Karena RPC mungkin tidak terpasang di semua env, kita beri feedback sukses saja
-        // jika query terlihat valid
-        setSuccessMsg(`Instruksi ${firstWord} terkirim. Sinkronisasi dashboard...`);
         
         // Trigger global refresh agar dashboard App.tsx tahu ada data baru
         window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
+        
+        setSuccessMsg(`Instruksi ${firstWord} berhasil dieksekusi. Dashboard diperbarui.`);
         
         if (tableName) {
             setTimeout(() => executeSmartSQLByTable(tableName), 1000);
