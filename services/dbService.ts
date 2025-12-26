@@ -33,11 +33,38 @@ const db = {
 
   createUserProfile: async (profile: Pengguna): Promise<boolean> => {
     try {
-      const { error } = await supabase.from('pengguna').upsert(profile);
+      // Pastikan data profil masuk ke database Supabase
+      const { error } = await supabase.from('pengguna').upsert({
+        id_pengguna: profile.id_pengguna,
+        nama_lengkap: profile.nama_lengkap,
+        email: profile.email,
+        no_hp: profile.no_hp,
+        peran: profile.peran,
+        avatar: profile.avatar
+      });
       if (error) throw error;
       return true;
     } catch (e) {
       console.error("Create profile error:", e);
+      return false;
+    }
+  },
+
+  // Fungsi Baru: Memastikan Barang/Aset ada di tabel inventaris untuk menghindari FK Error
+  ensureAssetExists: async (id_barang: string, nama_barang: string): Promise<boolean> => {
+    try {
+      const { data } = await supabase.from('inventaris').select('id_barang').eq('id_barang', id_barang).maybeSingle();
+      if (!data) {
+        await supabase.from('inventaris').insert({
+          id_barang: id_barang,
+          nama_barang: nama_barang,
+          kategori: 'General',
+          status_barang: 'Baik',
+          id_lokasi: 'L01' // Default lokasi
+        });
+      }
+      return true;
+    } catch (e) {
       return false;
     }
   },
@@ -47,8 +74,7 @@ const db = {
     try {
       const { data, error } = await supabase
         .from(tableName)
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
       if (error) throw error;
       return data || [];
     } catch (e) {
@@ -59,24 +85,25 @@ const db = {
 
   addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
     try {
-      if (!record.created_at) record.created_at = new Date().toISOString();
+      console.debug(`Syncing to ${tableName}...`, record);
       
-      // We log the detailed record to see what's being sent
-      console.debug(`Attempting to add record to ${tableName}:`, record);
-      
-      const { data, error } = await supabase.from(tableName).upsert(record).select();
+      // Khusus untuk peminjaman, pastikan asetnya terdaftar dulu agar tidak melanggar foreign key
+      if (tableName === 'peminjaman_antrian' && record.id_barang) {
+        await db.ensureAssetExists(record.id_barang, record.nama_barang || 'Aset Umum');
+      }
+
+      const { error } = await supabase.from(tableName).insert(record);
       
       if (error) {
-        console.error("Supabase AddRecord Error Details:", JSON.stringify(error, null, 2));
-        throw error;
+        console.error("Supabase Error:", error.message);
+        return false;
       }
       
-      db.addSyncLog(`Entry baru di ${tableName}: ${record.id || record.id_peminjaman || 'Success'}`);
+      db.addSyncLog(`Entry baru di ${tableName} sukses.`);
       window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
       return true;
     } catch (e: any) {
-      // Better error logging to avoid [object Object]
-      console.error("Add Record Failed:", e.message || e.details || e);
+      console.error("Add Record Failed:", e);
       return false;
     }
   },
@@ -88,48 +115,12 @@ const db = {
         .update(updates)
         .eq(idField, id);
       
-      if (error) {
-        console.error("Supabase Update Error Details:", JSON.stringify(error, null, 2));
-        throw error;
-      }
-
-      db.addSyncLog(`Update ${tableName} ID ${id} berhasil.`);
+      if (error) throw error;
       window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
       return true;
     } catch (e: any) {
-      console.error("Update failed:", e.message || e.details || e);
       return false;
     }
-  },
-
-  // --- CLOUD CONFIG & UTILS ---
-  getCloudConfig: () => {
-    const config = localStorage.getItem(CLOUD_CONFIG_KEY);
-    return config ? JSON.parse(config) : { endpoint: 'Supabase Cloud Node', user: 'active', pass: '******', lastSyncCount: 0 };
-  },
-
-  connectToCloud: (config: any) => {
-    localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
-    db.addSyncLog("Konfigurasi Cloud diperbarui.");
-  },
-
-  syncAllToCloud: async (callback: (p: number, m: string) => void) => {
-    const tables: TableName[] = ['inventaris', 'pengaduan_kerusakan', 'peminjaman_antrian', 'agenda_kegiatan'];
-    for (let i = 0; i < tables.length; i++) {
-      callback(Math.round(((i + 1) / tables.length) * 100), `Sinkronisasi ${tables[i]}...`);
-      await new Promise(r => setTimeout(r, 400));
-    }
-    window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
-  },
-
-  exportForCouchbase: () => {
-    const data = { app: "SIKILAT", timestamp: new Date().toISOString() };
-    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sikilat_backup_${Date.now()}.json`;
-    a.click();
   },
 
   getSyncLogs: () => JSON.parse(localStorage.getItem(SYNC_LOGS_KEY) || '[]'),

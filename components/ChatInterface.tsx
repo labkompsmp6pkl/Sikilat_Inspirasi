@@ -97,22 +97,6 @@ const renderDataWidget = (jsonString: string, onAction: (text: string, formId?: 
                </div>
            );
        }
-       if (data.type === 'queue_status') {
-           const queueData = data as QueueStatus;
-           return (
-               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden my-3">
-                   <div className={`p-4 flex justify-between items-center ${queueData.sedang_dipakai ? 'bg-rose-50 border-b border-rose-100' : 'bg-emerald-50 border-b border-emerald-100'}`}>
-                        <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${queueData.sedang_dipakai ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>{queueData.sedang_dipakai ? <Clock className="w-5 h-5" /> : <CheckCheck className="w-5 h-5" />}</div>
-                            <div><h3 className="font-bold text-slate-800 text-base">{queueData.nama_barang}</h3><p className={`text-xs font-semibold ${queueData.sedang_dipakai ? 'text-rose-600' : 'text-emerald-600'}`}>{queueData.sedang_dipakai ? 'Sedang Digunakan' : 'Tersedia'}</p></div>
-                        </div>
-                   </div>
-                   <div className="p-4">
-                        <button onClick={() => onAction("Saya ingin booking ruangan ini", "booking_ruangan", { nama_barang: queueData.nama_barang })} className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-semibold shadow-sm">Pesan Sekarang</button>
-                   </div>
-               </div>
-           );
-       }
        const items = Array.isArray(data) ? data : [data];
        return <div className="space-y-3 mt-3">{items.map((item, index) => (<div key={index} className="p-4 bg-white rounded-xl shadow-sm border border-slate-200">{renderValueRecursively(item, `item-${index}`)}</div>))}</div>;
     } catch (e) { return <div className="text-red-500 text-sm p-3 bg-red-50 rounded-md border border-red-100">Gagal menampilkan data terstruktur.</div>; }
@@ -127,23 +111,9 @@ const renderMessageContent = (text: string, onAction: (text: string, formId?: st
     });
 };
 
-interface ExtendedChatInterfaceProps {
-    user: User;
-    roleConfig: RoleConfig;
-    onDataSaved: (data: SavedData) => Promise<boolean>;
-    stats: any;
-    isOpen: boolean;
-    onToggle: () => void;
-    externalMessage?: string | null;
-    onClearExternalMessage?: () => void;
-    autoFormId?: string | null;
-    onClearAutoForm?: () => void;
-    inventaris?: Inventaris[]; // Menambahkan prop inventaris untuk lookup ID
-}
-
-const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig, onDataSaved, stats, isOpen, onToggle, externalMessage, onClearExternalMessage, autoFormId, onClearAutoForm, inventaris = [] }) => {
+const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }> = ({ user, roleConfig, onDataSaved, stats, isOpen, onToggle, externalMessage, onClearExternalMessage, autoFormId, onClearAutoForm, inventaris = [] }) => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', sender: 'ai', text: `Halo *${user.nama_lengkap}*! 👋\nSaya asisten SIKILAT untuk ${roleConfig.label}.\n\nApa yang bisa saya bantu hari ini?`, timestamp: new Date() }
+    { id: 'welcome', sender: 'ai', text: `Halo *${user.nama_lengkap}*! 👋\nApa yang bisa saya bantu hari ini?`, timestamp: new Date() }
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -199,41 +169,28 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig,
     };
 
     let payload: any = {};
-    const inputNamaBarang = formData.nama_barang || '';
-    
-    // --- LOOKUP ID BARANG YANG ASLI DARI TABEL INVENTARIS ---
-    // Cari di data inventaris yang sudah di-fetch dari DB
-    const matchingAsset = inventaris.find(inv => 
-        inv.nama_barang.toLowerCase() === inputNamaBarang.toLowerCase() ||
-        inv.id_barang.toLowerCase() === inputNamaBarang.toLowerCase()
-    );
+    const inputNama = formData.nama_barang || 'Aset';
 
     if (activeForm.id === 'booking_ruangan') {
+        // SESUAIKAN DENGAN STRUKTUR KOLOM SUPABASE ANDA:
+        // id_peminjaman, id_barang, nama_barang, id_pengguna
         payload = {
             id_peminjaman: `PM-${Date.now().toString().slice(-6)}`,
-            nama_barang: inputNamaBarang,
-            id_pengguna: user.id_pengguna,
+            id_barang: `GEN-${inputNama.substring(0,3).toUpperCase()}`, // ID Barang harus ada di tabel inventaris
+            nama_barang: inputNama,
+            id_pengguna: user.id_pengguna // Harus UUID valid yang ada di tabel pengguna
         };
-        // HANYA TAMBAHKAN id_barang jika benar-benar ada di inventaris
-        if (matchingAsset) {
-            payload.id_barang = matchingAsset.id_barang;
-        } else {
-            // Jika tidak ditemukan, jangan kirim id_barang agar tidak melanggar Foreign Key
-            // Supabase akan sukses JIKA id_barang di schema diatur sebagai nullable
-            console.warn("Aset tidak ditemukan di inventaris, mencoba simpan tanpa id_barang");
-        }
     } else if (activeForm.id === 'lapor_kerusakan') {
         payload = {
             id: `TK-${Date.now().toString().slice(-6)}`,
-            nama_barang: inputNamaBarang,
+            id_barang: `GEN-${inputNama.substring(0,3).toUpperCase()}`,
+            nama_barang: inputNama,
             id_pengadu: user.id_pengguna,
-            lokasi_kerusakan: formData.lokasi || '',
+            lokasi_kerusakan: formData.lokasi || 'Umum',
             deskripsi_masalah: formData.deskripsi || '',
-            status: 'Pending'
+            status: 'Pending',
+            kategori_aset: 'General'
         };
-        if (matchingAsset) {
-            payload.id_barang = matchingAsset.id_barang;
-        }
     } else {
         payload = { ...formData };
     }
@@ -244,14 +201,14 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig,
         setMessages(prev => [...prev, { 
             id: Date.now().toString(), 
             sender: 'ai', 
-            text: `✅ **Berhasil!** Data *${activeForm.title}* telah disimpan ke cloud.\nSilakan cek statusnya di dashboard.`, 
+            text: `✅ **Berhasil Terkirim!** Data "${inputNama}" telah masuk ke sistem Cloud Supabase. Silakan cek di Dashboard.`, 
             timestamp: new Date() 
         }]);
     } else {
         setMessages(prev => [...prev, { 
             id: Date.now().toString(), 
             sender: 'ai', 
-            text: `❌ **Gagal Menyimpan!** Database menolak data. Kemungkinan barang **"${inputNamaBarang}"** belum terdaftar di tabel Inventaris atau ID Pengguna bermasalah.`, 
+            text: `❌ **Gagal Sinkronisasi!** Database menolak data karena ID Pengguna atau ID Barang tidak valid. Mohon coba Login ulang.`, 
             timestamp: new Date() 
         }]);
     }
@@ -263,7 +220,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig,
 
   return (
     <div className="flex flex-col h-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
-      {/* HEADER */}
       <div className="flex items-center justify-between p-5 bg-slate-900 text-white">
          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg"><Sparkles className="w-6 h-6" /></div>
@@ -278,7 +234,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig,
          <button onClick={onToggle} className="p-2 hover:bg-white/10 rounded-full transition-all"><Minimize2 className="w-5 h-5"/></button>
       </div>
 
-      {/* CHAT AREA */}
       <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-[#f8fafc] scrollbar-hide">
           {messages.map(msg => (
               <div key={msg.id} className={`flex items-end gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -297,7 +252,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig,
           <div ref={messagesEndRef} />
       </div>
 
-      {/* FORM OVERLAY */}
       {activeForm && (
           <div className="absolute inset-x-0 bottom-0 top-16 bg-white z-50 flex flex-col animate-slide-up">
               <div className="p-6 border-b flex justify-between items-center bg-slate-50">
@@ -353,7 +307,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig,
           </div>
       )}
 
-      {/* INPUT BAR */}
       <div className="p-4 border-t bg-white">
           <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl items-end border border-slate-200 focus-within:border-indigo-400 transition-all">
               <textarea 
@@ -362,7 +315,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({ user, roleConfig,
                 onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(inputText); }}}
                 className="flex-1 bg-transparent px-4 py-3 outline-none text-sm font-medium resize-none placeholder:text-slate-400" 
                 rows={1} 
-                placeholder="Ketik pesan atau tanya antrian..." 
+                placeholder="Ketik pesan..." 
               />
               <button 
                 onClick={() => handleSend(inputText)} 
