@@ -28,35 +28,22 @@ import {
 import { RoleConfig, User, FormTemplate, PengaduanKerusakan, Lokasi, Inventaris, PeminjamanAntrian, AgendaKegiatan, PenilaianAset } from './types';
 
 export const MOCK_USERS: Record<string, User> = {
-  guru: { id_pengguna: 'u1', nama_lengkap: 'Budi Santoso', email: 'budi@sikilat.sch.id', no_hp: '081234567890', peran: 'guru', avatar: 'https://picsum.photos/seed/guru/100/100' },
-  penanggung_jawab: { id_pengguna: 'u2', nama_lengkap: 'Siti Aminah', email: 'siti@sikilat.sch.id', no_hp: '081234567891', peran: 'penanggung_jawab', avatar: 'https://picsum.photos/seed/pj/100/100' },
-  pengawas_it: { id_pengguna: 'u3', nama_lengkap: 'Rudi Hartono', email: 'rudi@sikilat.sch.id', no_hp: '081234567892', peran: 'pengawas_it', avatar: 'https://picsum.photos/seed/it/100/100' },
-  pengawas_sarpras: { id_pengguna: 'u4', nama_lengkap: 'Dewi Sartika', email: 'dewi@sikilat.sch.id', no_hp: '081234567893', peran: 'pengawas_sarpras', avatar: 'https://picsum.photos/seed/sarp/100/100' },
-  pengawas_admin: { id_pengguna: 'u5', nama_lengkap: 'Ahmad Dahlan', email: 'ahmad@sikilat.sch.id', no_hp: '081234567894', peran: 'pengawas_admin', avatar: 'https://picsum.photos/seed/adm/100/100' },
-  admin: { id_pengguna: 'u6', nama_lengkap: 'Super Admin', email: 'admin@sikilat.sch.id', no_hp: '081234567895', peran: 'admin', avatar: 'https://picsum.photos/seed/super/100/100' },
-  tamu: { id_pengguna: 'u7', nama_lengkap: 'Pengunjung', email: 'tamu@gmail.com', no_hp: '-', peran: 'tamu', avatar: 'https://picsum.photos/seed/tamu/100/100' },
+  guru: { id_pengguna: '00000000-0000-0000-0000-000000000001', nama_lengkap: 'Budi Santoso', email: 'budi@sikilat.sch.id', no_hp: '081234567890', peran: 'guru', avatar: 'https://picsum.photos/seed/guru/100/100' },
+  penanggung_jawab: { id_pengguna: '00000000-0000-0000-0000-000000000002', nama_lengkap: 'Siti Aminah', email: 'siti@sikilat.sch.id', no_hp: '081234567891', peran: 'penanggung_jawab', avatar: 'https://picsum.photos/seed/pj/100/100' },
+  pengawas_it: { id_pengguna: '00000000-0000-0000-0000-000000000003', nama_lengkap: 'Rudi Hartono', email: 'rudi@sikilat.sch.id', no_hp: '081234567892', peran: 'pengawas_it', avatar: 'https://picsum.photos/seed/it/100/100' },
+  pengawas_sarpras: { id_pengguna: '00000000-0000-0000-0000-000000000004', nama_lengkap: 'Dewi Sartika', email: 'dewi@sikilat.sch.id', no_hp: '081234567893', peran: 'pengawas_sarpras', avatar: 'https://picsum.photos/seed/sarp/100/100' },
+  pengawas_admin: { id_pengguna: '00000000-0000-0000-0000-000000000005', nama_lengkap: 'Ahmad Dahlan', email: 'ahmad@sikilat.sch.id', no_hp: '081234567894', peran: 'pengawas_admin', avatar: 'https://picsum.photos/seed/adm/100/100' },
+  admin: { id_pengguna: '00000000-0000-0000-0000-000000000006', nama_lengkap: 'Super Admin', email: 'admin@sikilat.sch.id', no_hp: '081234567895', peran: 'admin', avatar: 'https://picsum.photos/seed/super/100/100' },
+  tamu: { id_pengguna: '00000000-0000-0000-0000-000000000007', nama_lengkap: 'Pengunjung', email: 'tamu@gmail.com', no_hp: '-', peran: 'tamu', avatar: 'https://picsum.photos/seed/tamu/100/100' },
 };
 
 const today = new Date();
 const daysAgo = (days: number) => new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
 
-export const MOCK_PENILAIAN_ASET: PenilaianAset[] = [
-    { id: 'EV-001', id_barang: 'inv01', nama_barang: 'PC Desktop', lokasi: 'Lab Komputer 1', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 4, ulasan: 'Komputer cepat tapi keyboard agak berdebu.', tanggal: daysAgo(1), status_penanganan: 'Terbuka' },
-    { id: 'EV-002', id_barang: 'inv02', nama_barang: 'Proyektor Epson', lokasi: 'Ruang Kelas 10A', id_pengguna: 'u7', nama_pengguna: 'Tamu 1', skor: 2, ulasan: 'Warna sudah mulai pudar, perlu kalibrasi.', tanggal: daysAgo(3), status_penanganan: 'Selesai', balasan_admin: 'Terima kasih informasinya, tim IT akan segera menjadwalkan kalibrasi minggu ini.', tanggal_balasan: daysAgo(2) },
-    { id: 'EV-003', id_barang: 'inv03', nama_barang: 'AC Panasonic', lokasi: 'Ruang Guru', id_pengguna: 'u7', nama_pengguna: 'Pengunjung', skor: 5, ulasan: 'Sangat dingin dan nyaman.', tanggal: daysAgo(5), status_penanganan: 'Terbuka' }
-];
-
-export const MOCK_AGENDA_KEGIATAN: AgendaKegiatan[] = [
-    { id: 'AGD-001', nama_pj: 'Siti Aminah', waktu_mulai: daysAgo(0).toISOString().replace(/T.*/, 'T08:00'), waktu_selesai: daysAgo(0).toISOString().replace(/T.*/, 'T09:00'), posisi: 'Lab Komputer 1', objek_pengguna: 'Siswa Kelas 9A', uraian_kegiatan: 'Maintenance PC sebelum ujian.', hasil_kegiatan: '20 PC Siap.', status: 'Pending' },
-];
-
-export const MOCK_PENGADUAN_KERUSAKAN: PengaduanKerusakan[] = [
-  { id: 'SKL-IT-241209-001', id_barang: 'inv01', id_pengadu: 'u1', tanggal_lapor: daysAgo(2), nama_barang: 'Keyboard PC', deskripsi_masalah: 'Tombol tidak berfungsi', status: 'Pending', kategori_aset: 'IT', nama_pengadu: 'Budi Santoso', lokasi_kerusakan: 'Lab Komputer 1' },
-];
-
-export const MOCK_PEMINJAMAN_ANTRIAN: PeminjamanAntrian[] = [
-  { id_peminjaman: 'pm01', id_barang: 'inv02', nama_barang: 'Proyektor Epson', id_pengguna: 'u1', tanggal_peminjaman: daysAgo(1), jam_mulai: '13:00', jam_selesai: '15:00', keperluan: 'Presentasi kelas', tanggal_pengembalian_rencana: daysAgo(-1), status_peminjaman: 'Disetujui' },
-];
+export const MOCK_PENILAIAN_ASET: PenilaianAset[] = [];
+export const MOCK_AGENDA_KEGIATAN: AgendaKegiatan[] = [];
+export const MOCK_PENGADUAN_KERUSAKAN: PengaduanKerusakan[] = [];
+export const MOCK_PEMINJAMAN_ANTRIAN: PeminjamanAntrian[] = [];
 
 export const MOCK_LOKASI: Lokasi[] = [
     { id_lokasi: 'L01', nama_lokasi: 'Ruang Kelas 10A' },
@@ -116,14 +103,6 @@ export const FORM_TEMPLATES: Record<string, FormTemplate> = {
       { name: 'lokasi', label: 'Lokasi', type: 'text', placeholder: 'Contoh: Ruang Kelas 9B', required: true },
       { name: 'deskripsi', label: 'Deskripsi Masalah', type: 'textarea', placeholder: 'Jelaskan kerusakan secara detail...', required: true },
       { name: 'urgensi', label: 'Tingkat Urgensi', type: 'select', options: ['Rendah', 'Sedang', 'Tinggi', 'Darurat'], required: true },
-    ]
-  },
-  cek_laporan: {
-    id: 'cek_laporan',
-    title: 'Cek Status Laporan Anda',
-    submitLabel: 'Cek Status',
-    fields: [
-      { name: 'id_laporan', label: 'Masukkan ID Laporan Anda', type: 'text', placeholder: 'Contoh: SKL-TAMU-240729-ABC', required: true },
     ]
   }
 };

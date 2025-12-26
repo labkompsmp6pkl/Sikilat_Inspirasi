@@ -60,14 +60,23 @@ const db = {
   addRecord: async (tableName: TableName, record: any): Promise<boolean> => {
     try {
       if (!record.created_at) record.created_at = new Date().toISOString();
-      const { error } = await supabase.from(tableName).upsert(record);
-      if (error) throw error;
+      
+      // We log the detailed record to see what's being sent
+      console.debug(`Attempting to add record to ${tableName}:`, record);
+      
+      const { data, error } = await supabase.from(tableName).upsert(record).select();
+      
+      if (error) {
+        console.error("Supabase AddRecord Error Details:", JSON.stringify(error, null, 2));
+        throw error;
+      }
       
       db.addSyncLog(`Entry baru di ${tableName}: ${record.id || record.id_peminjaman || 'Success'}`);
       window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
       return true;
     } catch (e: any) {
-      console.error("Add Record Error:", e);
+      // Better error logging to avoid [object Object]
+      console.error("Add Record Failed:", e.message || e.details || e);
       return false;
     }
   },
@@ -78,13 +87,17 @@ const db = {
         .from(tableName)
         .update(updates)
         .eq(idField, id);
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Supabase Update Error Details:", JSON.stringify(error, null, 2));
+        throw error;
+      }
 
       db.addSyncLog(`Update ${tableName} ID ${id} berhasil.`);
       window.dispatchEvent(new CustomEvent('SIKILAT_SYNC_COMPLETE'));
       return true;
-    } catch (e) {
-      console.error("Update error:", e);
+    } catch (e: any) {
+      console.error("Update failed:", e.message || e.details || e);
       return false;
     }
   },

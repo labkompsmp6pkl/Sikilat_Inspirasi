@@ -64,11 +64,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setErrorMsg(null);
     setIsEmailTaken(false);
 
-    // Timeout pengaman: Jika dalam 15 detik tidak ada respon, beri peringatan
     loginTimeoutRef.current = setTimeout(() => {
         if (isLoading) {
             setIsLoading(false);
-            setErrorMsg("Koneksi ke database sedang lambat. Silakan coba lagi atau cek koneksi internet Anda.");
+            setErrorMsg("Koneksi ke database sedang lambat.");
         }
     }, 15000);
 
@@ -79,32 +78,19 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           password: formData.password,
         });
 
-        if (authError) {
-          if (authError.message.toLowerCase().includes('already registered')) {
-            setIsEmailTaken(true);
-            throw new Error("Email ini sudah terdaftar. Silakan login saja.");
-          }
-          throw authError;
-        }
-
-        if (!authData.user) throw new Error("Gagal membuat akun. Silakan coba lagi.");
+        if (authError) throw authError;
 
         const newProfile: Pengguna = {
-          id_pengguna: authData.user.id,
+          id_pengguna: authData.user!.id,
           nama_lengkap: formData.nama,
           email: formData.email,
           no_hp: formData.hp,
           peran: formData.peran,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user.id}`
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user!.id}`
         };
 
-        try {
-          await db.createUserProfile(newProfile);
-          onLoginSuccess(newProfile);
-        } catch (profileError: any) {
-          console.warn("Profile Creation Sync Error (Ignored for UX):", profileError);
-          onLoginSuccess(newProfile);
-        }
+        await db.createUserProfile(newProfile);
+        onLoginSuccess(newProfile);
         
       } else {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -116,38 +102,40 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
         if (authData.user) {
           const profile = await db.getUserProfile(authData.user.id);
-          if (profile) {
-            onLoginSuccess(profile);
-          } else {
-            const fallbackProfile: Pengguna = {
+          if (profile) onLoginSuccess(profile);
+          else onLoginSuccess({
               id_pengguna: authData.user.id,
               nama_lengkap: authData.user.email?.split('@')[0] || 'User',
               email: authData.user.email || '',
               no_hp: '-',
               peran: 'tamu',
               avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user.id}`
-            };
-            onLoginSuccess(fallbackProfile);
-          }
+          });
         }
       }
     } catch (e: any) {
-      console.error("Auth Exception:", e);
       setErrorMsg(e.message || "Terjadi kesalahan sistem.");
-      setIsLoading(false);
     } finally {
+        setIsLoading(false);
         if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
-        // Jangan langsung set isLoading(false) jika onLoginSuccess dipanggil, 
-        // biarkan unmount yang menangani agar transisi mulus
     }
   };
 
-  const handleDemoLogin = (role: UserRole) => {
+  const handleDemoLogin = async (role: UserRole) => {
     setIsLoading(true);
-    setTimeout(() => {
-      onLoginSuccess(MOCK_USERS[role] as Pengguna);
-      setIsLoading(false);
-    }, 800);
+    try {
+        const mockUser = MOCK_USERS[role] as Pengguna;
+        // PENTING: Daftarkan user ke database agar foreign key tidak error
+        await db.createUserProfile(mockUser);
+        
+        setTimeout(() => {
+          onLoginSuccess(mockUser);
+          setIsLoading(false);
+        }, 800);
+    } catch (e) {
+        onLoginSuccess(MOCK_USERS[role] as Pengguna);
+        setIsLoading(false);
+    }
   };
 
   const RoleIcon = ({ role, color }: { role: string, color: string }) => {
@@ -161,7 +149,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       tamu: UserCircle
     };
     const IconComponent = icons[role] || Users;
-    
     const colors: Record<string, string> = {
       blue: 'bg-blue-50 text-blue-500',
       emerald: 'bg-emerald-50 text-emerald-500',
@@ -171,7 +158,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       rose: 'bg-rose-50 text-rose-500',
       cyan: 'bg-cyan-50 text-cyan-500'
     };
-
     return (
       <div className={`p-3 rounded-2xl ${colors[color] || 'bg-slate-50 text-slate-400'}`}>
         <IconComponent className="w-6 h-6" />
@@ -184,20 +170,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   return (
     <div className="min-h-screen bg-[#e2e8f0] flex items-center justify-center p-4 md:p-8">
       <div className="w-full max-w-6xl bg-white shadow-4xl rounded-[3rem] overflow-hidden flex flex-col md:flex-row min-h-[780px]">
-        
-        {/* LEFT PANEL */}
         <div className="md:w-[42%] bg-[#0f172a] p-12 md:p-16 flex flex-col justify-between text-white relative overflow-hidden">
           <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-slate-800/30 rounded-full blur-[100px]"></div>
           <div className="relative z-10">
             <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-4 italic leading-none">SIKILAT</h1>
-            <p className="text-slate-400 text-xl font-medium max-w-[280px] leading-tight opacity-80 mt-4">
-              Sistem Informasi Kilat & Manajemen Aset
-            </p>
+            <p className="text-slate-400 text-xl font-medium max-w-[280px] leading-tight opacity-80 mt-4">Sistem Informasi Kilat & Manajemen Aset</p>
           </div>
           <div className="relative z-10 space-y-12">
-            <p className="text-slate-300 text-lg leading-relaxed font-medium">
-              Digitalisasi sarana prasarana sekolah masa depan.
-            </p>
+            <p className="text-slate-300 text-lg leading-relaxed font-medium">Digitalisasi sarana prasarana sekolah masa depan.</p>
             <div className="flex items-center gap-3">
               <Circle className="w-3 h-3 fill-emerald-500 text-emerald-500 animate-pulse" />
               <span className="text-sm font-bold text-slate-400 tracking-widest uppercase">System Operational</span>
@@ -205,31 +185,16 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </div>
         </div>
 
-        {/* RIGHT PANEL */}
         <div className="flex-1 p-10 md:p-16 flex flex-col bg-white overflow-y-auto max-h-[90vh] md:max-h-none scrollbar-hide">
           <div className="flex justify-between items-start mb-12">
             <div>
-              <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tight leading-none">
-                {authMode === 'demo' ? 'Mode Demo' : authMode === 'login' ? 'Masuk' : 'Registrasi'}
-              </h2>
-              <p className="text-slate-500 font-medium text-lg mt-2">
-                {authMode === 'demo' ? 'Pilih peran untuk mencoba fitur.' : 'Silakan lengkapi data Anda.'}
-              </p>
+              <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tight leading-none">{authMode === 'demo' ? 'Mode Demo' : authMode === 'login' ? 'Masuk' : 'Registrasi'}</h2>
+              <p className="text-slate-500 font-medium text-lg mt-2">{authMode === 'demo' ? 'Pilih peran untuk mencoba fitur.' : 'Silakan lengkapi data Anda.'}</p>
             </div>
             {authMode === 'demo' ? (
-              <button 
-                onClick={() => setAuthMode('register')}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-600 rounded-2xl font-black text-sm hover:bg-blue-100 transition-all border border-blue-100/50"
-              >
-                <UserPlus className="w-5 h-5" /> Buat Akun
-              </button>
+              <button onClick={() => setAuthMode('register')} className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-600 rounded-2xl font-black text-sm hover:bg-blue-100 transition-all border border-blue-100/50"><UserPlus className="w-5 h-5" /> Buat Akun</button>
             ) : (
-              <button 
-                onClick={() => setAuthMode('demo')}
-                className="flex items-center gap-2 px-6 py-3 text-slate-400 hover:text-slate-700 font-black text-sm transition-all"
-              >
-                <ArrowLeft className="w-5 h-5" /> Kembali
-              </button>
+              <button onClick={() => setAuthMode('demo')} className="flex items-center gap-2 px-6 py-3 text-slate-400 hover:text-slate-700 font-black text-sm transition-all"><ArrowLeft className="w-5 h-5" /> Kembali</button>
             )}
           </div>
 
@@ -237,17 +202,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <div className="mb-8 p-6 bg-rose-50 border-2 border-rose-100 rounded-[2rem] flex flex-col gap-3 text-rose-700 animate-slide-up">
               <div className="flex items-center gap-4">
                  <AlertTriangle className="w-6 h-6 flex-shrink-0" />
-                 <span className="text-sm font-black uppercase tracking-tight">{isEmailTaken ? 'Akun Sudah Ada' : 'Terjadi Masalah'}</span>
+                 <span className="text-sm font-black uppercase tracking-tight">Terjadi Masalah</span>
               </div>
               <p className="text-xs font-medium ml-10 opacity-80">{errorMsg}</p>
-              {isEmailTaken && (
-                <button 
-                  onClick={() => setAuthMode('login')}
-                  className="ml-10 mt-2 flex items-center gap-2 text-xs font-black text-rose-700 underline underline-offset-4 hover:text-rose-900"
-                >
-                  <LogIn className="w-4 h-4" /> Masuk Sekarang Saja
-                </button>
-              )}
             </div>
           )}
 
@@ -256,12 +213,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               {rolesToDisplay.map((role) => {
                 const config = ROLE_CONFIGS[role];
                 return (
-                  <button
-                    key={role}
-                    onClick={() => handleDemoLogin(role)}
-                    disabled={isLoading}
-                    className="w-full group flex items-center justify-between p-6 bg-white border border-slate-100 rounded-3xl hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/5 transition-all text-left disabled:opacity-50"
-                  >
+                  <button key={role} onClick={() => handleDemoLogin(role)} disabled={isLoading} className="w-full group flex items-center justify-between p-6 bg-white border border-slate-100 rounded-3xl hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/5 transition-all text-left disabled:opacity-50">
                     <div className="flex items-center gap-6">
                       <RoleIcon role={role} color={config.color} />
                       <div>
@@ -274,9 +226,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 );
               })}
               <div className="mt-8 pt-8 border-t border-slate-50 text-center">
-                <button onClick={() => setAuthMode('login')} className="text-xs font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">
-                  Sudah punya akun? <span className="text-blue-600">Login Manual</span>
-                </button>
+                <button onClick={() => setAuthMode('login')} className="text-xs font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Sudah punya akun? <span className="text-blue-600">Login Manual</span></button>
               </div>
             </div>
           ) : (
@@ -288,84 +238,45 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Lengkap</label>
                       <div className="relative">
                         <Users className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                        <input 
-                          type="text" required placeholder="Budi Santoso"
-                          className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50"
-                          value={formData.nama} onChange={e => setFormData({...formData, nama: e.target.value})} 
-                        />
+                        <input type="text" required placeholder="Budi Santoso" className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50" value={formData.nama} onChange={e => setFormData({...formData, nama: e.target.value})} />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">No. WhatsApp</label>
                       <div className="relative">
                         <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                        <input 
-                          type="text" required placeholder="0812..."
-                          className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50"
-                          value={formData.hp} onChange={e => setFormData({...formData, hp: e.target.value})} 
-                        />
+                        <input type="text" required placeholder="0812..." className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50" value={formData.hp} onChange={e => setFormData({...formData, hp: e.target.value})} />
                       </div>
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Daftar Sebagai (Peran)</label>
                     <div className="relative">
                       <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                      <select 
-                        required
-                        className="w-full pl-14 pr-12 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50 appearance-none cursor-pointer"
-                        value={formData.peran} 
-                        onChange={e => setFormData({...formData, peran: e.target.value as UserRole})}
-                      >
-                        {rolesToDisplay.map(role => (
-                          <option key={role} value={role}>{ROLE_CONFIGS[role].label}</option>
-                        ))}
+                      <select required className="w-full pl-14 pr-12 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50 appearance-none cursor-pointer" value={formData.peran} onChange={e => setFormData({...formData, peran: e.target.value as UserRole})}>
+                        {rolesToDisplay.map(role => <option key={role} value={role}>{ROLE_CONFIGS[role].label}</option>)}
                       </select>
                       <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
                 </>
               )}
-
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                  <input 
-                    type="email" required placeholder="email@contoh.com"
-                    className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50"
-                    value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} 
-                  />
+                  <input type="email" required placeholder="email@contoh.com" className="w-full pl-14 pr-6 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                  <input 
-                    type={showPassword ? "text" : "password"} required placeholder="••••••••"
-                    className="w-full pl-14 pr-14 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50"
-                    value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} 
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
+                  <input type={showPassword ? "text" : "password"} required placeholder="••••••••" className="w-full pl-14 pr-14 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-slate-800 bg-slate-50/50" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
                 </div>
               </div>
-
-              <button 
-                type="submit" disabled={isLoading}
-                className="w-full bg-slate-900 text-white font-black py-5 rounded-[1.5rem] hover:bg-black transition-all shadow-2xl disabled:opacity-50 flex items-center justify-center gap-3"
-              >
-                {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
-                  <>
-                    <LogIn className="w-5 h-5" />
-                    {authMode === 'login' ? 'Masuk ke Dashboard' : 'Selesaikan Registrasi'}
-                  </>
-                )}
-              </button>
+              <button type="submit" disabled={isLoading} className="w-full bg-slate-900 text-white font-black py-5 rounded-[1.5rem] hover:bg-black transition-all shadow-2xl disabled:opacity-50 flex items-center justify-center gap-3">{isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <><LogIn className="w-5 h-5" />{authMode === 'login' ? 'Masuk ke Dashboard' : 'Selesaikan Registrasi'}</>}</button>
             </form>
           )}
 
@@ -377,9 +288,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </div>
                 <p className="font-black text-slate-900 text-xl tracking-tighter italic">MENYAMBUNGKAN KE CLOUD...</p>
                 <p className="text-xs text-slate-400 mt-2 font-bold">Mohon tunggu sebentar, sedang sinkronisasi data.</p>
-                <button onClick={() => setIsLoading(false)} className="mt-12 px-10 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-                    Batal & Coba Lagi
-                </button>
             </div>
           )}
         </div>
