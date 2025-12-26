@@ -52,7 +52,10 @@ const App: React.FC = () => {
   const [aiConclusion, setAiConclusion] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const isAdminRole = currentUser && ['admin', 'pengawas_admin', 'pengawas_it', 'pengawas_sarpras'].includes(currentUser.peran);
+  // Periksa peran khusus
+  const isActuallyAdmin = currentUser?.peran === 'admin';
+  const isGuru = currentUser?.peran === 'guru';
+  const isSupervisor = currentUser && ['pengawas_admin', 'pengawas_it', 'pengawas_sarpras', 'penanggung_jawab'].includes(currentUser.peran);
 
   const refreshAllData = useCallback(async () => {
     try {
@@ -74,7 +77,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // PENTING: Panggil refreshAllData segera saat currentUser tersedia (Login Sukses)
   useEffect(() => {
     if (currentUser) {
       refreshAllData();
@@ -92,7 +94,6 @@ const App: React.FC = () => {
     };
     checkSession();
     
-    // Listener untuk sinkronisasi otomatis dari komponen lain
     window.addEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
     return () => window.removeEventListener('SIKILAT_SYNC_COMPLETE', refreshAllData);
   }, [refreshAllData]);
@@ -141,16 +142,19 @@ const App: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-6">
-                  <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full">
-                      <FileText className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CAPELLA DOCS:</span>
-                      <span className="text-xs font-black text-slate-900">{cloudDocCount}</span>
-                  </div>
+                  {/* Hanya admin yang bisa melihat statistik cloud docs di header */}
+                  {isActuallyAdmin && (
+                    <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full">
+                        <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CAPELLA DOCS:</span>
+                        <span className="text-xs font-black text-slate-900">{cloudDocCount}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col items-end">
                         <span className="text-xs font-black text-slate-900 leading-none">{currentUser.nama_lengkap}</span>
-                        <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md mt-1 ${isAdminRole ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md mt-1 ${isActuallyAdmin ? 'bg-rose-50 text-rose-600' : isGuru ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-600'}`}>
                             {currentUser.peran.replace('_', ' ')}
                         </span>
                     </div>
@@ -159,9 +163,18 @@ const App: React.FC = () => {
                     </button>
                     {isProfileMenuOpen && (
                         <div className="absolute right-0 top-12 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-[110]">
-                            <button onClick={() => setIsConnectionModalOpen(true)} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"><Cloud className="w-4 h-4" /> Cloud Status</button>
-                            {isAdminRole && <button onClick={() => setIsSqlEditorOpen(true)} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"><Terminal className="w-4 h-4" /> SQL Engine</button>}
-                            <div className="h-px bg-slate-100 my-1"></div>
+                            {/* Restriksi Cloud & SQL Hanya untuk Administrator */}
+                            {isActuallyAdmin && (
+                                <>
+                                    <button onClick={() => setIsConnectionModalOpen(true)} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                        <Cloud className="w-4 h-4" /> Cloud Status
+                                    </button>
+                                    <button onClick={() => setIsSqlEditorOpen(true)} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                        <Terminal className="w-4 h-4" /> SQL Engine
+                                    </button>
+                                    <div className="h-px bg-slate-100 my-1"></div>
+                                </>
+                            )}
                             <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2"><LogOut className="w-4 h-4" /> Logout</button>
                         </div>
                     )}
@@ -174,8 +187,8 @@ const App: React.FC = () => {
       <main className="flex-1 max-w-[1800px] w-full mx-auto p-6 md:p-10 pt-24 pb-24">
         <div className="flex flex-col xl:flex-row gap-8">
             <div className="flex-1 space-y-10">
-                {/* AI HERO */}
-                {!aiConclusion && !isAnalyzing && (
+                {/* AI HERO - Hanya untuk Admin dan Supervisor */}
+                {!isGuru && !aiConclusion && !isAnalyzing && (
                     <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white flex justify-between items-center shadow-lg shadow-indigo-100 relative overflow-hidden group">
                         <div className="relative z-10">
                             <h2 className="text-2xl font-black italic mb-2 tracking-tight">Executive AI Analysis</h2>
@@ -188,8 +201,8 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {/* CONCLUSION */}
-                {(aiConclusion || isAnalyzing) && (
+                {/* CONCLUSION - Hanya untuk Admin dan Supervisor */}
+                {!isGuru && (aiConclusion || isAnalyzing) && (
                     <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 animate-slide-up relative overflow-hidden">
                          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
                          <button onClick={() => setAiConclusion(null)} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-all"><X className="w-4 h-4 text-slate-400"/></button>
@@ -203,6 +216,7 @@ const App: React.FC = () => {
                     </div>
                 )}
 
+                {/* Peminjaman & Antrian - Dilihat oleh Semua Peran */}
                 <BookingTable 
                     bookings={bookings} 
                     currentUserRole={currentUser.peran} 
@@ -213,30 +227,36 @@ const App: React.FC = () => {
                     onAddBooking={handleOpenBookingForm}
                 />
 
-                <AgendaActivityTable 
-                    activities={activities} 
-                    currentUserRole={currentUser.peran} 
-                    onUpdateStatus={async (id, status, reason) => {
-                        await db.updateStatus('agenda_kegiatan', id, 'id', { status, alasan_penolakan: reason });
-                        refreshAllData();
-                    }} 
-                />
+                {/* Agenda Operasional & Tiket Pending - Hanya Admin & Supervisor */}
+                {!isGuru && (
+                    <>
+                        <AgendaActivityTable 
+                            activities={activities} 
+                            currentUserRole={currentUser.peran} 
+                            onUpdateStatus={async (id, status, reason) => {
+                                await db.updateStatus('agenda_kegiatan', id, 'id', { status, alasan_penolakan: reason });
+                                refreshAllData();
+                            }} 
+                        />
 
-                <PendingTicketTable 
-                    reports={reports} 
-                    onProcessAction={async (prompt) => {
-                        const idMatch = prompt.match(/laporan\s(\S+)/);
-                        if (idMatch) {
-                            await db.updateStatus('pengaduan_kerusakan', idMatch[1], 'id', { status: 'Proses' });
-                            refreshAllData();
-                        }
-                        setExternalMessage(prompt); 
-                        setIsChatOpen(true); 
-                    }} 
-                />
+                        <PendingTicketTable 
+                            reports={reports} 
+                            onProcessAction={async (prompt) => {
+                                const idMatch = prompt.match(/laporan\s(\S+)/);
+                                if (idMatch) {
+                                    await db.updateStatus('pengaduan_kerusakan', idMatch[1], 'id', { status: 'Proses' });
+                                    refreshAllData();
+                                }
+                                setExternalMessage(prompt); 
+                                setIsChatOpen(true); 
+                            }} 
+                        />
+                    </>
+                )}
             </div>
 
             <div className="xl:w-[380px] space-y-8">
+                {/* Status Saya - Dilihat Semua Peran */}
                 <MyStatusDashboard 
                     currentUser={currentUser} 
                     reports={reports} 
@@ -244,16 +264,19 @@ const App: React.FC = () => {
                     activities={activities} 
                 />
 
-                <DamageReportChart 
-                    reports={reports} 
-                    onProcessAction={m => { setExternalMessage(m); setIsChatOpen(true); }} 
-                    isReadOnly={!isAdminRole} 
-                />
+                {/* Grafik Analisis - Hanya Admin & Supervisor */}
+                {!isGuru && (
+                    <DamageReportChart 
+                        reports={reports} 
+                        onProcessAction={m => { setExternalMessage(m); setIsChatOpen(true); }} 
+                        isReadOnly={!isActuallyAdmin && !isSupervisor} 
+                    />
+                )}
             </div>
         </div>
       </main>
 
-      {/* CHAT INTERFACE WITH AUTO-FORM SUPPORT */}
+      {/* CHAT INTERFACE */}
       <div className={`fixed bottom-8 right-8 z-[120] transition-all duration-500 ${isChatOpen ? 'w-full max-w-md' : 'w-auto'}`}>
           {isChatOpen ? (
               <div className="h-[75vh] shadow-4xl animate-slide-up rounded-[2.5rem] overflow-hidden border border-slate-200 bg-white">
