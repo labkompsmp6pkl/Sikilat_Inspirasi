@@ -171,17 +171,23 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
     let payload: any = {};
     const inputNama = formData.nama_barang || 'Aset';
 
+    // Perbaikan: Pastikan SEMUA data dari formData disertakan dalam payload
+    // agar kolom seperti tanggal_peminjaman, jam_mulai, dll tidak NULL di database.
     if (activeForm.id === 'booking_ruangan') {
-        // SESUAIKAN DENGAN STRUKTUR KOLOM SUPABASE ANDA:
-        // id_peminjaman, id_barang, nama_barang, id_pengguna
         payload = {
+            ...formData, // Sertakan input user: tanggal, jam_mulai, jam_selesai, keperluan
             id_peminjaman: `PM-${Date.now().toString().slice(-6)}`,
-            id_barang: `GEN-${inputNama.substring(0,3).toUpperCase()}`, // ID Barang harus ada di tabel inventaris
+            id_barang: `GEN-${inputNama.substring(0,3).toUpperCase()}`,
             nama_barang: inputNama,
-            id_pengguna: user.id_pengguna // Harus UUID valid yang ada di tabel pengguna
+            id_pengguna: user.id_pengguna,
+            status_peminjaman: 'Menunggu',
+            tanggal_peminjaman: formData.tanggal || new Date().toISOString().split('T')[0]
         };
+        // Hapus field yang mungkin redundan atau berbeda nama kolom
+        delete payload.tanggal; 
     } else if (activeForm.id === 'lapor_kerusakan') {
         payload = {
+            ...formData,
             id: `TK-${Date.now().toString().slice(-6)}`,
             id_barang: `GEN-${inputNama.substring(0,3).toUpperCase()}`,
             nama_barang: inputNama,
@@ -189,10 +195,13 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
             lokasi_kerusakan: formData.lokasi || 'Umum',
             deskripsi_masalah: formData.deskripsi || '',
             status: 'Pending',
-            kategori_aset: 'General'
+            kategori_aset: 'General',
+            tanggal_lapor: new Date().toISOString()
         };
+        delete payload.lokasi;
+        delete payload.deskripsi;
     } else {
-        payload = { ...formData };
+        payload = { ...formData, id_pengguna: user.id_pengguna };
     }
 
     const success = await onDataSaved({ table: tableMap[activeForm.id] as any, payload });
@@ -208,7 +217,7 @@ const ChatInterface: React.FC<ChatInterfaceProps & { inventaris?: Inventaris[] }
         setMessages(prev => [...prev, { 
             id: Date.now().toString(), 
             sender: 'ai', 
-            text: `❌ **Gagal Sinkronisasi!** Database menolak data karena ID Pengguna atau ID Barang tidak valid. Mohon coba Login ulang.`, 
+            text: `❌ **Gagal Sinkronisasi!** Database menolak data. Pastikan semua field terisi dengan benar.`, 
             timestamp: new Date() 
         }]);
     }

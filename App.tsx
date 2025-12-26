@@ -74,13 +74,19 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // PENTING: Panggil refreshAllData saat currentUser berubah (Login Sukses)
+  useEffect(() => {
+    if (currentUser) {
+      refreshAllData();
+    }
+  }, [currentUser, refreshAllData]);
+
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const profile = await db.getUserProfile(session.user.id);
         if (profile) setCurrentUser(profile);
-        refreshAllData();
       }
       setIsAppLoading(false);
     };

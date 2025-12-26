@@ -39,7 +39,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [isEmailTaken, setIsEmailTaken] = useState(false);
   const loginTimeoutRef = useRef<any>(null);
 
   const [formData, setFormData] = useState({
@@ -52,7 +51,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   useEffect(() => {
     setErrorMsg(null);
-    setIsEmailTaken(false);
     return () => {
         if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
     };
@@ -62,14 +60,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
-    setIsEmailTaken(false);
-
-    loginTimeoutRef.current = setTimeout(() => {
-        if (isLoading) {
-            setIsLoading(false);
-            setErrorMsg("Koneksi ke database sedang lambat.");
-        }
-    }, 15000);
 
     try {
       if (authMode === 'register') {
@@ -102,38 +92,46 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
         if (authData.user) {
           const profile = await db.getUserProfile(authData.user.id);
-          if (profile) onLoginSuccess(profile);
-          else onLoginSuccess({
+          if (profile) {
+            onLoginSuccess(profile);
+          } else {
+            const tempUser: Pengguna = {
               id_pengguna: authData.user.id,
               nama_lengkap: authData.user.email?.split('@')[0] || 'User',
               email: authData.user.email || '',
               no_hp: '-',
               peran: 'tamu',
               avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authData.user.id}`
-          });
+            };
+            onLoginSuccess(tempUser);
+          }
         }
       }
     } catch (e: any) {
-      setErrorMsg(e.message || "Terjadi kesalahan sistem.");
+      setErrorMsg(e.message || "Gagal masuk. Periksa kembali email dan password Anda.");
     } finally {
         setIsLoading(false);
-        if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
     }
   };
 
   const handleDemoLogin = async (role: UserRole) => {
     setIsLoading(true);
+    const mockUser = MOCK_USERS[role] as Pengguna;
+    
+    // Alur Non-Blocking: Kita langsung login-kan user ke UI
+    // Sambil di background mencoba sinkronisasi ke cloud jika memungkinkan
     try {
-        const mockUser = MOCK_USERS[role] as Pengguna;
-        // PENTING: Daftarkan user ke database agar foreign key tidak error
-        await db.createUserProfile(mockUser);
+        // Jangan 'await' proses ini agar user tidak stuck jika database lambat
+        db.createUserProfile(mockUser).catch(err => console.warn("Background sync failed, staying offline"));
         
+        // Beri delay sedikit untuk efek visual loading yang mulus
         setTimeout(() => {
           onLoginSuccess(mockUser);
           setIsLoading(false);
-        }, 800);
+        }, 600);
     } catch (e) {
-        onLoginSuccess(MOCK_USERS[role] as Pengguna);
+        // Jika ada error fatal di logika, tetap arahkan ke dashboard
+        onLoginSuccess(mockUser);
         setIsLoading(false);
     }
   };
@@ -170,6 +168,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   return (
     <div className="min-h-screen bg-[#e2e8f0] flex items-center justify-center p-4 md:p-8">
       <div className="w-full max-w-6xl bg-white shadow-4xl rounded-[3rem] overflow-hidden flex flex-col md:flex-row min-h-[780px]">
+        {/* Left Side: Branding */}
         <div className="md:w-[42%] bg-[#0f172a] p-12 md:p-16 flex flex-col justify-between text-white relative overflow-hidden">
           <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-slate-800/30 rounded-full blur-[100px]"></div>
           <div className="relative z-10">
@@ -180,21 +179,30 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <p className="text-slate-300 text-lg leading-relaxed font-medium">Digitalisasi sarana prasarana sekolah masa depan.</p>
             <div className="flex items-center gap-3">
               <Circle className="w-3 h-3 fill-emerald-500 text-emerald-500 animate-pulse" />
-              <span className="text-sm font-bold text-slate-400 tracking-widest uppercase">System Operational</span>
+              <span className="text-sm font-bold text-slate-400 tracking-widest uppercase">Node Online</span>
             </div>
           </div>
         </div>
 
+        {/* Right Side: Auth Forms */}
         <div className="flex-1 p-10 md:p-16 flex flex-col bg-white overflow-y-auto max-h-[90vh] md:max-h-none scrollbar-hide">
           <div className="flex justify-between items-start mb-12">
             <div>
-              <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tight leading-none">{authMode === 'demo' ? 'Mode Demo' : authMode === 'login' ? 'Masuk' : 'Registrasi'}</h2>
-              <p className="text-slate-500 font-medium text-lg mt-2">{authMode === 'demo' ? 'Pilih peran untuk mencoba fitur.' : 'Silakan lengkapi data Anda.'}</p>
+              <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tight leading-none">
+                {authMode === 'demo' ? 'Uji Coba Cepat' : authMode === 'login' ? 'Masuk' : 'Registrasi'}
+              </h2>
+              <p className="text-slate-500 font-medium text-lg mt-2">
+                {authMode === 'demo' ? 'Pilih peran untuk akses instan.' : 'Gunakan akun terdaftar Anda.'}
+              </p>
             </div>
             {authMode === 'demo' ? (
-              <button onClick={() => setAuthMode('register')} className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-600 rounded-2xl font-black text-sm hover:bg-blue-100 transition-all border border-blue-100/50"><UserPlus className="w-5 h-5" /> Buat Akun</button>
+              <button onClick={() => setAuthMode('login')} className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-600 rounded-2xl font-black text-sm hover:bg-blue-100 transition-all border border-blue-100/50">
+                <LogIn className="w-4 h-4" /> Login Manual
+              </button>
             ) : (
-              <button onClick={() => setAuthMode('demo')} className="flex items-center gap-2 px-6 py-3 text-slate-400 hover:text-slate-700 font-black text-sm transition-all"><ArrowLeft className="w-5 h-5" /> Kembali</button>
+              <button onClick={() => setAuthMode('demo')} className="flex items-center gap-2 px-6 py-3 text-slate-400 hover:text-slate-700 font-black text-sm transition-all">
+                <ArrowLeft className="w-5 h-5" /> Kembali ke Demo
+              </button>
             )}
           </div>
 
@@ -226,7 +234,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 );
               })}
               <div className="mt-8 pt-8 border-t border-slate-50 text-center">
-                <button onClick={() => setAuthMode('login')} className="text-xs font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Sudah punya akun? <span className="text-blue-600">Login Manual</span></button>
+                <button onClick={() => setAuthMode('register')} className="text-xs font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Belum punya akun? <span className="text-blue-600">Buat Akun Baru</span></button>
               </div>
             </div>
           ) : (
@@ -286,8 +294,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     <div className="w-20 h-20 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                     <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-indigo-500 animate-pulse" />
                 </div>
-                <p className="font-black text-slate-900 text-xl tracking-tighter italic">MENYAMBUNGKAN KE CLOUD...</p>
-                <p className="text-xs text-slate-400 mt-2 font-bold">Mohon tunggu sebentar, sedang sinkronisasi data.</p>
+                <p className="font-black text-slate-900 text-xl tracking-tighter italic uppercase">Sinkronisasi Cloud...</p>
+                <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-widest">Akses Instan Mode Demo Aktif</p>
             </div>
           )}
         </div>

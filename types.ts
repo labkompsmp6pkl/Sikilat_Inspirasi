@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 export type UserRole = 
@@ -147,15 +148,21 @@ export interface RoleConfig {
   actions: QuickAction[];
 }
 
+/**
+ * Updated ChatInterfaceProps to resolve prop mismatches with usage in App.tsx and ChatInterface.tsx
+ */
 export interface ChatInterfaceProps {
   user: User;
   roleConfig: RoleConfig;
-  onDataSaved: (data: SavedData) => void;
+  onDataSaved: (data: SavedData) => Promise<boolean>;
   stats: any;
   isOpen: boolean;
   onToggle: () => void;
   externalMessage?: string | null;
   onClearExternalMessage?: () => void;
+  autoFormId?: string | null;
+  onClearAutoForm?: () => void;
+  inventaris?: Inventaris[];
 }
 
 export interface HistorySection {
