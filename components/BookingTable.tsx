@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { PeminjamanAntrian, UserRole } from '../types';
-import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, CheckSquare, AlertTriangle, ShieldAlert, X, Cloud, RefreshCw, Copy, Check } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle, XCircle, ChevronLeft, ChevronRight, CheckSquare, ShieldAlert, X, Cloud, RefreshCw, Copy, Check } from 'lucide-react';
 
 interface BookingTableProps {
   bookings: PeminjamanAntrian[];
@@ -11,7 +11,6 @@ interface BookingTableProps {
 
 const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, onUpdateStatus }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [copied, setCopied] = useState(false);
   const itemsPerPage = 5;
 
   const sortedBookings = useMemo(() => {
@@ -26,84 +25,71 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
   const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
   const canManage = ['penanggung_jawab', 'admin'].includes(currentUserRole || '');
 
-  const handleCopyToClipboard = () => {
-    const header = "LAPORAN BOOKING SIKILAT\n-----------------------\n";
-    const rows = currentData.map(b => 
-      `Aset: ${b.nama_barang}\nTanggal: ${new Date(b.tanggal_peminjaman).toLocaleDateString()}\nKeperluan: ${b.keperluan}\nStatus: ${b.status_peminjaman}\n---`
-    ).join('\n');
-    
-    navigator.clipboard.writeText(header + rows).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   return (
-    <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full">
-      <div className="p-6 border-b bg-slate-50/50 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-            <h3 className="font-black text-slate-800 flex items-center gap-2 text-lg">
-                <Calendar className="w-5 h-5 text-blue-600" />
-                Booking & Antrian
-            </h3>
-            <button 
-                onClick={handleCopyToClipboard}
-                className={`flex items-center gap-2 px-3 py-1 rounded-xl font-bold text-[9px] uppercase tracking-wider transition-all border ${copied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-            >
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                {copied ? 'Copied!' : 'Copy Data'}
-            </button>
+    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+      <div className="px-8 py-6 border-b bg-white flex justify-between items-center">
+        <div className="flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-indigo-600" />
+            <div className="flex flex-col">
+                <h3 className="font-black text-slate-800 text-lg tracking-tight">Peminjaman & Antrian</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STATUS SINKRONISASI: LIVE CLOUD</p>
+            </div>
         </div>
-        {canManage && (
-             <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">
-                <ShieldAlert className="w-3.5 h-3.5" /> Management
-             </div>
-        )}
+        <div className="flex items-center gap-3">
+             <button className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all">
+                <ShieldAlert className="w-3.5 h-3.5" /> MANAGEMENT
+             </button>
+        </div>
       </div>
-      <div className="flex-1 overflow-x-auto">
-        <table className="w-full text-sm text-left border-collapse">
-          <thead className="text-[10px] text-slate-400 uppercase font-black tracking-widest bg-slate-50/30 border-b border-slate-100">
+      
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="text-[9px] text-slate-400 uppercase font-black tracking-[0.2em] bg-slate-50/50">
             <tr>
-              <th className="px-8 py-5">Aset</th>
-              <th className="px-8 py-5">Keperluan</th>
-              <th className="px-8 py-5 text-right">Aksi</th>
+              <th className="px-8 py-5">ASET / RUANGAN</th>
+              <th className="px-8 py-5">KEPERLUAN</th>
+              <th className="px-8 py-5">WAKTU</th>
+              <th className="px-8 py-5 text-right">STATUS & AKSI</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {currentData.map((booking) => (
-              <tr key={booking.id_peminjaman} className="group hover:bg-slate-50/50 transition-all">
-                <td className="px-8 py-6">
-                    <div className="font-black text-slate-800 text-sm">{booking.nama_barang}</div>
-                    <div className="text-[10px] text-slate-400 font-bold">{new Date(booking.tanggal_peminjaman).toLocaleDateString()}</div>
+              <tr key={booking.id_peminjaman} className="group hover:bg-slate-50/30 transition-all">
+                <td className="px-8 py-8">
+                    <div className="font-black text-slate-800 text-base">{booking.nama_barang}</div>
+                    <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tight">ID: {booking.id_peminjaman}</div>
                 </td>
-                <td className="px-8 py-6 max-w-[200px]">
-                    <p className="text-[11px] text-slate-500 font-medium italic truncate">"{booking.keperluan}"</p>
+                <td className="px-8 py-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase">u1</div>
+                        <p className="text-[11px] text-slate-500 font-medium italic">"{booking.keperluan}"</p>
+                    </div>
                 </td>
-                <td className="px-8 py-6 text-right">
-                    <div className="flex flex-col items-end gap-2">
+                <td className="px-8 py-8">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-black text-slate-700">{new Date(booking.tanggal_peminjaman).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md mt-1 border border-slate-100 w-fit">{booking.jam_mulai} - {booking.jam_selesai}</span>
+                    </div>
+                </td>
+                <td className="px-8 py-8 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 font-black text-[9px] uppercase tracking-widest rounded-lg border border-emerald-100">
+                           <Cloud className="w-3 h-3" /> SYNCED
+                        </span>
+                        
                         {booking.status_peminjaman === 'Disetujui' ? (
-                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 font-black text-[9px] uppercase tracking-widest rounded-lg">Disetujui</span>
+                            <span className="px-4 py-2 bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest rounded-lg">DISETUJUI</span>
                         ) : booking.status_peminjaman === 'Ditolak' ? (
-                            <span className="px-3 py-1 bg-rose-100 text-rose-700 font-black text-[9px] uppercase tracking-widest rounded-lg">Ditolak</span>
+                            <span className="px-4 py-2 bg-rose-500 text-white font-black text-[10px] uppercase tracking-widest rounded-lg">DITOLAK</span>
                         ) : (
                             <div className="flex gap-2">
                                 {canManage ? (
                                     <>
-                                        <button 
-                                            onClick={() => onUpdateStatus?.(booking.id_peminjaman, 'Disetujui')} 
-                                            className="px-3 py-1.5 bg-emerald-600 text-white text-[9px] font-black rounded-lg hover:bg-emerald-700"
-                                        >
-                                            Setuju
-                                        </button>
-                                        <button 
-                                            onClick={() => onUpdateStatus?.(booking.id_peminjaman, 'Ditolak')} 
-                                            className="px-3 py-1.5 bg-rose-600 text-white text-[9px] font-black rounded-lg hover:bg-rose-700"
-                                        >
-                                            Tolak
-                                        </button>
+                                        <button onClick={() => onUpdateStatus?.(booking.id_peminjaman, 'Disetujui')} className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black rounded-lg hover:bg-indigo-700">SETUJUI</button>
+                                        <button onClick={() => onUpdateStatus?.(booking.id_peminjaman, 'Ditolak')} className="px-4 py-2 bg-rose-600 text-white text-[10px] font-black rounded-lg hover:bg-rose-700">TOLAK</button>
                                     </>
                                 ) : (
-                                    <span className="px-3 py-1 bg-amber-100 text-amber-700 font-black text-[9px] uppercase tracking-widest rounded-lg">Menunggu</span>
+                                    <span className="px-4 py-2 bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest rounded-lg">PENDING</span>
                                 )}
                             </div>
                         )}
@@ -114,13 +100,6 @@ const BookingTable: React.FC<BookingTableProps> = ({ bookings, currentUserRole, 
           </tbody>
         </table>
       </div>
-      {totalPages > 1 && (
-          <div className="p-4 bg-slate-50 border-t flex justify-between items-center">
-              <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} className="p-2 bg-white rounded-lg border border-slate-200"><ChevronLeft className="w-4 h-4"/></button>
-              <span className="text-[10px] font-black uppercase text-slate-400">Page {currentPage} / {totalPages}</span>
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} className="p-2 bg-white rounded-lg border border-slate-200"><ChevronRight className="w-4 h-4"/></button>
-          </div>
-      )}
     </div>
   );
 };
